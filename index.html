@@ -390,10 +390,16 @@ function loadImage(file) {
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(img.width * scale);
     canvas.height = Math.round(img.height * scale);
-    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-    imageBase64 = dataUrl.split(",")[1];
-    preview.src = dataUrl;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    preview.src = canvas.toDataURL("image/jpeg", 0.9);
+    // 표의 격자선을 지운 사본을 AI에게 보낸다 (오독 방지)
+    try {
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      removeGridLines(data, canvas.width, canvas.height);
+      ctx.putImageData(data, 0, 0);
+    } catch (e) { /* 전처리 실패 시 원본 그대로 전송 */ }
+    imageBase64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1];
     preview.style.display = "block";
     analyzeRow.hidden = false;
     analyzeBtn.disabled = false;
@@ -401,6 +407,61 @@ function loadImage(file) {
   };
   img.onerror = () => showError("이미지를 불러오지 못했어요. 다른 사진으로 시도해 주세요.");
   img.src = url;
+}
+
+// 이미지 전체를 가로지르는 긴 직선(표의 격자선)만 찾아 종이색으로 지운다.
+// 손글씨 획은 짧아서 건드리지 않으며, 사진이 많이 기울어 선을 못 찾으면 아무것도 지우지 않는다.
+function removeGridLines(imgData, w, h) {
+  const d = imgData.data;
+  const dark = new Uint8Array(w * h);
+  for (let i = 0, p = 0; i < w * h; i++, p += 4) {
+    const lum = (d[p] * 3 + d[p + 1] * 6 + d[p + 2]) / 10;
+    dark[i] = lum < 150 ? 1 : 0;
+  }
+  const mask = new Uint8Array(w * h);
+  const GAP = 3;
+  const minH = Math.floor(w * 0.25), minV = Math.floor(h * 0.25);
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    while (x < w) {
+      if (dark[y * w + x]) {
+        const start = x;
+        let last = x, gap = 0, j = x;
+        while (j < w) {
+          if (dark[y * w + j]) { last = j; gap = 0; }
+          else { gap++; if (gap > GAP) break; }
+          j++;
+        }
+        if (last - start + 1 >= minH) {
+          for (let yy = Math.max(0, y - 2); yy <= Math.min(h - 1, y + 2); yy++)
+            for (let xx = start; xx <= last; xx++) mask[yy * w + xx] = 1;
+        }
+        x = last + 1;
+      } else x++;
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let y = 0;
+    while (y < h) {
+      if (dark[y * w + x]) {
+        const start = y;
+        let last = y, gap = 0, j = y;
+        while (j < h) {
+          if (dark[j * w + x]) { last = j; gap = 0; }
+          else { gap++; if (gap > GAP) break; }
+          j++;
+        }
+        if (last - start + 1 >= minV) {
+          for (let xx = Math.max(0, x - 2); xx <= Math.min(w - 1, x + 2); xx++)
+            for (let yy = start; yy <= last; yy++) mask[yy * w + xx] = 1;
+        }
+        y = last + 1;
+      } else y++;
+    }
+  }
+  for (let i = 0, p = 0; i < w * h; i++, p += 4) {
+    if (mask[i]) { d[p] = d[p + 1] = d[p + 2] = 235; }
+  }
 }
 
 function showError(msg) { errorEl.textContent = msg; errorEl.style.display = "block"; }
