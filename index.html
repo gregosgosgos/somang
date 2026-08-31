@@ -373,6 +373,7 @@ const statusEl = $("status"), statusText = $("statusText"), errorEl = $("error")
 const resultCard = $("resultCard"), rowsEl = $("rows"), compareEl = $("compare");
 
 let imageBase64 = null;
+let processedCanvas = null;
 let writtenTotal = null;
 let statusTimer = null;
 
@@ -423,6 +424,7 @@ function loadImage(file) {
       removeGridLines(data, canvas.width, canvas.height);
       ctx.putImageData(data, 0, 0);
     } catch (e) { /* 전처리 실패 시 원본 그대로 전송 */ }
+    processedCanvas = canvas;
     imageBase64 = canvas.toDataURL("image/jpeg", 0.9).split(",")[1];
     preview.style.display = "block";
     analyzeRow.hidden = false;
@@ -517,8 +519,22 @@ const PROMPT = `이 사진은 한 달치 급식 배달 장부입니다.
 - 덧셈식은 '+' 기호 개수를 하나씩 세어 확인하세요. 식 끝에 붙은 마지막 '+1'을 빠뜨리기 쉽습니다.
   칸을 다 읽은 뒤, 각 text의 '+' 개수와 숫자 개수가 실제 획과 일치하는지 한 번 더 검증하세요.
 
+각 entry에는 그 손글씨의 위치도 box로 포함하세요: 이미지 전체를 0~1000으로 정규화한 [ymin, xmin, ymax, xmax].
+
 반드시 JSON만 출력하세요:
-{"entries":[{"day":3,"text":"12+1","value":13}],"writtenTotal":246 또는 null}`;
+{"entries":[{"day":3,"text":"12+1","value":13,"box":[312,142,365,212]}],"writtenTotal":246 또는 null}`;
+
+const CELL_PROMPT = `이 이미지는 급식 배달 장부의 칸 하나를 확대한 것입니다. 손글씨로 하루 배달 개수가 "12", "13+1", "11+1+1+1" 같은 숫자 또는 덧셈식으로 적혀 있습니다.
+
+읽는 규칙:
+- 획을 왼쪽부터 하나씩 따라가며 읽으세요: 세로획 하나('|' 또는 기울어진 '/')는 숫자 1입니다.
+- 세로획 두 개가 나란히 있으면 11입니다.
+- '+'는 덧셈 기호입니다. '+' 다음의 세로획은 +1입니다.
+- 이 장부에 숫자 4는 거의 나오지 않습니다. '4'처럼 보이면 '+'와 '1'이 겹쳐 보이는 것입니다.
+- 표의 격자선(길고 곧은 가로/세로 직선)은 글씨가 아니므로 무시하세요.
+- 다 읽은 뒤 '+' 개수와 세로획 개수를 다시 세어 검증하세요.
+
+JSON만 출력: {"text":"읽은 내용","value":계산값}`;
 
 analyzeBtn.addEventListener("click", async () => {
   const apiKey = $("apiKey").value.trim();
@@ -537,15 +553,70 @@ analyzeBtn.addEventListener("click", async () => {
   }, 9000);
 
   try {
-    // 같은 사진을 두 번 동시에 읽어서, 서로 다르게 읽힌 칸만 "확인 필요"로 표시한다.
-    const results = await Promise.allSettled([recognize(apiKey), recognize(apiKey)]);
-    const ok = results.filter(r => r.status === "fulfilled").map(r => r.value);
-    if (ok.length === 0) throw results[0].reason;
-    const parsed = ok[0];
-    if (!parsed.entries || !parsed.entries.length) {
-      throw new Error("사진에서 숫자를 찾지 못했어요. 장부 전체가 잘 나오게 다시 찍어 주세요.");
+    // 같은 사진을 세 번 동시에 읽고, 만장일치가 아닌 칸은 확대해서 다시 읽는다.
+    const results = await Promise.allSettled([recognize(apiKey), recognize(apiKey), recognize(apiKey)]);
+    const runs = results
+      .filter(r => r.status === "fulfilled")
+      .map(r => r.value)
+      .filter(p => p && Array.isArray(p.entries) && p.entries.length > 0);
+    if (runs.length === 0) {
+      const firstErr = results.find(r => r.status === "rejected");
+      throw firstErr ? firstErr.reason
+        : new Error("사진에서 숫자를 찾지 못했어요. 장부 전체가 잘 나오게 다시 찍어 주세요.");
     }
-    renderResult(parsed, ok.length > 1 ? ok[1] : null);
+
+    writtenTotal = null;
+    for (const r of runs) {
+      if (Number.isFinite(r.writtenTotal)) { writtenTotal = r.writtenTotal; break; }
+    }
+
+    // 날짜별로 세 판독을 모은다
+    const byDay = new Map();
+    for (const run of runs) {
+      for (const e of run.entries) {
+        const day = Number(e.day);
+        if (!Number.isFinite(day) || day < 1 || day > 31) continue;
+        if (!byDay.has(day)) byDay.set(day, []);
+        byDay.get(day).push({
+          text: String(e.text ?? ""),
+          value: Number(e.value) || 0,
+          box: Array.isArray(e.box) && e.box.length === 4 ? e.box.map(Number) : null
+        });
+      }
+    }
+
+    const rows = [];
+    for (const day of [...byDay.keys()].sort((a, b) => a - b)) {
+      const reads = byDay.get(day);
+      const values = reads.map(r => r.value);
+      const unanimous = reads.length === runs.length && values.every(v => v === values[0]);
+      rows.push({
+        day, reads,
+        value: values[0],
+        text: reads[0].text,
+        flagged: runs.length >= 2 && !unanimous,
+        zoom: null
+      });
+    }
+
+    // 판독이 갈린 칸은 그 부분만 확대해서 정밀하게 다시 읽는다
+    const flagged = rows.filter(r => r.flagged);
+    if (flagged.length > 0 && processedCanvas) {
+      statusText.textContent = "애매하게 읽힌 칸 " + flagged.length + "개를 확대해서 다시 읽는 중…";
+      await Promise.all(flagged.map(async row => {
+        try {
+          const withBox = row.reads.find(r => r.box);
+          if (!withBox) return;
+          const zoom = await zoomRead(apiKey, withBox.box);
+          if (zoom && Number.isFinite(zoom.value) && zoom.value > 0 && zoom.value < 100) {
+            row.zoom = zoom;
+            row.value = zoom.value;
+          }
+        } catch (e) { /* 확대 재판독 실패 시 원래 값 유지 */ }
+      }));
+    }
+
+    renderResult(rows, runs.length);
   } catch (err) {
     showError(err && err.message ? err.message : "문제가 생겼어요. 다시 한 번 시도해 주세요.");
   } finally {
@@ -581,9 +652,10 @@ async function recognize(apiKey) {
                 properties: {
                   day: { type: "INTEGER" },
                   text: { type: "STRING" },
-                  value: { type: "INTEGER" }
+                  value: { type: "INTEGER" },
+                  box: { type: "ARRAY", items: { type: "INTEGER" } }
                 },
-                required: ["day", "text", "value"]
+                required: ["day", "text", "value", "box"]
               }
             },
             writtenTotal: { type: "INTEGER", nullable: true }
@@ -610,85 +682,91 @@ async function recognize(apiKey) {
   return JSON.parse(text);
 }
 
-function renderResult(parsed, second) {
-  writtenTotal = Number.isFinite(parsed.writtenTotal) ? parsed.writtenTotal : null;
-  const entries = parsed.entries
-    .map(e => ({ day: Number(e.day), text: String(e.text ?? ""), value: Number(e.value) || 0 }))
-    .filter(e => Number.isFinite(e.day))
-    .sort((a, b) => a.day - b.day);
+// 판독이 갈린 칸을 확대해서 정밀하게 다시 읽는다
+async function zoomRead(apiKey, box) {
+  const W = processedCanvas.width, H = processedCanvas.height;
+  const pad = 25;
+  const x1 = Math.max(0, Math.round(box[1] / 1000 * W) - pad);
+  const x2 = Math.min(W, Math.round(box[3] / 1000 * W) + pad);
+  const y1 = Math.max(0, Math.round(box[0] / 1000 * H) - pad);
+  const y2 = Math.min(H, Math.round(box[2] / 1000 * H) + pad);
+  const cw = x2 - x1, ch = y2 - y1;
+  if (cw < 10 || ch < 10) throw new Error("box too small");
+  const scale = Math.min(3, 1200 / Math.max(cw, ch));
+  const c = document.createElement("canvas");
+  c.width = Math.round(cw * scale);
+  c.height = Math.round(ch * scale);
+  c.getContext("2d").drawImage(processedCanvas, x1, y1, cw, ch, 0, 0, c.width, c.height);
+  const b64 = c.toDataURL("image/png").split(",")[1];
 
-  // 두 번째 읽기와 비교해서 다르게 읽힌 날짜를 표시
-  const secondMap = {};
-  if (second && Array.isArray(second.entries)) {
-    for (const e of second.entries) secondMap[Number(e.day)] = { text: String(e.text ?? ""), value: Number(e.value) || 0 };
-  }
+  const model = $("modelSelect").value;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      contents: [{ parts: [
+        { text: CELL_PROMPT },
+        { inline_data: { mime_type: "image/png", data: b64 } }
+      ]}],
+      generationConfig: {
+        temperature: 0,
+        mediaResolution: "MEDIA_RESOLUTION_HIGH",
+        responseMimeType: "application/json"
+      }
+    })
+  });
+  if (!res.ok) throw new Error("zoom read failed: " + res.status);
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
+  const p = JSON.parse(text);
+  return { text: String(p.text ?? ""), value: Number(p.value) };
+}
 
+function renderResult(rows, runCount) {
   let uncertainCount = 0;
   rowsEl.textContent = "";
-  for (const e of entries) {
+  for (const row of rows) {
     const tr = document.createElement("tr");
     const tdDay = document.createElement("td");
-    tdDay.textContent = e.day + "일";
+    tdDay.textContent = row.day + "일";
     const tdExpr = document.createElement("td");
     tdExpr.className = "expr";
-    tdExpr.textContent = e.text;
     const tdVal = document.createElement("td");
     const inp = document.createElement("input");
     inp.type = "number";
     inp.min = "0";
-    inp.value = e.value;
+    inp.value = row.value;
     inp.addEventListener("input", recalc);
     tdVal.appendChild(inp);
     tr.append(tdDay, tdExpr, tdVal);
 
-    const other = second ? secondMap[e.day] : null;
-    if (second && (!other || other.value !== e.value)) {
+    if (row.flagged) {
       uncertainCount++;
       tr.className = "uncertain";
-      if (other && other.text !== e.text) tdExpr.textContent = e.text + " 또는 " + other.text;
+      const uniq = [...new Set(row.reads.map(r => r.text))];
+      tdExpr.textContent = uniq.join(" 또는 ");
+      if (row.zoom) tdExpr.textContent += " → 확대해 보니: " + row.zoom.text;
       const badge = document.createElement("span");
       badge.className = "badge";
       badge.textContent = "확인!";
       tdDay.appendChild(badge);
+    } else {
+      tdExpr.textContent = row.text;
     }
     rowsEl.appendChild(tr);
-  }
-  // 첫 번째 읽기에는 없는데 두 번째에만 있는 날짜도 확인 대상으로 추가
-  if (second) {
-    const firstDays = new Set(entries.map(e => e.day));
-    for (const day of Object.keys(secondMap).map(Number).sort((a, b) => a - b)) {
-      if (firstDays.has(day)) continue;
-      uncertainCount++;
-      const o = secondMap[day];
-      const tr = document.createElement("tr");
-      tr.className = "uncertain";
-      tr.innerHTML = "<td></td><td class='expr'></td><td></td>";
-      tr.children[0].textContent = day + "일";
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "확인!";
-      tr.children[0].appendChild(badge);
-      tr.children[1].textContent = "한 번만 읽힘: " + o.text;
-      const inp = document.createElement("input");
-      inp.type = "number";
-      inp.min = "0";
-      inp.value = 0;
-      inp.addEventListener("input", recalc);
-      tr.children[2].appendChild(inp);
-      rowsEl.appendChild(tr);
-    }
   }
 
   const note = $("checkNote");
   if (uncertainCount > 0) {
-    note.textContent = "🔍 두 번 읽었을 때 다르게 읽힌 칸이 " + uncertainCount
-      + "개 있어요 (노란색 줄). 장부와 대조해서 숫자를 확인해 주세요. 나머지 칸은 두 번 모두 같게 읽혀 믿을 수 있어요.";
+    note.textContent = "🔍 노란색 " + uncertainCount + "칸은 판독이 갈려서, 그 부분만 확대해 다시 읽은 값을 넣어 두었어요. "
+      + "장부와 한 번만 대조해 주세요. 나머지 칸은 " + runCount + "번 모두 같게 읽혀 믿을 수 있어요.";
     note.style.display = "block";
-  } else if (second) {
-    note.textContent = "✅ 모든 칸이 두 번 모두 같게 읽혔어요.";
+  } else if (runCount >= 2) {
+    note.textContent = "✅ 모든 칸이 " + runCount + "번 모두 같게 읽혔어요.";
     note.style.display = "block";
   } else {
-    note.style.display = "none";
+    note.textContent = "⚠️ 서버가 붐벼서 이번엔 한 번만 읽었어요. 표를 가볍게 한 번 훑어봐 주세요.";
+    note.style.display = "block";
   }
 
   resultCard.style.display = "block";
