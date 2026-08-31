@@ -639,6 +639,7 @@ function renderResult(parsed, second) {
     inp.value = e.value;
     inp.addEventListener("input", recalc);
     tdVal.appendChild(inp);
+    tr.append(tdDay, tdExpr, tdVal);
 
     const other = second ? secondMap[e.day] : null;
     if (second && (!other || other.value !== e.value)) {
