@@ -182,6 +182,29 @@
   .compare.match { background: var(--money-soft); color: var(--money); }
   .compare.diff { background: var(--warn-soft); color: var(--warn-ink); }
 
+  #checkNote {
+    display: none;
+    font-size: 13.5px;
+    border-radius: 10px;
+    padding: 10px 13px;
+    margin-bottom: 14px;
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+  tr.uncertain td { background: var(--warn-soft); }
+  tr.uncertain td input { border-color: var(--warn-ink); }
+  .badge {
+    display: inline-block;
+    background: var(--warn-ink);
+    color: var(--card);
+    font-size: 10.5px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    vertical-align: 1px;
+  }
+
   .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   th, td { border-bottom: 1px solid var(--line); padding: 7px 6px; text-align: center; }
@@ -287,6 +310,7 @@
     </div>
     <p class="hint" style="margin:0 2px 14px">✏️ 위 숫자를 장부 아래 <b>총수량</b>·<b>합계금</b> 칸에 그대로 적으시면 돼요.</p>
     <div class="compare" id="compare"></div>
+    <div id="checkNote"></div>
     <div class="table-scroll">
       <table>
         <thead><tr><th>날짜</th><th>장부에 적힌 내용</th><th>수량 (수정 가능)</th></tr></thead>
@@ -384,8 +408,8 @@ function loadImage(file) {
   const img = new Image();
   const url = URL.createObjectURL(file);
   img.onload = () => {
-    // 긴 변 2000px로 줄여서 전송 속도를 높인다
-    const MAX = 2000;
+    // 긴 변 2800px: 획이 겹친 손글씨(+1 등)까지 선명하게 보이는 크기
+    const MAX = 2800;
     const scale = Math.min(1, MAX / Math.max(img.width, img.height));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(img.width * scale);
@@ -490,6 +514,8 @@ const PROMPT = `이 사진은 한 달치 급식 배달 장부입니다.
 기타 주의:
 - 손글씨 '1'은 획이 기울어져 '/'처럼 보일 수 있습니다.
 - '+1'이 흘려 써져 '+/'나 'H'처럼 보일 수 있습니다. 문맥상 덧셈식으로 해석하세요.
+- 덧셈식은 '+' 기호 개수를 하나씩 세어 확인하세요. 식 끝에 붙은 마지막 '+1'을 빠뜨리기 쉽습니다.
+  칸을 다 읽은 뒤, 각 text의 '+' 개수와 숫자 개수가 실제 획과 일치하는지 한 번 더 검증하세요.
 
 반드시 JSON만 출력하세요:
 {"entries":[{"day":3,"text":"12+1","value":13}],"writtenTotal":246 또는 null}`;
@@ -511,61 +537,15 @@ analyzeBtn.addEventListener("click", async () => {
   }, 9000);
 
   try {
-    const model = $("modelSelect").value;
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: PROMPT },
-            { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }
-          ]
-        }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              entries: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    day: { type: "INTEGER" },
-                    text: { type: "STRING" },
-                    value: { type: "INTEGER" }
-                  },
-                  required: ["day", "text", "value"]
-                }
-              },
-              writtenTotal: { type: "INTEGER", nullable: true }
-            },
-            required: ["entries"]
-          }
-        }
-      })
-    });
-
-    if (!res.ok) {
-      if (res.status === 503 || res.status === 429) {
-        throw new Error("지금 인식 서비스가 붐비고 있어요. 잠시 후 다시 눌러 주세요.");
-      }
-      if (res.status === 400 || res.status === 401 || res.status === 403) {
-        throw new Error("인식 서비스 연결에 문제가 있어요. 고급 설정에서 API 키를 확인해 주세요.");
-      }
-      throw new Error("연결이 잠시 불안정했어요 (오류 " + res.status + "). 다시 한 번 눌러 주세요.");
-    }
-
-    const data = await res.json();
-    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
-    if (!text) throw new Error("결과가 비어 있어요. 다시 한 번 눌러 주세요.");
-    const parsed = JSON.parse(text);
+    // 같은 사진을 두 번 동시에 읽어서, 서로 다르게 읽힌 칸만 "확인 필요"로 표시한다.
+    const results = await Promise.allSettled([recognize(apiKey), recognize(apiKey)]);
+    const ok = results.filter(r => r.status === "fulfilled").map(r => r.value);
+    if (ok.length === 0) throw results[0].reason;
+    const parsed = ok[0];
     if (!parsed.entries || !parsed.entries.length) {
       throw new Error("사진에서 숫자를 찾지 못했어요. 장부 전체가 잘 나오게 다시 찍어 주세요.");
     }
-    renderResult(parsed);
+    renderResult(parsed, ok.length > 1 ? ok[1] : null);
   } catch (err) {
     showError(err && err.message ? err.message : "문제가 생겼어요. 다시 한 번 시도해 주세요.");
   } finally {
@@ -575,13 +555,75 @@ analyzeBtn.addEventListener("click", async () => {
   }
 });
 
-function renderResult(parsed) {
+async function recognize(apiKey) {
+  const model = $("modelSelect").value;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { text: PROMPT },
+          { inline_data: { mime_type: "image/jpeg", data: imageBase64 } }
+        ]
+      }],
+      generationConfig: {
+        temperature: 0,
+        mediaResolution: "MEDIA_RESOLUTION_HIGH",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            entries: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  day: { type: "INTEGER" },
+                  text: { type: "STRING" },
+                  value: { type: "INTEGER" }
+                },
+                required: ["day", "text", "value"]
+              }
+            },
+            writtenTotal: { type: "INTEGER", nullable: true }
+          },
+          required: ["entries"]
+        }
+      }
+    })
+  });
+
+  if (!res.ok) {
+    if (res.status === 503 || res.status === 429) {
+      throw new Error("지금 인식 서비스가 붐비고 있어요. 잠시 후 다시 눌러 주세요.");
+    }
+    if (res.status === 400 || res.status === 401 || res.status === 403) {
+      throw new Error("인식 서비스 연결에 문제가 있어요. 고급 설정에서 API 키를 확인해 주세요.");
+    }
+    throw new Error("연결이 잠시 불안정했어요 (오류 " + res.status + "). 다시 한 번 눌러 주세요.");
+  }
+
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("");
+  if (!text) throw new Error("결과가 비어 있어요. 다시 한 번 눌러 주세요.");
+  return JSON.parse(text);
+}
+
+function renderResult(parsed, second) {
   writtenTotal = Number.isFinite(parsed.writtenTotal) ? parsed.writtenTotal : null;
   const entries = parsed.entries
     .map(e => ({ day: Number(e.day), text: String(e.text ?? ""), value: Number(e.value) || 0 }))
     .filter(e => Number.isFinite(e.day))
     .sort((a, b) => a.day - b.day);
 
+  // 두 번째 읽기와 비교해서 다르게 읽힌 날짜를 표시
+  const secondMap = {};
+  if (second && Array.isArray(second.entries)) {
+    for (const e of second.entries) secondMap[Number(e.day)] = { text: String(e.text ?? ""), value: Number(e.value) || 0 };
+  }
+
+  let uncertainCount = 0;
   rowsEl.textContent = "";
   for (const e of entries) {
     const tr = document.createElement("tr");
@@ -597,9 +639,57 @@ function renderResult(parsed) {
     inp.value = e.value;
     inp.addEventListener("input", recalc);
     tdVal.appendChild(inp);
-    tr.append(tdDay, tdExpr, tdVal);
+
+    const other = second ? secondMap[e.day] : null;
+    if (second && (!other || other.value !== e.value)) {
+      uncertainCount++;
+      tr.className = "uncertain";
+      if (other && other.text !== e.text) tdExpr.textContent = e.text + " 또는 " + other.text;
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "확인!";
+      tdDay.appendChild(badge);
+    }
     rowsEl.appendChild(tr);
   }
+  // 첫 번째 읽기에는 없는데 두 번째에만 있는 날짜도 확인 대상으로 추가
+  if (second) {
+    const firstDays = new Set(entries.map(e => e.day));
+    for (const day of Object.keys(secondMap).map(Number).sort((a, b) => a - b)) {
+      if (firstDays.has(day)) continue;
+      uncertainCount++;
+      const o = secondMap[day];
+      const tr = document.createElement("tr");
+      tr.className = "uncertain";
+      tr.innerHTML = "<td></td><td class='expr'></td><td></td>";
+      tr.children[0].textContent = day + "일";
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = "확인!";
+      tr.children[0].appendChild(badge);
+      tr.children[1].textContent = "한 번만 읽힘: " + o.text;
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.min = "0";
+      inp.value = 0;
+      inp.addEventListener("input", recalc);
+      tr.children[2].appendChild(inp);
+      rowsEl.appendChild(tr);
+    }
+  }
+
+  const note = $("checkNote");
+  if (uncertainCount > 0) {
+    note.textContent = "🔍 두 번 읽었을 때 다르게 읽힌 칸이 " + uncertainCount
+      + "개 있어요 (노란색 줄). 장부와 대조해서 숫자를 확인해 주세요. 나머지 칸은 두 번 모두 같게 읽혀 믿을 수 있어요.";
+    note.style.display = "block";
+  } else if (second) {
+    note.textContent = "✅ 모든 칸이 두 번 모두 같게 읽혔어요.";
+    note.style.display = "block";
+  } else {
+    note.style.display = "none";
+  }
+
   resultCard.style.display = "block";
   recalc();
   resultCard.scrollIntoView({ behavior: "smooth" });
