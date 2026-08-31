@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>분식사 장부 계산기</title>
+<title>식사 장부 계산기</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍱</text></svg>">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
 <style>
@@ -250,7 +250,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>분식사 장부 계산기</h1>
+    <h1>식사 장부 계산기</h1>
     <p class="tagline">일일이 세지 않아도 돼요 — 사진만 찍으면<br>장부에 적을 총수량과 합계금이 바로 나와요</p>
   </header>
 
@@ -475,7 +475,7 @@ const WAIT_MESSAGES = [
   "거의 다 됐어요, 조금만 기다려 주세요…"
 ];
 
-const PROMPT = `이 사진은 한 달치 급식(분식사) 배달 장부입니다.
+const PROMPT = `이 사진은 한 달치 급식 배달 장부입니다.
 표에는 날짜 1~31이 있고, 각 날짜의 조식/중식/석식 칸에 그날 배달한 개수가 손글씨로 적혀 있습니다.
 손글씨는 "12", "13+1", "1+1+11", "10+1+1" 처럼 숫자 또는 덧셈식 형태입니다.
 
