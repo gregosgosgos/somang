@@ -68,9 +68,20 @@ function classify(title, realm, fallback = 'fest') {
 const ymdLoose = s => { const d = (s || '').replace(/\D/g, ''); return d.length === 6 ? '20' + d : d.slice(0, 8); };
 const decodeEntities = s => (s || '')
   .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-  .replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
+  .replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n))
+  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+  .replace(/&(lsquo|rsquo|ldquo|rdquo|middot|hellip|ndash|mdash|bull|times|deg|rarr|larr);/g, (_, k) => ({ lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', middot: '·', hellip: '…', ndash: '–', mdash: '—', bull: '•', times: '×', deg: '°', rarr: '→', larr: '←' }[k]));
 const text = s => decodeEntities((s || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 const digits = s => (s || '').replace(/\D/g, '').slice(0, 8);
+// 카드에 보여줄 한 줄 설명: 태그 제거 후 앞부분만
+const clip = (s, n = 140) => { const t = text((s || '').replace(/<br\s*\/?>/gi, ' ')); return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t; };
+// 동시 요청 수를 제한해 상세 페이지를 순회 (실패는 무시)
+async function mapPool(items, size, fn) {
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
+    while (i < items.length) { const it = items[i++]; try { await fn(it); } catch {} }
+  }));
+}
 
 async function get(url, opts = {}) {
   const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'ko' }, redirect: 'follow', ...opts });
@@ -100,6 +111,13 @@ async function tourApi() {
     }
     if (!b || page * 500 >= (b.totalCount || 0)) break;
   }
+  // 소개글은 detailCommon2 로 개별 조회 (일일 호출 한도를 생각해 300건까지만)
+  await mapPool(items.slice(0, 300), 5, async it => {
+    const body = await get(`${GW}/B551011/KorService2/detailCommon2?serviceKey=${encodeURIComponent(KEY)}&MobileOS=ETC&MobileApp=somang&_type=json&contentId=${it.contentId}`);
+    const d = JSON.parse(body).response?.body?.items?.item?.[0];
+    if (d?.overview) it.summary = clip(d.overview);
+    if (d?.homepage) it.homepage = (d.homepage.match(/href="([^"]+)"/)?.[1] || d.homepage.match(/https?:\/\/\S+/)?.[0] || '').replace(/["<>]/g, '');
+  });
   return items;
 }
 
@@ -159,6 +177,11 @@ async function coex() {
     const last = Math.max(...[...html.matchAll(/var_page=(\d+)/g)].map(m => +m[1]), 1);
     if (page >= last) break;
   }
+  await mapPool(items, 5, async it => {
+    const html = await get(it.homepage);
+    const m = html.match(/EventDetailBoxBodyText-txt'>([\s\S]*?)<\/p>/);
+    if (m) it.summary = clip(m[1]);
+  });
   return items;
 }
 
@@ -192,6 +215,13 @@ async function kintex() {
     }
     if (blocks.length < 50) break;
   }
+  await mapPool(items, 5, async it => {
+    if (!it.homepage) return;
+    const html = await get(it.homepage);
+    const row = label => html.match(new RegExp(`<th[^>]*>\\s*${label}\\s*</th>\\s*<td[^>]*>([\\s\\S]*?)</td>`))?.[1];
+    const d = row('행사목적') || row('행사내용') || row('행사품목');
+    if (d) it.summary = clip(d);
+  });
   return items;
 }
 
@@ -259,15 +289,19 @@ async function visitseoul() {
   }
   // 상세 페이지에서 장소·주소·전화번호 보강 (실패해도 목록은 유지)
   const dd = (html, label) => text(html.match(new RegExp(`<dt>\\s*${label}\\s*</dt>\\s*<dd>([\\s\\S]*?)</dd>`))?.[1]);
-  await Promise.all(items.map(async it => {
+  await mapPool(items, 5, async it => {
     if (!it.homepage) return;
-    try {
-      const html = await get(it.homepage);
-      const venue = dd(html, '장소'), addr = dd(html, '주소').replace(/^\d{5}\s*/, ''), tel = dd(html, '전화번호');
-      if (venue || addr) it.place = [addr || '서울', venue && !addr.includes(venue) ? venue : ''].filter(Boolean).join(' ');
-      if (tel) it.tel = tel;
-    } catch {}
-  }));
+    const html = await get(it.homepage);
+    const venue = dd(html, '장소'), addr = dd(html, '주소').replace(/^\d{5}\s*/, ''), tel = dd(html, '전화번호');
+    if (venue || addr) it.place = [addr || '서울', venue && !addr.includes(venue) ? venue : ''].filter(Boolean).join(' ');
+    if (tel) it.tel = tel;
+    const i = html.indexOf('class="se-contents"');
+    if (i >= 0) {
+      const blk = html.slice(html.indexOf('>', i) + 1, html.indexOf('detial-cont-element', i)).replace(/<style[\s\S]*?<\/style>/g, '');
+      const d = clip(blk);
+      if (d) it.summary = d;
+    }
+  });
   return items;
 }
 
@@ -286,6 +320,7 @@ async function melon() {
       place: `${o.regionName || ''} ${o.placeName || ''}`.trim(), area: areaFromText(`${o.regionName} ${o.placeName}`),
       img: o.posterImg ? 'https://cdnticket.melon.co.kr' + o.posterImg : '', tel: '',
       homepage: `https://ticket.melon.com/performance/index.htm?prodId=${o.prodId}`,
+      summary: clip(o.summary) || '',
       kind: classify(o.title, '', 'expo'),
     };
   }).filter(it => it.title && it.start);
@@ -357,7 +392,7 @@ function dedupe(items) {
     const k = it.title.replace(/\s+/g, '').toLowerCase() + '|' + it.start;
     const prev = seen.get(k);
     if (!prev) seen.set(k, it);
-    else seen.set(k, { ...prev, img: prev.img || it.img, homepage: prev.homepage || it.homepage });
+    else seen.set(k, { ...prev, img: prev.img || it.img, homepage: prev.homepage || it.homepage, summary: prev.summary || it.summary, tel: prev.tel || it.tel });
   }
   return [...seen.values()];
 }

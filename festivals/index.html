@@ -143,8 +143,8 @@
   /* 카드 그리드 */
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
   }
   .card {
     background: var(--card);
@@ -159,22 +159,23 @@
     position: relative;
   }
   .card:hover { transform: translateY(-2px); }
+  .card { border-radius: 10px; }
   .thumb {
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 4 / 5;
     background: var(--field);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 40px;
+    font-size: 32px;
     overflow: hidden;
   }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
   .tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .tag {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    padding: 2px 8px;
+    padding: 1px 7px;
     border-radius: 999px;
   }
   .tag.fest { background: var(--fest-soft); color: var(--fest); }
@@ -184,14 +185,23 @@
   .tag.soon { background: var(--warn-soft); color: var(--warn-ink); }
   .title {
     font-weight: 700;
-    font-size: 15px;
-    line-height: 1.35;
+    font-size: 13px;
+    line-height: 1.3;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .meta { font-size: 13px; color: var(--sub); }
+  .meta { font-size: 11px; color: var(--sub); line-height: 1.35; }
+  .desc {
+    font-size: 11.5px;
+    color: var(--sub);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .fav {
     position: absolute;
     top: 8px;
@@ -199,9 +209,9 @@
     background: rgba(255,255,255,.85);
     border: none;
     border-radius: 999px;
-    width: 32px;
-    height: 32px;
-    font-size: 17px;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
     cursor: pointer;
     line-height: 1;
   }
@@ -627,6 +637,13 @@ function filtered() {
   return list.sort(cmp);
 }
 
+// 설명이 없는 항목은 장소와 종류로 한 줄을 만든다
+function descOf(it) {
+  if (it.summary) return it.summary;
+  const where = shortPlace(it.place).split(/\s+/).slice(0, 4).join(' ') || AREA_NAMES[it.area] || '';
+  return where ? `${where}에서 열리는 ${KIND_LABEL[it.kind]}` : `${SRC_LABEL[it.src] || ''} 등록 ${KIND_LABEL[it.kind]}`;
+}
+
 function statusTag(it) {
   const t = ymd(new Date());
   if (it.start <= t && (!it.end || it.end >= t)) {
@@ -650,6 +667,7 @@ function render() {
       <div class="body">
         <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}</div>
         <div class="title">${esc(it.title)}</div>
+        <div class="desc">${esc(descOf(it))}</div>
         <div class="meta">${fmtDate(it.start)} ~ ${fmtDate(it.end)}</div>
         <div class="meta">📍 ${esc(AREA_NAMES[it.area] || '')} ${esc(shortPlace(it.place))}</div>
       </div>
@@ -667,7 +685,7 @@ async function openDetail(it) {
   document.getElementById('dlgPlace').textContent = it.place || '-';
   document.getElementById('dlgTel').textContent = it.tel || '-';
   document.getElementById('dlgSrc').textContent = SRC_LABEL[it.src] || it.src;
-  document.getElementById('dlgOverview').textContent = it.src === 'tour' ? '상세 정보를 불러오는 중…' : '';
+  document.getElementById('dlgOverview').textContent = it.summary || (it.src === 'tour' && getKey() ? '상세 정보를 불러오는 중…' : '');
   const home = document.getElementById('dlgHome');
   home.hidden = !it.homepage;
   if (it.homepage) home.href = it.homepage;
@@ -677,7 +695,7 @@ async function openDetail(it) {
     : 'https://map.naver.com/p/search/' + encodeURIComponent(it.place || it.title);
   dlg.showModal();
 
-  if (it.src === 'tour') {
+  if (it.src === 'tour' && getKey() && !it.summary) {
     try {
       const url = `${GW}/B551011/KorService2/detailCommon2?serviceKey=${encodeURIComponent(getKey())}&MobileOS=ETC&MobileApp=somang&_type=json&contentId=${it.contentId}`;
       const json = await (await fetch(url)).json();
