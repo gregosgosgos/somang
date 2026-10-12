@@ -183,6 +183,9 @@
   .tag.show { background: var(--show-soft); color: var(--show); }
   .tag.live { background: var(--accent-soft); color: var(--accent); }
   .tag.soon { background: var(--warn-soft); color: var(--warn-ink); }
+  .tag.topic { background: var(--field); color: var(--sub); border: 1px solid var(--line); }
+  #topicChips .chip { font-size: 12px; padding: 4px 10px; }
+  #topicChips .chip small { opacity: .7; margin-left: 3px; }
   .title {
     font-weight: 700;
     font-size: 13px;
@@ -283,6 +286,10 @@
         <button class="chip" data-when="month">이번 달</button>
         <button class="chip" data-when="soon">예정</button>
       </div>
+    </div>
+    <div class="row">
+      <span class="label">주제</span>
+      <div class="chips" id="topicChips"></div>
     </div>
     <div class="row">
       <span class="label">지역</span>
@@ -412,6 +419,43 @@ function areaFromText(txt) {
   return 0;
 }
 const KIND_LABEL = { fest: '축제', expo: '전시', show: '공연' };
+
+// ===== 주제 분류 (제목·장소에서 키워드로 판정, 없으면 설명에서 최대 2개) =====
+// 규칙을 고치면 수집을 다시 돌릴 필요 없이 페이지에서 바로 반영된다.
+const TAG_RULES = [
+  ['미술·회화', /미술|회화|작가|개인전|갤러리|뮤지엄|museum|아트페어|비엔날레|조각|드로잉|\bart\b|아트\b|작품전|기획전|특별전|展|원화|초대전|회고전|컬렉션|모란디|뱅크시|상페|하이퍼리얼리즘/i],
+  ['사진', /사진전|사진|포토|photo/i],
+  ['미디어아트·체험형', /미디어아트|몰입형|이머시브|immersive|인터랙티브|체험전|빛의|어둠속|프로젝션|디지털아트|\bVR\b|\bXR\b|\bAR\b/i],
+  ['캐릭터·애니', /애니|만화|캐릭터|지브리|코난|진격의|피규어|웹툰|디즈니|포켓몬|산리오|원피스|짱구|포차코|헬로키티|스누피|무민|해리포터|마블|레고|키덜트|기념전|NCT|BTS|아이돌|팬미팅|뱅가드|카드파이트|앨리스|anime/i],
+  ['디자인·공예', /디자인|공예|가구|패션|건축|도자|목가구|타이포|일러스트|문구|데코|주얼리|핸드메이드/i],
+  ['역사·박물관', /박물관|유물|조선시대|고궁|역사전|인문학|기록원|근대|유적|왕실|궁궐|경복궁|창덕궁|덕수궁/i],
+  ['꽃·자연', /꽃|벚꽃|국화|국향|단풍|억새|장미|튤립|연꽃|정원|수목원|자연|생태|\b숲|갈대|섬박람회|파충류|동반자/i],
+  ['음악', /콘서트|재즈|\b락\b|록페|음악|뮤직|music|jazz|rock|오케스트라|클래식|EDM|힙합|밴드|어썸스테이지|라이브|업라이징/i],
+  ['먹거리', /맛|음식|푸드|food|치맥|커피|카페쇼|와인|막걸리|맥주|디저트|베이커리|식품|먹거리|한우|수산|김치|축산|농산물|장터|미식|선물전/i],
+  ['불꽃·빛축제', /불꽃|빛축제|등축제|루미나리에|빛초롱|일루미네이션|라이트쇼|드론쇼|빛거리/i],
+  ['산업·기술', /반도체|전자전|기계|로봇|\bAI\b|인공지능|모빌리티|에너지|건설|안전|산업전|산업대전|기술|테크|tech|자동화|소재|플랜트|해양|스마트|전력|배터리|바이오|의료|제조|물류|보안|우주|항공|방산|냉난방|공조|금속|화학|환경|친환경|농기계|오토|자동차|데이터|디지털/i],
+  ['박람회·비즈니스', /박람회|컨벤션|포럼|엑스포|expo|\bfair\b|페어|쇼\b|show\b|대회|컨퍼런스|B2B|수출|상담회|학술|세미나|경매|auction|소상공인|창업|프랜차이즈|입주|우수상품/i],
+  ['생활·소비', /웨딩|혼수|육아|베이비|유아|임신|출산|뷰티|홈케어|반려동물|펫(?!션)|캠핑|인테리어|바자|쇼핑|마켓|플리마켓|라이프|리빙|주방|가전|헬스|건강|실버|시니어|취미|핸드메이드|공동구매|카드페스타|메가쇼|트래블|여행|선물/i],
+  ['교육·취업', /유학|취업|채용|\b잡\b|job|교육|입시|대학|진로|코딩|에듀|도서전|북페어|평생학습|고교학점|수학축전/i],
+  ['키즈·가족', /키즈|어린이|가족|공룡|동물원|놀이|어린이날|동화|인형극|패밀리|아동|베이비/i],
+  ['전통·문화', /전통|한옥|국악|민속|한복|문화재|무형|탈춤|농악|사물놀이|줄다리기|한지|다례|서원|향교|조선시대|명절|설맞이/i],
+  ['스포츠·레저·게임', /마라톤|스포츠|자전거|레저|레포츠|보트|낚시|골프|요트|서핑|스키|축구|야구|e스포츠|게임|game|지스타|피트니스|러닝|등산|트레킹|캠핑|아웃도어/i],
+];
+function tagsOf(it) {
+  const strong = `${it.title} ${it.place || ''}`;
+  let tags = TAG_RULES.filter(([, re]) => re.test(strong)).map(([n]) => n);
+  if (!tags.length && it.summary) tags = TAG_RULES.filter(([, re]) => re.test(it.summary)).map(([n]) => n).slice(0, 2);
+  return tags;
+}
+function buildTopicChips() {
+  const counts = {};
+  for (const it of ALL) for (const t of it.tags) counts[t] = (counts[t] || 0) + 1;
+  const order = TAG_RULES.map(([n]) => n).filter(n => counts[n]);
+  const el = document.getElementById('topicChips');
+  el.innerHTML = `<button class="chip" data-topic="all" aria-pressed="${state.topic === 'all'}">전체</button>` +
+    order.map(n => `<button class="chip" data-topic="${esc(n)}" aria-pressed="${state.topic === n}">${esc(n)}<small>${counts[n]}</small></button>`).join('');
+  if (state.topic !== 'all' && !counts[state.topic]) state.topic = 'all';
+}
 const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', visitseoul: '비짓서울', melon: '멜론티켓', nol: 'NOL 티켓', kopis: 'KOPIS', sample: '예시' };
 // 카드에는 지역명을 따로 표시하므로 주소 앞의 시·도 이름은 뗀다
 function shortPlace(place) {
@@ -609,7 +653,7 @@ function setUpdated(v) {
 }
 
 // ===== 필터 & 렌더 =====
-const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start' };
+const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all' };
 
 function filtered() {
   const today = new Date();
@@ -621,12 +665,13 @@ function filtered() {
     if (state.kind === 'fav') { if (!FAVS.has(it.id)) return false; }
     else if (state.kind !== 'all' && it.kind !== state.kind) return false;
     if (state.area && String(it.area) !== state.area) return false;
+    if (state.topic !== 'all' && !(it.tags || []).includes(state.topic)) return false;
     const live = it.start <= t && (!it.end || it.end >= t);
     if (state.when === 'live' && !live) return false;
     if (state.when === 'soon' && it.start <= t) return false;
     if (state.when === 'week' && !(it.start <= weekEnd && (!it.end || it.end >= t))) return false;
     if (state.when === 'month' && !(it.start <= monthEnd && (!it.end || it.end >= t))) return false;
-    if (q && !(it.title.toLowerCase().includes(q) || (it.place || '').toLowerCase().includes(q))) return false;
+    if (q && !(`${it.title} ${it.place || ''} ${it.summary || ''} ${(it.tags || []).join(' ')}`.toLowerCase().includes(q))) return false;
     return true;
   });
   const cmp = {
@@ -655,6 +700,11 @@ function statusTag(it) {
 }
 
 function render() {
+  for (const it of ALL) if (!it.tags) it.tags = tagsOf(it);
+  if (document.getElementById('topicChips').dataset.for !== String(ALL.length) + (ALL[0]?.id || '')) {
+    buildTopicChips();
+    document.getElementById('topicChips').dataset.for = String(ALL.length) + (ALL[0]?.id || '');
+  }
   const list = filtered();
   const grid = document.getElementById('grid');
   document.getElementById('count').textContent = `${list.length}건`;
@@ -665,7 +715,7 @@ function render() {
       <div class="thumb">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : icon[it.kind]}</div>
       <button class="fav" data-fav="${esc(it.id)}" aria-label="즐겨찾기">${FAVS.has(it.id) ? '★' : '☆'}</button>
       <div class="body">
-        <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}</div>
+        <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}${(it.tags || []).slice(0, 2).map(t => `<span class="tag topic">${esc(t)}</span>`).join('')}</div>
         <div class="title">${esc(it.title)}</div>
         <div class="desc">${esc(descOf(it))}</div>
         <div class="meta">${fmtDate(it.start)} ~ ${fmtDate(it.end)}</div>
@@ -679,7 +729,7 @@ const dlg = document.getElementById('dlg');
 async function openDetail(it) {
   document.getElementById('dlgImg').innerHTML = it.img ? `<img src="${esc(it.img)}" alt="" referrerpolicy="no-referrer">` : '';
   document.getElementById('dlgImg').style.display = it.img ? '' : 'none';
-  document.getElementById('dlgTags').innerHTML = `<span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}`;
+  document.getElementById('dlgTags').innerHTML = `<span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}${(it.tags || []).map(t => `<span class="tag topic">${esc(t)}</span>`).join('')}`;
   document.getElementById('dlgTitle').textContent = it.title;
   document.getElementById('dlgDate').textContent = `${fmtDate(it.start)} ~ ${fmtDate(it.end)}`;
   document.getElementById('dlgPlace').textContent = it.place || '-';
@@ -722,6 +772,7 @@ function bindChips(id, attr) {
 }
 bindChips('kindChips', 'kind');
 bindChips('whenChips', 'when');
+bindChips('topicChips', 'topic');
 document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; render(); });
 document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
 document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; render(); });
