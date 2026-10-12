@@ -20,9 +20,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: 브라우저 설치 (NOL 티켓 수집용)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
       - name: 행사 데이터 수집
         env:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          KOPIS_KEY: ${{ secrets.KOPIS_KEY }}
         run: node scripts/collect.mjs
       - name: 변경 사항 커밋
         run: |

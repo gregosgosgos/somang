@@ -331,7 +331,7 @@
   </details>
 
   <footer>
-    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보, 코엑스·킨텍스·벡스코 행사일정. 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
+    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보, KOPIS, 코엑스·킨텍스·벡스코 행사일정, 비짓서울, 멜론티켓, NOL 티켓. 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
     · <a href="../">식사 장부 계산기</a>
   </footer>
 </div>
@@ -402,7 +402,7 @@ function areaFromText(txt) {
   return 0;
 }
 const KIND_LABEL = { fest: '축제', expo: '전시', show: '공연' };
-const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', sample: '예시' };
+const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', visitseoul: '비짓서울', melon: '멜론티켓', nol: 'NOL 티켓', kopis: 'KOPIS', sample: '예시' };
 // 카드에는 지역명을 따로 표시하므로 주소 앞의 시·도 이름은 뗀다
 function shortPlace(place) {
   return (place || '').replace(/^(서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|강원도|충청북도|충청남도|전북특별자치도|전라북도|전라남도|경상북도|경상남도|제주특별자치도|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\s*/, '');
@@ -586,7 +586,7 @@ async function load(force) {
     ALL = items;
     const notes = [];
     if (errors.length) notes.push('일부 출처를 불러오지 못했습니다.<br>' + errors.map(esc).join('<br>'));
-    if (!preHasApi && !key) notes.push('지금은 코엑스·킨텍스·벡스코 박람회만 표시 중입니다. 지역 축제와 공공 전시·공연까지 보려면 ⚙️ 설정에 공공데이터포털 인증키를 넣거나, 저장소 Secrets에 <code>DATA_GO_KR_KEY</code>를 등록하세요.');
+    if (!preHasApi && !key) notes.push('지역 축제와 공공 전시·공연까지 보려면 ⚙️ 설정에 공공데이터포털 인증키를 넣거나, 저장소 Secrets에 <code>DATA_GO_KR_KEY</code>를 등록하세요.');
     if (notes.length) notice.innerHTML = `<div class="notice warn">⚠️ ${notes.join('<br>')}</div>`;
     setUpdated(pre?.generatedAt ? new Date(pre.generatedAt) : new Date());
   }
