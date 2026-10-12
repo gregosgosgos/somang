@@ -314,6 +314,7 @@
     <summary>⚙️ 설정 (API 키)</summary>
     <div class="box">
       <p style="margin:0">
+        코엑스·킨텍스·벡스코 박람회는 키 없이 보입니다. 지역 축제와 공공 전시·공연까지 보려면
         <a href="https://www.data.go.kr" target="_blank" rel="noopener">공공데이터포털</a>에서
         <b>한국관광공사_국문 관광정보 서비스_GW</b>와 <b>한국문화정보원_공연전시정보조회서비스</b> 활용신청 후
         받은 <b>일반 인증키(Decoding)</b>를 넣으세요. 두 서비스는 같은 키로 동작합니다.
@@ -324,12 +325,13 @@
         <button class="btn" id="clearKey">키 삭제</button>
         <button class="btn" id="clearCache">캐시 비우기</button>
       </div>
-      <p style="margin:0">링크로 공유하려면 주소 뒤에 <code>#key=인증키</code>를 붙이면 처음 열 때 자동 저장됩니다.</p>
+      <p style="margin:0">링크로 공유하려면 주소 뒤에 <code>#key=인증키</code>를 붙이면 처음 열 때 자동 저장됩니다.
+        저장소 Secrets에 <code>DATA_GO_KR_KEY</code>로 등록하면 방문자 모두가 키 없이 전체 데이터를 봅니다.</p>
     </div>
   </details>
 
   <footer>
-    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보. 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
+    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보, 코엑스·킨텍스·벡스코 행사일정. 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
     · <a href="../">식사 장부 계산기</a>
   </footer>
 </div>
@@ -343,6 +345,7 @@
       <dt>기간</dt><dd id="dlgDate"></dd>
       <dt>장소</dt><dd id="dlgPlace"></dd>
       <dt>문의</dt><dd id="dlgTel"></dd>
+      <dt>출처</dt><dd id="dlgSrc"></dd>
     </dl>
     <div class="overview" id="dlgOverview"></div>
     <div class="dlg-actions">
@@ -399,6 +402,7 @@ function areaFromText(txt) {
   return 0;
 }
 const KIND_LABEL = { fest: '축제', expo: '전시', show: '공연' };
+const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', sample: '예시' };
 // 카드에는 지역명을 따로 표시하므로 주소 앞의 시·도 이름은 뗀다
 function shortPlace(place) {
   return (place || '').replace(/^(서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|강원도|충청북도|충청남도|전북특별자치도|전라북도|전라남도|경상북도|경상남도|제주특별자치도|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\s*/, '');
@@ -407,7 +411,7 @@ function shortPlace(place) {
 // ===== 데이터 소스 1: 한국관광공사 TourAPI (축제·공연·행사) =====
 async function fetchTourApi(key, today) {
   const items = [];
-  const base = `${GW}/B551011/KorService2/searchFestival2?serviceKey=${encodeURIComponent(key)}&MobileOS=ETC&MobileApp=somang&_type=json&arrange=A&numOfRows=500&eventStartDate=${ymd(addDays(today, -45))}`;
+  const base = `${GW}/B551011/KorService2/searchFestival2?serviceKey=${encodeURIComponent(key)}&MobileOS=ETC&MobileApp=somang&_type=json&arrange=A&numOfRows=500&eventStartDate=${ymd(addDays(today, -365))}`;
   for (let page = 1; page <= 4; page++) {
     const res = await fetch(`${base}&pageNo=${page}`);
     const text = await res.text();
@@ -501,6 +505,16 @@ function sampleData(today) {
   ].map((x, i) => ({ ...x, id: 'sample-' + i, src: 'sample', img: '', tel: '' }));
 }
 
+// ===== 사전 수집 데이터 (GitHub Actions가 매일 갱신하는 data/events.json) =====
+async function fetchPrebuilt() {
+  try {
+    const res = await fetch('data/events.json', { cache: 'no-cache' });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return Array.isArray(j.items) ? j : null;
+  } catch (e) { return null; }
+}
+
 // ===== 로드 & 캐시 =====
 let ALL = [];
 let FAVS = new Set();
@@ -529,48 +543,52 @@ function dedupe(items) {
 
 async function load(force) {
   const today = new Date();
+  const todayS = ymd(today);
   const key = getKey();
   const notice = document.getElementById('notice');
   const refreshBtn = document.getElementById('refresh');
   notice.innerHTML = '';
 
-  if (!key) {
-    ALL = sampleData(today);
-    notice.innerHTML = `<div class="notice warn">⚠️ 아직 API 키가 없어 <b>예시 데이터</b>를 보여줍니다. 아래 ⚙️ 설정에서 공공데이터포털 인증키를 넣으면 실제 전국 행사 정보를 불러옵니다.</div>`;
-    setUpdated('예시 데이터');
-    render();
-    return;
-  }
+  // 1) 서버(GitHub Actions)가 미리 모아 둔 데이터. 키 없이도 동작한다.
+  const pre = await fetchPrebuilt();
+  const preItems = pre ? pre.items.filter(it => !it.end || it.end >= todayS) : [];
+  const preHasApi = preItems.some(it => it.src === 'tour' || it.src === 'ci');
 
-  if (!force) {
-    const c = readCache();
-    if (c) { ALL = c.items; setUpdated(new Date(c.at)); render(); return; }
-  }
-
-  refreshBtn.disabled = true;
-  setUpdated('불러오는 중…');
+  // 2) 브라우저에서 직접 공공 API 호출: 키가 있고, 사전 수집본에 API 데이터가 없을 때만
+  let apiItems = [];
   const errors = [];
-  const results = await Promise.allSettled([fetchTourApi(key, today), fetchCultureInfo(key, today)]);
-  let items = [];
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled') items = items.concat(r.value);
-    else errors.push((i === 0 ? '관광공사: ' : '문화정보원: ') + r.reason.message);
-  });
-  refreshBtn.disabled = false;
+  if (key && !preHasApi) {
+    const c = force ? null : readCache();
+    if (c) apiItems = c.items;
+    else {
+      refreshBtn.disabled = true;
+      setUpdated('불러오는 중…');
+      const results = await Promise.allSettled([fetchTourApi(key, today), fetchCultureInfo(key, today)]);
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled') apiItems = apiItems.concat(r.value);
+        else errors.push((i === 0 ? '관광공사: ' : '문화정보원: ') + r.reason.message);
+      });
+      refreshBtn.disabled = false;
+      if (apiItems.length) writeCache(apiItems);
+      else if (errors.length) { const old = readCache(); if (old) apiItems = old.items; }
+    }
+  }
 
-  const todayS = ymd(today);
-  items = dedupe(items.filter(it => it.end >= todayS || !it.end));
+  let items = dedupe(preItems.concat(apiItems).filter(it => !it.end || it.end >= todayS));
 
-  if (items.length === 0 && errors.length) {
-    notice.innerHTML = `<div class="notice err">❌ 데이터를 불러오지 못했습니다.<br>${errors.map(esc).join('<br>')}</div>`;
-    const c = readCache();
-    ALL = c ? c.items : sampleData(today);
-    setUpdated(c ? new Date(c.at) : '예시 데이터');
+  if (items.length === 0) {
+    ALL = sampleData(today);
+    notice.innerHTML = errors.length
+      ? `<div class="notice err">❌ 데이터를 불러오지 못했습니다.<br>${errors.map(esc).join('<br>')}</div>`
+      : `<div class="notice warn">⚠️ 아직 수집된 데이터가 없어 <b>예시 데이터</b>를 보여줍니다. GitHub Actions의 수집 워크플로가 한 번 돌면 실제 행사가 표시되고, ⚙️ 설정에 공공데이터포털 인증키를 넣으면 지역 축제·공공 전시도 바로 불러옵니다.</div>`;
+    setUpdated('예시 데이터');
   } else {
-    if (errors.length) notice.innerHTML = `<div class="notice warn">⚠️ 일부 출처를 불러오지 못했습니다.<br>${errors.map(esc).join('<br>')}</div>`;
     ALL = items;
-    writeCache(items);
-    setUpdated(new Date());
+    const notes = [];
+    if (errors.length) notes.push('일부 출처를 불러오지 못했습니다.<br>' + errors.map(esc).join('<br>'));
+    if (!preHasApi && !key) notes.push('지금은 코엑스·킨텍스·벡스코 박람회만 표시 중입니다. 지역 축제와 공공 전시·공연까지 보려면 ⚙️ 설정에 공공데이터포털 인증키를 넣거나, 저장소 Secrets에 <code>DATA_GO_KR_KEY</code>를 등록하세요.');
+    if (notes.length) notice.innerHTML = `<div class="notice warn">⚠️ ${notes.join('<br>')}</div>`;
+    setUpdated(pre?.generatedAt ? new Date(pre.generatedAt) : new Date());
   }
   render();
 }
@@ -648,9 +666,11 @@ async function openDetail(it) {
   document.getElementById('dlgDate').textContent = `${fmtDate(it.start)} ~ ${fmtDate(it.end)}`;
   document.getElementById('dlgPlace').textContent = it.place || '-';
   document.getElementById('dlgTel').textContent = it.tel || '-';
+  document.getElementById('dlgSrc').textContent = SRC_LABEL[it.src] || it.src;
   document.getElementById('dlgOverview').textContent = it.src === 'tour' ? '상세 정보를 불러오는 중…' : '';
   const home = document.getElementById('dlgHome');
-  home.hidden = true;
+  home.hidden = !it.homepage;
+  if (it.homepage) home.href = it.homepage;
   document.getElementById('dlgSearch').href = 'https://search.naver.com/search.naver?query=' + encodeURIComponent(it.title);
   document.getElementById('dlgMap').href = it.lat && it.lng
     ? `https://map.naver.com/p?c=${it.lng},${it.lat},15,0,0,0,dh&title=${encodeURIComponent(it.title)}`

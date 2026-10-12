@@ -4,6 +4,10 @@ on:
   push:
     branches: [claude/receipt-photo-counter-rlo0xj, main]
   workflow_dispatch:
+  # 수집 워크플로가 데이터를 커밋하면 다시 배포 (봇 커밋은 push 이벤트를 일으키지 않음)
+  workflow_run:
+    workflows: [Collect events]
+    types: [completed]
 
 permissions:
   contents: read
