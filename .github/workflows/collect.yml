@@ -1,0 +1,42 @@
+name: Collect events
+
+on:
+  schedule:
+    - cron: '17 20 * * *'   # 매일 05:17 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 브라우저 설치 (NOL 티켓 수집용)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: 행사 데이터 수집
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          KOPIS_KEY: ${{ secrets.KOPIS_KEY }}
+        run: node scripts/collect.mjs
+      - name: 변경 사항 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add festivals/data/events.json
+          if git diff --cached --quiet; then
+            echo "변경 없음"
+          else
+            git commit -m "행사 데이터 자동 갱신 $(date -u +%Y-%m-%d)"
+            git push
+          fi

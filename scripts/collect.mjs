@@ -1,0 +1,413 @@
+// 전시·축제 데이터 수집기
+// GitHub Actions가 하루 한 번 실행해 festivals/data/events.json 을 갱신한다.
+// 의존성 없음 (Node 20+, 내장 fetch).
+//
+//   DATA_GO_KR_KEY=<공공데이터포털 인증키> node scripts/collect.mjs
+//
+// 출처
+//   1. 한국관광공사 TourAPI 4.0 searchFestival2 (축제·공연·행사)   — 키 필요
+//   2. 한국문화정보원 공연전시정보 period2 (공연·전시)              — 키 필요
+//   3. 코엑스 행사일정 (www.coex.co.kr)                            — 키 불필요
+//   4. 킨텍스 행사일정 (www.kintex.com)                            — 키 불필요
+//   5. 벡스코 행사일정 (www.bexco.co.kr)                           — 키 불필요
+//   6. 비짓서울 전시 (korean.visitseoul.net, 서울관광재단)           — 키 불필요
+//   7. 멜론티켓 전시/행사 (ticket.melon.com)                        — 키 불필요
+//   8. NOL 티켓(옛 인터파크) 전시 (nol.yanolja.com)                 — 키 불필요, playwright 필요
+//   9. KOPIS 공연예술통합전산망 (kopis.or.kr)                       — KOPIS_KEY 필요
+//
+// 티켓 사이트는 개편되면 깨질 수 있다. 출처 하나가 실패해도 나머지는 저장되고,
+// 실패한 출처는 이전 파일의 데이터를 유지한다. 실패 내역은 events.json 의 sources 에 남는다.
+
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url); // playwright 는 선택 의존성이라 require 로 동적 로드
+
+const OUT = new URL('../festivals/data/events.json', import.meta.url);
+const KEY = process.env.DATA_GO_KR_KEY || '';
+const KOPIS_KEY = process.env.KOPIS_KEY || '';
+// 일부 사이트(킨텍스)는 브라우저가 아닌 UA를 거부하므로 일반 브라우저 UA를 쓴다
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
+const GW = 'https://apis.data.go.kr';
+
+const today = new Date();
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const dashed = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const dotted = d => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
+const TODAY = ymd(today);
+const HORIZON = addDays(today, 180); // 앞으로 6개월
+
+const AREA_BY_NAME = [
+  ['서울', 1], ['인천', 2], ['대전', 3], ['대구', 4], ['광주', 5], ['부산', 6], ['울산', 7], ['세종', 8],
+  ['경기', 31], ['강원', 32], ['충북', 33], ['충청북', 33], ['충남', 34], ['충청남', 34], ['경북', 35], ['경상북', 35],
+  ['경남', 36], ['경상남', 36], ['전북', 37], ['전라북', 37], ['전남', 38], ['전라남', 38], ['제주', 39]];
+// 주소 없이 장소명만 있을 때 쓰는 유명 장소 → 지역 힌트 (티켓 사이트용)
+const VENUE_HINTS = [
+  [/경복궁|창덕궁|덕수궁|창경궁|종묘|국립중앙박물관|고궁박물관|북촌|홍대|성수|한남|이태원|잠실|코엑스|DDP|동대문|예술의전당|롯데월드|롯데뮤지엄|더현대|여의도|용산|강남|신촌|합정|을지로|명동|인사동|삼청|청담|압구정|마곡|노들섬|세종문화회관|국립현대미술관 서울|서울시립|그라운드시소|뮤지엄산/, 1],
+  [/해운대|광안리|벡스코|부산/, 6], [/킨텍스|일산|고양|수원|용인|성남|판교|파주|광명|안양|부천|과천|에버랜드|뮤지엄 산|원주/, 31],
+  [/대구/, 4], [/인천|송도|파라다이스시티/, 2], [/광주/, 5], [/대전/, 3], [/울산/, 7], [/세종/, 8],
+  [/제주|서귀포/, 39], [/강릉|속초|춘천|양양|평창|원주|강원/, 32], [/전주|군산|익산|전북/, 37], [/여수|순천|목포|광양|전남/, 38],
+  [/경주|포항|안동|구미|경북/, 35], [/창원|김해|진주|통영|거제|경남/, 36], [/청주|충북/, 33], [/천안|아산|공주|보령|충남/, 34],
+];
+const areaFromText = t => {
+  for (const [n, c] of AREA_BY_NAME) if ((t || '').includes(n)) return c;
+  for (const [re, c] of VENUE_HINTS) if (re.test(t || '')) return c;
+  return 0;
+};
+
+function classify(title, realm, fallback = 'fest') {
+  const t = `${title || ''} ${realm || ''}`;
+  if (/전시|展|갤러리|미술|아트페어|비엔날레|사진전|기획전|특별전|박람회|엑스포|expo|exhibition|페어|fair|쇼\b|show\b|대전\b/i.test(t)) return 'expo';
+  if (/축제|페스티벌|페스타|festival|fest\b|불꽃|장터|마켓|빛축제|등축제/i.test(t)) return 'fest';
+  if (/연극|뮤지컬|오페라|무용|발레|콘서트|음악|국악|공연|리사이틀|연주회|극장|concert/i.test(t)) return 'show';
+  return fallback;
+}
+// 'YY.MM.DD' 또는 'YYYY.MM.DD' → 'YYYYMMDD'
+const ymdLoose = s => { const d = (s || '').replace(/\D/g, ''); return d.length === 6 ? '20' + d : d.slice(0, 8); };
+const decodeEntities = s => (s || '')
+  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+  .replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
+const text = s => decodeEntities((s || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+const digits = s => (s || '').replace(/\D/g, '').slice(0, 8);
+
+async function get(url, opts = {}) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'ko' }, redirect: 'follow', ...opts });
+  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  return res.text();
+}
+
+// ---------- 1. 한국관광공사 ----------
+async function tourApi() {
+  if (!KEY) return [];
+  const items = [];
+  const base = `${GW}/B551011/KorService2/searchFestival2?serviceKey=${encodeURIComponent(KEY)}&MobileOS=ETC&MobileApp=somang&_type=json&arrange=A&numOfRows=500&eventStartDate=${ymd(addDays(today, -365))}`;
+  for (let page = 1; page <= 6; page++) {
+    const body = await get(`${base}&pageNo=${page}`);
+    let json;
+    try { json = JSON.parse(body); } catch { throw new Error('관광공사 응답 해석 실패: ' + body.slice(0, 120)); }
+    if (json.response?.header?.resultCode !== '0000') throw new Error('관광공사: ' + json.response?.header?.resultMsg);
+    const b = json.response.body;
+    for (const it of b?.items?.item || []) {
+      items.push({
+        id: 'tour-' + it.contentid, src: 'tour', contentId: it.contentid,
+        title: it.title, start: it.eventstartdate, end: it.eventenddate,
+        place: it.addr1 || '', area: Number(it.areacode) || areaFromText(it.addr1),
+        img: it.firstimage || it.firstimage2 || '', tel: it.tel || '',
+        lat: it.mapy, lng: it.mapx, kind: classify(it.title),
+      });
+    }
+    if (!b || page * 500 >= (b.totalCount || 0)) break;
+  }
+  return items;
+}
+
+// ---------- 2. 한국문화정보원 ----------
+async function cultureInfo() {
+  if (!KEY) return [];
+  const items = [];
+  const base = `${GW}/B553457/cultureinfo/period2?serviceKey=${encodeURIComponent(KEY)}&from=${TODAY}&to=${ymd(HORIZON)}&rows=100&sortStdr=1`;
+  for (let page = 1; page <= 20; page++) {
+    const xml = await get(`${base}&cPage=${page}`);
+    if (/<(errMsg|returnAuthMsg)>/.test(xml)) throw new Error('문화정보원: ' + (xml.match(/<returnAuthMsg>([^<]+)/)?.[1] || xml.slice(0, 120)));
+    const blocks = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
+    const g = (b, tag) => text(b.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`))?.[1]);
+    for (const b of blocks) {
+      const title = g(b, 'title'); if (!title) continue;
+      const realm = g(b, 'realmName'), place = g(b, 'place'), area = g(b, 'area');
+      items.push({
+        id: 'ci-' + (g(b, 'seq') || title), src: 'ci', seq: g(b, 'seq'),
+        title, start: digits(g(b, 'startDate')), end: digits(g(b, 'endDate')),
+        place: `${area} ${place}`.trim(), area: areaFromText(`${area} ${g(b, 'sigungu')} ${place}`),
+        img: g(b, 'thumbnail'), tel: '', lat: g(b, 'gpsY'), lng: g(b, 'gpsX'),
+        kind: realm.includes('전시') ? 'expo' : realm ? (classify(title, realm) === 'expo' ? 'expo' : 'show') : classify(title),
+      });
+    }
+    const total = Number(xml.match(/<totalCount>(\d+)/)?.[1] || 0);
+    if (blocks.length < 100 || page * 100 >= total) break;
+  }
+  return items;
+}
+
+// ---------- 3. 코엑스 ----------
+async function coex() {
+  const items = [];
+  const q = `search_start_date=${dotted(today)}&search_end_date=${dotted(HORIZON)}&list_type=LIST`;
+  for (let page = 1; page <= 15; page++) {
+    const html = await get(`https://www.coex.co.kr/event/full-schedules/?var_page=${page}&${q}`);
+    const blocks = html.split(/<li class='BlogPost-item'>/).slice(1);
+    if (!blocks.length) break;
+    for (const b of blocks) {
+      const cate = text(b.match(/BlogEventItemCont-cate[^>]*>([^<]*)/)?.[1]);
+      if (!/Exhibition/i.test(cate)) continue; // Convention(학회·회의)은 제외
+      const title = text(b.match(/BlogEventItemCont-tit'>([\s\S]*?)<\/h4>/)?.[1]);
+      const date = b.match(/BlogEventItemCont-date'>\s*([\d.]+)\s*-\s*([\d.]+)/);
+      const link = b.match(/href='([^']+)'/)?.[1]?.split('?')[0] || '';
+      const hall = text(b.match(/BlogEventItemCont-hall'>([^<]*)/)?.[1]);
+      let img = b.match(/<img src='([^']+)' class='BlogEventItemHover-img'/)?.[1] || '';
+      if (/\/bg\//.test(img)) img = ''; // 포스터 없을 때 쓰는 배경 이미지는 제외
+      else if (img.startsWith('/')) img = 'https://www.coex.co.kr' + img;
+      if (!title || !date) continue;
+      items.push({
+        id: 'coex-' + (link.replace(/\/$/, '').split('/').pop() || title), src: 'coex',
+        title, start: digits(date[1]), end: digits(date[2]),
+        place: `서울 강남구 코엑스 ${hall}`.trim(), area: 1, img, tel: '', homepage: link,
+        lat: '37.5116', lng: '127.0594', kind: 'expo',
+      });
+    }
+    const last = Math.max(...[...html.matchAll(/var_page=(\d+)/g)].map(m => +m[1]), 1);
+    if (page >= last) break;
+  }
+  return items;
+}
+
+// ---------- 4. 킨텍스 ----------
+async function kintex() {
+  const items = [];
+  const q = `pageUnit=50&searchStartDt=${dashed(today)}&searchEndDt=${dashed(HORIZON)}&cateAll=&cate=11&cate=23&cate=12&cate=D`;
+  for (let page = 1; page <= 10; page++) {
+    const html = await get(`https://www.kintex.com/web/ko/event/list.do?pageIndex=${page}&${q}`);
+    const blocks = html.split(/<div class="grid-frame-cell/).slice(1);
+    if (!blocks.length) break;
+    let added = 0;
+    for (const b of blocks) {
+      const label = text(b.match(/event-label-ko">([^<]*)/)?.[1]);
+      if (/회의|컨벤션|학술/.test(label)) continue;
+      const title = text(b.match(/item-subject">([\s\S]*?)<\/div>/)?.[1]);
+      const date = b.match(/item-date">\s*([\d.]+)\s*~\s*([\d.]+)/);
+      const seq = b.match(/fnView\('\.\/view\.do',\s*(\d+)\)/)?.[1] || '';
+      const hall = text(b.match(/item-client">([\s\S]*?)<\/div>/)?.[1]).replace(/\s*,\s*/g, ', ');
+      const img = b.match(/<img[^>]*src="([^"]+)"/)?.[1] || '';
+      if (!title || !date) continue;
+      added++;
+      items.push({
+        id: 'kintex-' + (seq || title), src: 'kintex',
+        title, start: digits(date[1]), end: digits(date[2]),
+        place: `경기 고양시 킨텍스 ${hall}`.trim(), area: 31,
+        img: img.startsWith('http') ? img : 'https://www.kintex.com' + img, tel: '',
+        homepage: seq ? `https://www.kintex.com/web/ko/event/view.do?seq=${seq}` : '',
+        lat: '37.6690', lng: '126.7450', kind: label.includes('문화') ? classify(title) : 'expo',
+      });
+    }
+    if (blocks.length < 50) break;
+  }
+  return items;
+}
+
+// ---------- 5. 벡스코 ----------
+async function bexco() {
+  const items = [];
+  for (let page = 1; page <= 40; page++) {
+    const html = await get(`https://www.bexco.co.kr/kor/CMS/EventScheduleMgr/list.do?mCode=MN214&page=${page}`);
+    const blocks = html.split(/<li>\s*<a href="\/kor\/CMS\/EventScheduleMgr\/view\.do/).slice(1);
+    if (!blocks.length) break;
+    let past = 0;
+    for (const b of blocks) {
+      const kindTxt = text(b.match(/eventIcon[^>]*>([^<]*)/)?.[1]);
+      if (/회의/.test(kindTxt)) continue;
+      const title = text(b.match(/class="subject">([\s\S]*?)<\/span>/)?.[1]);
+      const date = b.match(/class="date">\s*([\d-]+)\s*~\s*([\d-]+)/);
+      const seq = b.match(/event_seq=(\d+)/)?.[1] || '';
+      const place = text(b.match(/class="place">([\s\S]*?)<\/span>/)?.[1]);
+      const img = b.match(/<img src="([^"]+)"/)?.[1] || '';
+      if (!title || !date) continue;
+      const start = digits(date[1]), end = digits(date[2]);
+      if (end < TODAY) { past++; continue; }
+      if (start > ymd(HORIZON)) continue;
+      items.push({
+        id: 'bexco-' + (seq || title), src: 'bexco',
+        title, start, end,
+        place: `부산 해운대구 벡스코 ${place}`.trim(), area: 6,
+        img: img.startsWith('http') ? img : 'https://www.bexco.co.kr' + img, tel: '',
+        homepage: seq ? `https://www.bexco.co.kr/kor/CMS/EventScheduleMgr/view.do?mCode=MN214&event_seq=${seq}` : '',
+        lat: '35.1690', lng: '129.1361', kind: kindTxt === '이벤트' ? classify(title) : 'expo',
+      });
+    }
+    // 목록은 날짜순이므로 한 페이지가 모두 과거면 더 볼 필요 없음
+    if (past === blocks.length) break;
+    const lastStart = blocks.map(b => digits(b.match(/class="date">\s*([\d-]+)/)?.[1])).filter(Boolean).sort().pop();
+    if (lastStart && lastStart > ymd(HORIZON)) break;
+  }
+  return items;
+}
+
+// ---------- 6. 비짓서울 (서울관광재단) ----------
+async function visitseoul() {
+  const items = [];
+  for (let page = 1; page <= 20; page++) {
+    const html = await get(`https://korean.visitseoul.net/exhibition?curPage=${page}`);
+    const blocks = [...html.matchAll(/listData\.(\w+)\s*=\s*\{([\s\S]*?)\};/g)];
+    if (!blocks.length) break;
+    const g = (b, k) => decodeEntities(b.match(new RegExp(`${k}\\s*:\\s*'((?:[^'\\\\]|\\\\.)*)'`))?.[1] || '').replace(/\\'/g, "'").trim();
+    for (const [, cid, b] of blocks) {
+      const title = g(b, 'postSj'); if (!title) continue;
+      const start = digits(g(b, 'startDt')), end = digits(g(b, 'endDt'));
+      // linkUrl : location.protocol + '//' + location.host + '/exhibition/...'  → 마지막 따옴표 문자열이 경로
+      const lastQuoted = k => { const line = b.match(new RegExp(`${k}[^\\n]*`))?.[0] || ''; const q = [...line.matchAll(/'([^']*)'/g)].map(m => m[1]); return (q.pop() || '').replace(/^\/+/, '/'); };
+      const link = lastQuoted('linkUrl'), thumb = lastQuoted('thumbUrl');
+      items.push({
+        id: 'visitseoul-' + cid, src: 'visitseoul',
+        title, start, end, place: '서울', area: 1,
+        img: thumb && thumb !== '/' ? 'https://korean.visitseoul.net' + thumb : '', tel: '',
+        homepage: link && link !== '/' ? 'https://korean.visitseoul.net' + link : '',
+        kind: classify(title, g(b, 'ctgryNm'), 'expo'),
+      });
+    }
+    const last = Math.max(...[...html.matchAll(/curPage=(\d+)/g)].map(m => +m[1]), 1);
+    if (page >= last) break;
+  }
+  // 상세 페이지에서 장소·주소·전화번호 보강 (실패해도 목록은 유지)
+  const dd = (html, label) => text(html.match(new RegExp(`<dt>\\s*${label}\\s*</dt>\\s*<dd>([\\s\\S]*?)</dd>`))?.[1]);
+  await Promise.all(items.map(async it => {
+    if (!it.homepage) return;
+    try {
+      const html = await get(it.homepage);
+      const venue = dd(html, '장소'), addr = dd(html, '주소').replace(/^\d{5}\s*/, ''), tel = dd(html, '전화번호');
+      if (venue || addr) it.place = [addr || '서울', venue && !addr.includes(venue) ? venue : ''].filter(Boolean).join(' ');
+      if (tel) it.tel = tel;
+    } catch {}
+  }));
+  return items;
+}
+
+// ---------- 7. 멜론티켓 ----------
+async function melon() {
+  const url = 'https://ticket.melon.com/performance/ajax/prodList.json?commCode=&sortType=HIT&perfGenreCode=GENRE_EXH_ALL&perfThemeCode=&filterCode=FILTER_ALL&v=1';
+  const body = await get(url, { headers: { 'User-Agent': UA, Referer: 'https://ticket.melon.com/concert/index.htm?genreType=GENRE_EXH', 'X-Requested-With': 'XMLHttpRequest' } });
+  let json;
+  try { json = JSON.parse(body); } catch { throw new Error('멜론티켓 응답 해석 실패: ' + body.slice(0, 80)); }
+  const list = Array.isArray(json.data) ? json.data : [];
+  return list.map(o => {
+    const m = (o.periodInfo || '').match(/([\d.]+)\s*-\s*([\d.]+)/);
+    return {
+      id: 'melon-' + o.prodId, src: 'melon',
+      title: text(o.title), start: ymdLoose(m?.[1] || o.periodInfo), end: ymdLoose(m?.[2] || m?.[1] || o.periodInfo),
+      place: `${o.regionName || ''} ${o.placeName || ''}`.trim(), area: areaFromText(`${o.regionName} ${o.placeName}`),
+      img: o.posterImg ? 'https://cdnticket.melon.co.kr' + o.posterImg : '', tel: '',
+      homepage: `https://ticket.melon.com/performance/index.htm?prodId=${o.prodId}`,
+      kind: classify(o.title, '', 'expo'),
+    };
+  }).filter(it => it.title && it.start);
+}
+
+// ---------- 8. NOL 티켓 (헤드리스 브라우저) ----------
+async function nol() {
+  let pw;
+  try { pw = require('playwright'); } catch { throw new Error('playwright 미설치 (npm i playwright && npx playwright install chromium)'); }
+  const browser = await pw.chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  try {
+    const ctx = await browser.newContext({ locale: 'ko-KR', userAgent: UA, viewport: { width: 1280, height: 900 } });
+    const page = await ctx.newPage();
+    await page.goto('https://nol.yanolja.com/ticket/genre/exhibition', { waitUntil: 'networkidle', timeout: 60000 });
+    for (let i = 0; i < 10; i++) { await page.mouse.wheel(0, 2500); await page.waitForTimeout(500); }
+    const raw = await page.evaluate(() => {
+      const seen = new Set(), out = [];
+      for (const a of document.querySelectorAll('a[aria-label*="공연 기간"]')) {
+        if (seen.has(a.href)) continue; seen.add(a.href);
+        out.push({ href: a.href, label: a.getAttribute('aria-label'), img: a.querySelector('img')?.getAttribute('src') || '' });
+      }
+      return out;
+    });
+    if (!raw.length) throw new Error('NOL 페이지에서 항목을 찾지 못함 (구조 변경?)');
+    return raw.map(r => {
+      // "제목, 장소, 공연 기간: 26.09.23 ~ 27.03.01"
+      const m = r.label.match(/^(.*),\s*([^,]*),\s*공연 기간:\s*([\d.]+)\s*~\s*([\d.]+)\s*$/);
+      if (!m) return null;
+      const title = text(m[1]).replace(/[\u2800\u3000]+/g, ' ').trim(), place = text(m[2]).replace(/^공연장\s*:\s*/, '');
+      return {
+        id: 'nol-' + (r.href.match(/products\/(\d+)/)?.[1] || title), src: 'nol',
+        title, start: ymdLoose(m[3]), end: ymdLoose(m[4]),
+        place, area: areaFromText(`${title} ${place}`), img: r.img, tel: '', homepage: r.href,
+        kind: classify(title, '', 'expo'),
+      };
+    }).filter(Boolean);
+  } finally { await browser.close(); }
+}
+
+// ---------- 9. KOPIS 공연예술통합전산망 ----------
+async function kopis() {
+  if (!KOPIS_KEY) return [];
+  const items = [];
+  for (let page = 1; page <= 30; page++) {
+    const xml = await get(`https://www.kopis.or.kr/openApi/restful/pblprfr?service=${encodeURIComponent(KOPIS_KEY)}&stdate=${TODAY}&eddate=${ymd(HORIZON)}&cpage=${page}&rows=100`);
+    if (/<errmsg>/.test(xml)) throw new Error('KOPIS: ' + (xml.match(/<errmsg>([^<]+)/)?.[1] || xml.slice(0, 100)));
+    const blocks = [...xml.matchAll(/<db>([\s\S]*?)<\/db>/g)].map(m => m[1]);
+    const g = (b, tag) => text(b.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`))?.[1]);
+    for (const b of blocks) {
+      const title = g(b, 'prfnm'); if (!title) continue;
+      const area = g(b, 'area'), place = g(b, 'fcltynm'), genre = g(b, 'genrenm');
+      items.push({
+        id: 'kopis-' + g(b, 'mt20id'), src: 'kopis',
+        title, start: digits(g(b, 'prfpdfrom')), end: digits(g(b, 'prfpdto')),
+        place: `${area} ${place}`.trim(), area: areaFromText(`${area} ${place}`),
+        img: g(b, 'poster'), tel: '', homepage: `https://www.kopis.or.kr/por/db/pblprfr/pblprfrView.do?mt20Id=${g(b, 'mt20id')}`,
+        kind: classify(title, genre, 'show'),
+      });
+    }
+    if (blocks.length < 100) break;
+  }
+  return items;
+}
+
+// ---------- 합치기 ----------
+function dedupe(items) {
+  const seen = new Map();
+  for (const it of items) {
+    const k = it.title.replace(/\s+/g, '').toLowerCase() + '|' + it.start;
+    const prev = seen.get(k);
+    if (!prev) seen.set(k, it);
+    else seen.set(k, { ...prev, img: prev.img || it.img, homepage: prev.homepage || it.homepage });
+  }
+  return [...seen.values()];
+}
+
+async function main() {
+  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis };
+  // SOURCES=coex,nol 처럼 일부만 실행하면 나머지 출처는 이전 파일 데이터를 그대로 둔다 (디버깅용)
+  const only = (process.env.SOURCES || '').split(',').map(s => s.trim()).filter(Boolean);
+  const sources = only.length ? Object.fromEntries(Object.entries(all).filter(([n]) => only.includes(n))) : all;
+  const t0 = Date.now();
+  const results = await Promise.allSettled(Object.entries(sources).map(([n, f]) =>
+    f().finally(() => console.log(`[${n}] ${((Date.now() - t0) / 1000).toFixed(1)}s`))));
+  const names = Object.keys(sources);
+  let items = [];
+  const report = {};
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') { items = items.concat(r.value); report[names[i]] = r.value.length; }
+    else { report[names[i]] = 'ERROR: ' + r.reason.message; console.error(`[${names[i]}]`, r.reason.message); }
+  });
+
+  // 실패한 출처는 이전 파일의 데이터로 메운다 (하루 장애로 목록이 비지 않도록)
+  let prev = null;
+  try { prev = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
+  for (const [i, name] of names.entries()) {
+    if (results[i].status === 'rejected' && prev?.items) {
+      const kept = prev.items.filter(it => it.src === name);
+      items = items.concat(kept);
+      report[name] += ` (이전 데이터 ${kept.length}건 유지)`;
+    }
+  }
+  for (const name of Object.keys(all)) {
+    if (!(name in sources) && prev?.items) {
+      items = items.concat(prev.items.filter(it => it.src === name));
+      report[name] = prev.sources?.[name] ?? '(건너뜀)';
+    }
+  }
+
+  items = dedupe(items.filter(it => it.title && it.start && (!it.end || it.end >= TODAY)))
+    .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
+
+  const failedAll = results.every(r => r.status === 'rejected');
+  if (failedAll) { console.error('모든 출처 실패, 파일을 갱신하지 않습니다.'); process.exit(1); }
+
+  await mkdir(dirname(OUT.pathname), { recursive: true });
+  await writeFile(OUT, JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    sources: report,
+    items,
+  }, null, 0) + '\n');
+  console.log(`events.json 저장: ${items.length}건`, report);
+}
+
+main().catch(e => { console.error(e); process.exit(1); });
