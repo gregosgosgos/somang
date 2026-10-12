@@ -281,7 +281,7 @@ async function visitseoul() {
         title, start, end, place: '서울', area: 1,
         img: thumb && thumb !== '/' ? 'https://korean.visitseoul.net' + thumb : '', tel: '',
         homepage: link && link !== '/' ? 'https://korean.visitseoul.net' + link : '',
-        kind: classify(title, g(b, 'ctgryNm'), 'expo'),
+        kind: classify(title, '', 'expo'), // ctgryNm 은 '전시&공연'처럼 두 종류를 함께 담고 있어 쓰지 않는다
       });
     }
     const last = Math.max(...[...html.matchAll(/curPage=(\d+)/g)].map(m => +m[1]), 1);
