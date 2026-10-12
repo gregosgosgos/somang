@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전시·축제 모아보기</title>
+<meta name="description" content="전국의 전시, 축제, 공연 정보를 한 곳에서 지역·기간별로 찾아보는 페이지">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎪</text></svg>">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #faf8f5;
+    --card: #ffffff;
+    --ink: #292420;
+    --sub: #8b8178;
+    --line: #e9e3dc;
+    --field: #f4f0eb;
+    --accent: #16756a;
+    --accent-ink: #ffffff;
+    --accent-soft: #e3f0ee;
+    --accent-line: #c4ded9;
+    --fest: #b8541f;
+    --fest-soft: #fbeadf;
+    --expo: #3d5fa8;
+    --expo-soft: #e4eaf8;
+    --show: #7c3f9e;
+    --show-soft: #f0e6f7;
+    --warn-ink: #93540b;
+    --warn-soft: #fdf3e2;
+    --err-ink: #b3352b;
+    --err-soft: #fdeceb;
+    --shadow: 0 1px 3px rgba(60, 48, 36, .07);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d1a17;
+      --card: #262220;
+      --ink: #ede8e2;
+      --sub: #a2988e;
+      --line: #3a342f;
+      --field: #322d29;
+      --accent: #4db3a6;
+      --accent-ink: #10201d;
+      --accent-soft: #223732;
+      --accent-line: #35544d;
+      --fest: #e8946a;
+      --fest-soft: #3a2a20;
+      --expo: #8fa8e6;
+      --expo-soft: #232b3d;
+      --show: #c293de;
+      --show-soft: #30243a;
+      --warn-ink: #e5a95a;
+      --warn-soft: #362b1a;
+      --err-ink: #ec7b71;
+      --err-soft: #38221f;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { margin-bottom: 18px; }
+  h1 {
+    font-family: "Gowun Batang", serif;
+    font-size: 26px;
+    margin: 0 0 4px;
+    letter-spacing: -.01em;
+  }
+  .lead { color: var(--sub); margin: 0; font-size: 14px; }
+
+  /* 필터 */
+  .filters {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    border: 1px solid var(--line);
+    background: var(--field);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+  }
+  input[type=search], select {
+    font: inherit;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--field);
+    color: var(--ink);
+    min-width: 0;
+  }
+  input[type=search] { flex: 1 1 200px; }
+  .label { font-size: 12px; color: var(--sub); min-width: 44px; }
+  .btn {
+    font: inherit;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--accent);
+    cursor: pointer;
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  /* 상태 표시 */
+  .status { font-size: 13px; color: var(--sub); margin: 6px 2px 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .notice {
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .notice.warn { background: var(--warn-soft); color: var(--warn-ink); }
+  .notice.err { background: var(--err-soft); color: var(--err-ink); }
+  .notice code { font-size: 12px; background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; }
+
+  /* 카드 그리드 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform .12s ease;
+    position: relative;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .thumb {
+    aspect-ratio: 4 / 3;
+    background: var(--field);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    overflow: hidden;
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .tag.fest { background: var(--fest-soft); color: var(--fest); }
+  .tag.expo { background: var(--expo-soft); color: var(--expo); }
+  .tag.show { background: var(--show-soft); color: var(--show); }
+  .tag.live { background: var(--accent-soft); color: var(--accent); }
+  .tag.soon { background: var(--warn-soft); color: var(--warn-ink); }
+  .title {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .meta { font-size: 13px; color: var(--sub); }
+  .fav {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255,255,255,.85);
+    border: none;
+    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    font-size: 17px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .empty {
+    text-align: center;
+    color: var(--sub);
+    padding: 50px 10px;
+    font-size: 14px;
+  }
+
+  /* 상세 모달 */
+  dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    width: min(560px, calc(100vw - 32px));
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  .dlg-img { aspect-ratio: 16 / 9; background: var(--field); overflow: hidden; }
+  .dlg-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .dlg-body { padding: 18px 20px 20px; }
+  .dlg-body h2 { font-family: "Gowun Batang", serif; font-size: 20px; margin: 6px 0 10px; }
+  .dlg-body dl { margin: 0 0 12px; display: grid; grid-template-columns: 64px 1fr; gap: 4px 10px; font-size: 14px; }
+  .dlg-body dt { color: var(--sub); }
+  .dlg-body dd { margin: 0; }
+  .overview { font-size: 14px; color: var(--ink); max-height: 180px; overflow: auto; margin-bottom: 14px; white-space: pre-line; }
+  .dlg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dlg-actions a { text-decoration: none; }
+
+  details.settings { margin-top: 30px; font-size: 13px; color: var(--sub); }
+  details.settings summary { cursor: pointer; }
+  details.settings .box { margin-top: 10px; display: grid; gap: 8px; }
+  details.settings input[type=text] {
+    font: inherit; width: 100%; padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--ink);
+  }
+  footer { margin-top: 30px; font-size: 12px; color: var(--sub); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎪 전시·축제 모아보기</h1>
+    <p class="lead">한국관광공사와 한국문화정보원이 제공하는 공공데이터로 전국의 전시·축제·공연을 한 곳에서 봅니다.</p>
+  </header>
+
+  <div id="notice"></div>
+
+  <section class="filters" aria-label="필터">
+    <div class="row">
+      <span class="label">종류</span>
+      <div class="chips" id="kindChips">
+        <button class="chip" data-kind="all" aria-pressed="true">전체</button>
+        <button class="chip" data-kind="fest">축제</button>
+        <button class="chip" data-kind="expo">전시</button>
+        <button class="chip" data-kind="show">공연</button>
+        <button class="chip" data-kind="fav">★ 즐겨찾기</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">기간</span>
+      <div class="chips" id="whenChips">
+        <button class="chip" data-when="all" aria-pressed="true">전체</button>
+        <button class="chip" data-when="live">진행 중</button>
+        <button class="chip" data-when="week">이번 주</button>
+        <button class="chip" data-when="month">이번 달</button>
+        <button class="chip" data-when="soon">예정</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">지역</span>
+      <select id="area">
+        <option value="">전국</option>
+        <option value="1">서울</option>
+        <option value="31">경기</option>
+        <option value="2">인천</option>
+        <option value="32">강원</option>
+        <option value="3">대전</option>
+        <option value="8">세종</option>
+        <option value="33">충북</option>
+        <option value="34">충남</option>
+        <option value="4">대구</option>
+        <option value="35">경북</option>
+        <option value="6">부산</option>
+        <option value="7">울산</option>
+        <option value="36">경남</option>
+        <option value="5">광주</option>
+        <option value="37">전북</option>
+        <option value="38">전남</option>
+        <option value="39">제주</option>
+      </select>
+      <input type="search" id="q" placeholder="이름·장소 검색 (예: 불꽃, 비엔날레, 미술관)">
+      <select id="sort">
+        <option value="start">시작일순</option>
+        <option value="end">마감 임박순</option>
+        <option value="title">이름순</option>
+      </select>
+      <button class="btn" id="refresh" title="데이터 다시 불러오기">🔄 새로고침</button>
+    </div>
+  </section>
+
+  <div class="status"><span id="count"></span><span id="updated"></span></div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>조건에 맞는 행사가 없습니다.</div>
+
+  <details class="settings">
+    <summary>⚙️ 설정 (API 키)</summary>
+    <div class="box">
+      <p style="margin:0">
+        <a href="https://www.data.go.kr" target="_blank" rel="noopener">공공데이터포털</a>에서
+        <b>한국관광공사_국문 관광정보 서비스_GW</b>와 <b>한국문화정보원_공연전시정보조회서비스</b> 활용신청 후
+        받은 <b>일반 인증키(Decoding)</b>를 넣으세요. 두 서비스는 같은 키로 동작합니다.
+      </p>
+      <input type="text" id="apiKey" placeholder="공공데이터포털 인증키 (Decoding)" autocomplete="off">
+      <div class="row">
+        <button class="btn primary" id="saveKey">저장하고 불러오기</button>
+        <button class="btn" id="clearKey">키 삭제</button>
+        <button class="btn" id="clearCache">캐시 비우기</button>
+      </div>
+      <p style="margin:0">링크로 공유하려면 주소 뒤에 <code>#key=인증키</code>를 붙이면 처음 열 때 자동 저장됩니다.</p>
+    </div>
+  </details>
+
+  <footer>
+    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보. 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
+    · <a href="../">식사 장부 계산기</a>
+  </footer>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg-img" id="dlgImg"></div>
+  <div class="dlg-body">
+    <div class="tags" id="dlgTags"></div>
+    <h2 id="dlgTitle"></h2>
+    <dl>
+      <dt>기간</dt><dd id="dlgDate"></dd>
+      <dt>장소</dt><dd id="dlgPlace"></dd>
+      <dt>문의</dt><dd id="dlgTel"></dd>
+    </dl>
+    <div class="overview" id="dlgOverview"></div>
+    <div class="dlg-actions">
+      <a class="btn primary" id="dlgHome" target="_blank" rel="noopener" hidden>공식 안내 ↗</a>
+      <a class="btn" id="dlgSearch" target="_blank" rel="noopener">네이버 검색 ↗</a>
+      <a class="btn" id="dlgMap" target="_blank" rel="noopener">지도 ↗</a>
+      <button class="btn" id="dlgClose">닫기</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+// ===== 설정 =====
+const KEY_STORAGE = 'festival_api_key';
+const FAV_STORAGE = 'festival_favs';
+const CACHE_STORAGE = 'festival_cache_v1';
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6시간
+const GW = 'https://apis.data.go.kr';
+
+// 지역코드(한국관광공사) → 이름
+const AREA_NAMES = { 1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
+  31:'경기', 32:'강원', 33:'충북', 34:'충남', 35:'경북', 36:'경남', 37:'전북', 38:'전남', 39:'제주' };
+// 주소/지역명 문자열 → 지역코드 (문화정보원 데이터용)
+const AREA_BY_NAME = [
+  ['서울',1],['인천',2],['대전',3],['대구',4],['광주',5],['부산',6],['울산',7],['세종',8],
+  ['경기',31],['강원',32],['충북',33],['충청북',33],['충남',34],['충청남',34],['경북',35],['경상북',35],
+  ['경남',36],['경상남',36],['전북',37],['전라북',37],['전남',38],['전라남',38],['제주',39]];
+
+// ===== API 키 =====
+(function pickKeyFromHash() {
+  const m = location.hash.match(/key=([^&]+)/);
+  if (m) {
+    try { localStorage.setItem(KEY_STORAGE, decodeURIComponent(m[1])); } catch (e) {}
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+})();
+function getKey() { try { return localStorage.getItem(KEY_STORAGE) || ''; } catch (e) { return ''; } }
+
+// ===== 유틸 =====
+const pad = n => String(n).padStart(2, '0');
+function ymd(d) { return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`; }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function fmtDate(s) { return s && s.length === 8 ? `${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}` : (s || '미정'); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function classify(title, realm) {
+  const t = (title || '') + ' ' + (realm || '');
+  if (/전시|展|갤러리|미술|아트페어|비엔날레|사진전|기획전|특별전|박람회|엑스포|expo|exhibition/i.test(t)) return 'expo';
+  if (/축제|페스티벌|페스타|festival|fest\b|불꽃|장터|마켓|빛축제|등축제/i.test(t)) return 'fest';
+  if (/연극|뮤지컬|오페라|무용|발레|콘서트|음악|국악|공연|리사이틀|연주회|극장|concert/i.test(t)) return 'show';
+  return 'fest';
+}
+function areaFromText(txt) {
+  for (const [name, code] of AREA_BY_NAME) if ((txt || '').includes(name)) return code;
+  return 0;
+}
+const KIND_LABEL = { fest: '축제', expo: '전시', show: '공연' };
+// 카드에는 지역명을 따로 표시하므로 주소 앞의 시·도 이름은 뗀다
+function shortPlace(place) {
+  return (place || '').replace(/^(서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|강원도|충청북도|충청남도|전북특별자치도|전라북도|전라남도|경상북도|경상남도|제주특별자치도|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\s*/, '');
+}
+
+// ===== 데이터 소스 1: 한국관광공사 TourAPI (축제·공연·행사) =====
+async function fetchTourApi(key, today) {
+  const items = [];
+  const base = `${GW}/B551011/KorService2/searchFestival2?serviceKey=${encodeURIComponent(key)}&MobileOS=ETC&MobileApp=somang&_type=json&arrange=A&numOfRows=500&eventStartDate=${ymd(addDays(today, -45))}`;
+  for (let page = 1; page <= 4; page++) {
+    const res = await fetch(`${base}&pageNo=${page}`);
+    const text = await res.text();
+    let json;
+    try { json = JSON.parse(text); } catch (e) { throw new Error(explainGatewayError(text)); }
+    const header = json.response?.header;
+    if (header && header.resultCode !== '0000') throw new Error(`관광공사 API 오류: ${header.resultMsg}`);
+    const body = json.response?.body;
+    const list = body?.items?.item || [];
+    for (const it of list) {
+      items.push({
+        id: 'tour-' + it.contentid,
+        src: 'tour',
+        contentId: it.contentid,
+        title: it.title,
+        start: it.eventstartdate,
+        end: it.eventenddate,
+        place: it.addr1 || '',
+        area: Number(it.areacode) || areaFromText(it.addr1),
+        img: it.firstimage || it.firstimage2 || '',
+        tel: it.tel || '',
+        lat: it.mapy, lng: it.mapx,
+        kind: classify(it.title, ''),
+      });
+    }
+    if (!body || page * 500 >= (body.totalCount || 0)) break;
+  }
+  return items;
+}
+
+// ===== 데이터 소스 2: 한국문화정보원 공연전시정보 (XML) =====
+async function fetchCultureInfo(key, today) {
+  const items = [];
+  const from = ymd(today), to = ymd(addDays(today, 120));
+  const base = `${GW}/B553457/cultureinfo/period2?serviceKey=${encodeURIComponent(key)}&from=${from}&to=${to}&rows=100&sortStdr=1`;
+  for (let page = 1; page <= 10; page++) {
+    const res = await fetch(`${base}&cPage=${page}`);
+    const text = await res.text();
+    const doc = new DOMParser().parseFromString(text, 'application/xml');
+    const errMsg = doc.querySelector('cmmMsgHeader errMsg, returnAuthMsg');
+    if (errMsg) throw new Error(explainGatewayError(text));
+    const nodes = [...doc.querySelectorAll('item')];
+    const g = (n, tag) => n.querySelector(tag)?.textContent?.trim() || '';
+    for (const n of nodes) {
+      const title = g(n, 'title');
+      if (!title) continue;
+      const realm = g(n, 'realmName');
+      const place = g(n, 'place');
+      const areaTxt = g(n, 'area') + ' ' + g(n, 'sigungu') + ' ' + place;
+      items.push({
+        id: 'ci-' + (g(n, 'seq') || title),
+        src: 'ci',
+        seq: g(n, 'seq'),
+        title,
+        start: g(n, 'startDate').replace(/\D/g, ''),
+        end: g(n, 'endDate').replace(/\D/g, ''),
+        place: (g(n, 'area') + ' ' + place).trim(),
+        area: areaFromText(areaTxt),
+        img: g(n, 'thumbnail'),
+        tel: '',
+        lat: g(n, 'gpsY'), lng: g(n, 'gpsX'),
+        kind: realm ? (realm.includes('전시') ? 'expo' : classify(title, realm) === 'expo' ? 'expo' : 'show') : classify(title, ''),
+      });
+    }
+    const total = Number(doc.querySelector('totalCount')?.textContent || 0);
+    if (nodes.length < 100 || page * 100 >= total) break;
+  }
+  return items;
+}
+
+function explainGatewayError(text) {
+  if (/SERVICE_KEY_IS_NOT_REGISTERED|등록되지 않은 서비스키/.test(text)) return '등록되지 않은 인증키입니다. 공공데이터포털에서 해당 서비스 활용신청이 승인됐는지, Decoding 키를 넣었는지 확인하세요.';
+  if (/LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS|요청 한도/.test(text)) return '오늘 API 호출 한도를 넘었습니다. 내일 다시 시도하거나 캐시된 데이터를 보세요.';
+  if (/DEADLINE_HAS_EXPIRED|기한 만료/.test(text)) return '인증키 기한이 만료됐습니다. 공공데이터포털에서 연장 신청하세요.';
+  const m = text.match(/<(?:errMsg|returnAuthMsg|resultMsg)>([^<]+)</);
+  return m ? `API 오류: ${m[1]}` : 'API 응답을 해석할 수 없습니다. (' + text.slice(0, 80).replace(/\s+/g, ' ') + '…)';
+}
+
+// ===== 예시 데이터 (키가 없을 때) =====
+function sampleData(today) {
+  const d = n => ymd(addDays(today, n));
+  return [
+    { title: '서울 빛초롱 축제 (예시)', start: d(-3), end: d(20), place: '서울 종로구 청계천', area: 1, kind: 'fest' },
+    { title: '현대미술 기획전: 빛과 그림자 (예시)', start: d(-20), end: d(40), place: '서울 용산구 국립중앙박물관', area: 1, kind: 'expo' },
+    { title: '부산 바다 불꽃 페스티벌 (예시)', start: d(12), end: d(13), place: '부산 수영구 광안리해수욕장', area: 6, kind: 'fest' },
+    { title: '뮤지컬 〈별빛〉 (예시)', start: d(5), end: d(60), place: '서울 중구 충무아트센터', area: 1, kind: 'show' },
+    { title: '전주 한옥마을 가을 축제 (예시)', start: d(2), end: d(9), place: '전북 전주시 한옥마을', area: 37, kind: 'fest' },
+    { title: '제주 들불 사진전 (예시)', start: d(-10), end: d(30), place: '제주 제주시 돌문화공원', area: 39, kind: 'expo' },
+    { title: '춘천 재즈 콘서트 (예시)', start: d(18), end: d(19), place: '강원 춘천시 KT&G 상상마당', area: 32, kind: 'show' },
+    { title: '대구 치맥 페스티벌 (예시)', start: d(25), end: d(29), place: '대구 달서구 두류공원', area: 4, kind: 'fest' },
+  ].map((x, i) => ({ ...x, id: 'sample-' + i, src: 'sample', img: '', tel: '' }));
+}
+
+// ===== 로드 & 캐시 =====
+let ALL = [];
+let FAVS = new Set();
+try { FAVS = new Set(JSON.parse(localStorage.getItem(FAV_STORAGE) || '[]')); } catch (e) {}
+
+function readCache() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_STORAGE) || 'null');
+    if (c && Date.now() - c.at < CACHE_TTL_MS && Array.isArray(c.items)) return c;
+  } catch (e) {}
+  return null;
+}
+function writeCache(items) {
+  try { localStorage.setItem(CACHE_STORAGE, JSON.stringify({ at: Date.now(), items })); } catch (e) {}
+}
+
+function dedupe(items) {
+  const seen = new Map();
+  for (const it of items) {
+    const k = (it.title || '').replace(/\s+/g, '').toLowerCase() + '|' + it.start;
+    if (!seen.has(k)) seen.set(k, it);
+    else if (!seen.get(k).img && it.img) seen.set(k, { ...seen.get(k), img: it.img });
+  }
+  return [...seen.values()];
+}
+
+async function load(force) {
+  const today = new Date();
+  const key = getKey();
+  const notice = document.getElementById('notice');
+  const refreshBtn = document.getElementById('refresh');
+  notice.innerHTML = '';
+
+  if (!key) {
+    ALL = sampleData(today);
+    notice.innerHTML = `<div class="notice warn">⚠️ 아직 API 키가 없어 <b>예시 데이터</b>를 보여줍니다. 아래 ⚙️ 설정에서 공공데이터포털 인증키를 넣으면 실제 전국 행사 정보를 불러옵니다.</div>`;
+    setUpdated('예시 데이터');
+    render();
+    return;
+  }
+
+  if (!force) {
+    const c = readCache();
+    if (c) { ALL = c.items; setUpdated(new Date(c.at)); render(); return; }
+  }
+
+  refreshBtn.disabled = true;
+  setUpdated('불러오는 중…');
+  const errors = [];
+  const results = await Promise.allSettled([fetchTourApi(key, today), fetchCultureInfo(key, today)]);
+  let items = [];
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') items = items.concat(r.value);
+    else errors.push((i === 0 ? '관광공사: ' : '문화정보원: ') + r.reason.message);
+  });
+  refreshBtn.disabled = false;
+
+  const todayS = ymd(today);
+  items = dedupe(items.filter(it => it.end >= todayS || !it.end));
+
+  if (items.length === 0 && errors.length) {
+    notice.innerHTML = `<div class="notice err">❌ 데이터를 불러오지 못했습니다.<br>${errors.map(esc).join('<br>')}</div>`;
+    const c = readCache();
+    ALL = c ? c.items : sampleData(today);
+    setUpdated(c ? new Date(c.at) : '예시 데이터');
+  } else {
+    if (errors.length) notice.innerHTML = `<div class="notice warn">⚠️ 일부 출처를 불러오지 못했습니다.<br>${errors.map(esc).join('<br>')}</div>`;
+    ALL = items;
+    writeCache(items);
+    setUpdated(new Date());
+  }
+  render();
+}
+
+function setUpdated(v) {
+  const el = document.getElementById('updated');
+  el.textContent = v instanceof Date ? `업데이트 ${v.getMonth()+1}/${v.getDate()} ${pad(v.getHours())}:${pad(v.getMinutes())}` : v;
+}
+
+// ===== 필터 & 렌더 =====
+const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start' };
+
+function filtered() {
+  const today = new Date();
+  const t = ymd(today);
+  const weekEnd = ymd(addDays(today, 7 - ((today.getDay() + 6) % 7) - 1));
+  const monthEnd = ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+  const q = state.q.trim().toLowerCase();
+  let list = ALL.filter(it => {
+    if (state.kind === 'fav') { if (!FAVS.has(it.id)) return false; }
+    else if (state.kind !== 'all' && it.kind !== state.kind) return false;
+    if (state.area && String(it.area) !== state.area) return false;
+    const live = it.start <= t && (!it.end || it.end >= t);
+    if (state.when === 'live' && !live) return false;
+    if (state.when === 'soon' && it.start <= t) return false;
+    if (state.when === 'week' && !(it.start <= weekEnd && (!it.end || it.end >= t))) return false;
+    if (state.when === 'month' && !(it.start <= monthEnd && (!it.end || it.end >= t))) return false;
+    if (q && !(it.title.toLowerCase().includes(q) || (it.place || '').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const cmp = {
+    start: (a, b) => (a.start || '').localeCompare(b.start || '') || a.title.localeCompare(b.title),
+    end: (a, b) => (a.end || '9').localeCompare(b.end || '9') || a.title.localeCompare(b.title),
+    title: (a, b) => a.title.localeCompare(b.title, 'ko'),
+  }[state.sort];
+  return list.sort(cmp);
+}
+
+function statusTag(it) {
+  const t = ymd(new Date());
+  if (it.start <= t && (!it.end || it.end >= t)) {
+    const left = it.end ? Math.round((new Date(+it.end.slice(0,4), +it.end.slice(4,6)-1, +it.end.slice(6,8)) - new Date(new Date().toDateString())) / 86400000) : null;
+    return `<span class="tag live">진행 중${left !== null && left <= 7 ? ` · ${left === 0 ? '오늘 마감' : left + '일 남음'}` : ''}</span>`;
+  }
+  const dl = Math.round((new Date(+it.start.slice(0,4), +it.start.slice(4,6)-1, +it.start.slice(6,8)) - new Date(new Date().toDateString())) / 86400000);
+  return `<span class="tag soon">D-${dl}</span>`;
+}
+
+function render() {
+  const list = filtered();
+  const grid = document.getElementById('grid');
+  document.getElementById('count').textContent = `${list.length}건`;
+  document.getElementById('empty').hidden = list.length > 0;
+  const icon = { fest: '🎉', expo: '🖼️', show: '🎭' };
+  grid.innerHTML = list.map(it => `
+    <article class="card" data-id="${esc(it.id)}" tabindex="0">
+      <div class="thumb">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : icon[it.kind]}</div>
+      <button class="fav" data-fav="${esc(it.id)}" aria-label="즐겨찾기">${FAVS.has(it.id) ? '★' : '☆'}</button>
+      <div class="body">
+        <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}</div>
+        <div class="title">${esc(it.title)}</div>
+        <div class="meta">${fmtDate(it.start)} ~ ${fmtDate(it.end)}</div>
+        <div class="meta">📍 ${esc(AREA_NAMES[it.area] || '')} ${esc(shortPlace(it.place))}</div>
+      </div>
+    </article>`).join('');
+}
+
+// ===== 상세 모달 =====
+const dlg = document.getElementById('dlg');
+async function openDetail(it) {
+  document.getElementById('dlgImg').innerHTML = it.img ? `<img src="${esc(it.img)}" alt="" referrerpolicy="no-referrer">` : '';
+  document.getElementById('dlgImg').style.display = it.img ? '' : 'none';
+  document.getElementById('dlgTags').innerHTML = `<span class="tag ${it.kind}">${KIND_LABEL[it.kind]}</span>${statusTag(it)}`;
+  document.getElementById('dlgTitle').textContent = it.title;
+  document.getElementById('dlgDate').textContent = `${fmtDate(it.start)} ~ ${fmtDate(it.end)}`;
+  document.getElementById('dlgPlace').textContent = it.place || '-';
+  document.getElementById('dlgTel').textContent = it.tel || '-';
+  document.getElementById('dlgOverview').textContent = it.src === 'tour' ? '상세 정보를 불러오는 중…' : '';
+  const home = document.getElementById('dlgHome');
+  home.hidden = true;
+  document.getElementById('dlgSearch').href = 'https://search.naver.com/search.naver?query=' + encodeURIComponent(it.title);
+  document.getElementById('dlgMap').href = it.lat && it.lng
+    ? `https://map.naver.com/p?c=${it.lng},${it.lat},15,0,0,0,dh&title=${encodeURIComponent(it.title)}`
+    : 'https://map.naver.com/p/search/' + encodeURIComponent(it.place || it.title);
+  dlg.showModal();
+
+  if (it.src === 'tour') {
+    try {
+      const url = `${GW}/B551011/KorService2/detailCommon2?serviceKey=${encodeURIComponent(getKey())}&MobileOS=ETC&MobileApp=somang&_type=json&contentId=${it.contentId}`;
+      const json = await (await fetch(url)).json();
+      const d = json.response?.body?.items?.item?.[0] || {};
+      const overview = (d.overview || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+      document.getElementById('dlgOverview').textContent = overview;
+      const hp = (d.homepage || '').match(/href="([^"]+)"/)?.[1] || (d.homepage || '').match(/https?:\/\/\S+/)?.[0];
+      if (hp) { home.href = hp; home.hidden = false; }
+      if (d.tel && !it.tel) document.getElementById('dlgTel').textContent = d.tel;
+    } catch (e) {
+      document.getElementById('dlgOverview').textContent = '';
+    }
+  }
+}
+
+// ===== 이벤트 =====
+function bindChips(id, attr) {
+  document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    [...b.parentElement.children].forEach(c => c.setAttribute('aria-pressed', c === b));
+    state[attr] = b.dataset[attr];
+    render();
+  });
+}
+bindChips('kindChips', 'kind');
+bindChips('whenChips', 'when');
+document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; render(); });
+document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
+document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; render(); });
+document.getElementById('refresh').addEventListener('click', () => load(true));
+
+document.getElementById('grid').addEventListener('click', e => {
+  const fav = e.target.closest('[data-fav]');
+  if (fav) {
+    const id = fav.dataset.fav;
+    FAVS.has(id) ? FAVS.delete(id) : FAVS.add(id);
+    try { localStorage.setItem(FAV_STORAGE, JSON.stringify([...FAVS])); } catch (err) {}
+    fav.textContent = FAVS.has(id) ? '★' : '☆';
+    if (state.kind === 'fav') render();
+    return;
+  }
+  const card = e.target.closest('.card');
+  if (card) { const it = ALL.find(x => x.id === card.dataset.id); if (it) openDetail(it); }
+});
+document.getElementById('grid').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.classList.contains('card')) e.target.click();
+});
+document.getElementById('dlgClose').addEventListener('click', () => dlg.close());
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+
+document.getElementById('apiKey').value = getKey();
+document.getElementById('saveKey').addEventListener('click', () => {
+  const v = document.getElementById('apiKey').value.trim();
+  try { v ? localStorage.setItem(KEY_STORAGE, v) : localStorage.removeItem(KEY_STORAGE); } catch (e) {}
+  load(true);
+});
+document.getElementById('clearKey').addEventListener('click', () => {
+  try { localStorage.removeItem(KEY_STORAGE); localStorage.removeItem(CACHE_STORAGE); } catch (e) {}
+  document.getElementById('apiKey').value = '';
+  load(true);
+});
+document.getElementById('clearCache').addEventListener('click', () => {
+  try { localStorage.removeItem(CACHE_STORAGE); } catch (e) {}
+  load(true);
+});
+
+load(false);
+</script>
+</body>
+</html>
