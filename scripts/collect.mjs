@@ -37,6 +37,7 @@ const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); r
 const dashed = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const dotted = d => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
 const TODAY = ymd(today);
+let PREV = null; // 이전 수집 결과 (main 에서 읽어 둠)
 const HORIZON = addDays(today, 180); // 앞으로 6개월
 
 const AREA_BY_NAME = [
@@ -76,22 +77,47 @@ const digits = s => (s || '').replace(/\D/g, '').slice(0, 8);
 // 카드에 보여줄 한 줄 설명: 태그 제거 후 앞부분만
 const clip = (s, n = 140) => { const t = text((s || '').replace(/<br\s*\/?>/gi, ' ')); return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t; };
 // 동시 요청 수를 제한해 상세 페이지를 순회 (실패는 무시)
-async function mapPool(items, size, fn) {
-  let i = 0;
+async function mapPool(items, size, fn, label = '') {
+  let i = 0, fail = 0;
   await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
-    while (i < items.length) { const it = items[i++]; try { await fn(it); } catch {} }
+    while (i < items.length) { const it = items[i++]; try { await fn(it); } catch { fail++; } }
   }));
+  if (label) console.log(`[${label}] 상세 ${items.length}건 중 실패 ${fail}건`);
+  return fail;
 }
 
 async function get(url, opts = {}) {
-  const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'ko' }, redirect: 'follow', ...opts });
-  if (!res.ok) throw new Error(`${res.status} ${url}`);
-  return res.text();
+  // 네트워크 오류나 5xx 는 최대 3번 재시도 (공공데이터포털 게이트웨이가 가끔 연결을 끊는다)
+  let lastErr;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'ko' }, redirect: 'follow', signal: AbortSignal.timeout(60000), ...opts });
+      if (res.status >= 500) throw new Error(`${res.status} ${url}`);
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        const why = body.match(/<returnAuthMsg>([^<]+)|"returnAuthMsg"\s*:\s*"([^"]+)"|<errMsg>([^<]+)/);
+        throw Object.assign(new Error(`${res.status} ${why ? (why[1] || why[2] || why[3]) : ''} ${url.split('?')[0]}`.trim()), { noRetry: true });
+      }
+      return await res.text();
+    } catch (e) {
+      lastErr = e;
+      if (e.noRetry) throw e;
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+    }
+  }
+  throw lastErr;
+}
+
+let lastDetailError = '';
+function explainGatewayLimit(body) {
+  const m = body.match(/<returnAuthMsg>([^<]+)|"returnAuthMsg"\s*:\s*"([^"]+)"|<errMsg>([^<]+)|"resultMsg":"([^"]+)"/);
+  lastDetailError = m ? (m[1] || m[2] || m[3] || m[4]) : body.slice(0, 80);
+  return lastDetailError;
 }
 
 // ---------- 1. 한국관광공사 ----------
 async function tourApi() {
-  if (!KEY) return [];
+  if (!KEY) throw Object.assign(new Error('DATA_GO_KR_KEY 없음'), { skipped: true });
   const items = [];
   const base = `${GW}/B551011/KorService2/searchFestival2?serviceKey=${encodeURIComponent(KEY)}&MobileOS=ETC&MobileApp=somang&_type=json&arrange=A&numOfRows=500&eventStartDate=${ymd(addDays(today, -365))}`;
   for (let page = 1; page <= 6; page++) {
@@ -111,19 +137,27 @@ async function tourApi() {
     }
     if (!b || page * 500 >= (b.totalCount || 0)) break;
   }
-  // 소개글은 detailCommon2 로 개별 조회 (일일 호출 한도를 생각해 300건까지만)
-  await mapPool(items.slice(0, 300), 5, async it => {
-    const body = await get(`${GW}/B551011/KorService2/detailCommon2?serviceKey=${encodeURIComponent(KEY)}&MobileOS=ETC&MobileApp=somang&_type=json&contentId=${it.contentId}`);
+  // 이미 끝난 행사는 버리고, 남은 것만 detailCommon2 로 소개글 조회 (일일 호출 한도를 생각해 400건까지)
+  const live = items.filter(it => !it.end || it.end >= TODAY);
+  const prevById = new Map((PREV?.items || []).filter(p => p.src === 'tour').map(p => [p.id, p]));
+  for (const it of live) { const p = prevById.get(it.id); if (p) { if (p.summary) it.summary = p.summary; if (p.homepage) it.homepage = p.homepage; } }
+  const need = live.filter(it => !it.summary);
+  await mapPool(need.slice(0, 300), 2, async it => {
+    let body;
+    try { body = await get(`${GW}/B551011/KorService2/detailCommon2?serviceKey=${encodeURIComponent(KEY)}&MobileOS=ETC&MobileApp=somang&_type=json&contentId=${it.contentId}`); }
+    catch (e) { lastDetailError = e.message; throw e; }
     const d = JSON.parse(body).response?.body?.items?.item?.[0];
+    if (!d) throw new Error(explainGatewayLimit(body));
     if (d?.overview) it.summary = clip(d.overview);
     if (d?.homepage) it.homepage = (d.homepage.match(/href="([^"]+)"/)?.[1] || d.homepage.match(/https?:\/\/\S+/)?.[0] || '').replace(/["<>]/g, '');
-  });
-  return items;
+  }, 'tour');
+  if (need.length && !live.some(it => it.summary)) console.error('[tour] 소개글을 하나도 못 받음:', lastDetailError || '원인 불명');
+  return live;
 }
 
 // ---------- 2. 한국문화정보원 ----------
 async function cultureInfo() {
-  if (!KEY) return [];
+  if (!KEY) throw Object.assign(new Error('DATA_GO_KR_KEY 없음'), { skipped: true });
   const items = [];
   const base = `${GW}/B553457/cultureinfo/period2?serviceKey=${encodeURIComponent(KEY)}&from=${TODAY}&to=${ymd(HORIZON)}&rows=100&sortStdr=1`;
   for (let page = 1; page <= 20; page++) {
@@ -181,7 +215,7 @@ async function coex() {
     const html = await get(it.homepage);
     const m = html.match(/EventDetailBoxBodyText-txt'>([\s\S]*?)<\/p>/);
     if (m) it.summary = clip(m[1]);
-  });
+  }, 'coex');
   return items;
 }
 
@@ -221,7 +255,7 @@ async function kintex() {
     const row = label => html.match(new RegExp(`<th[^>]*>\\s*${label}\\s*</th>\\s*<td[^>]*>([\\s\\S]*?)</td>`))?.[1];
     const d = row('행사목적') || row('행사내용') || row('행사품목');
     if (d) it.summary = clip(d);
-  });
+  }, 'kintex');
   return items;
 }
 
@@ -301,7 +335,7 @@ async function visitseoul() {
       const d = clip(blk);
       if (d) it.summary = d;
     }
-  });
+  }, 'visitseoul');
   return items;
 }
 
@@ -362,7 +396,7 @@ async function nol() {
 
 // ---------- 9. KOPIS 공연예술통합전산망 ----------
 async function kopis() {
-  if (!KOPIS_KEY) return [];
+  if (!KOPIS_KEY) throw Object.assign(new Error('KOPIS_KEY 없음'), { skipped: true });
   const items = [];
   for (let page = 1; page <= 30; page++) {
     const xml = await get(`https://www.kopis.or.kr/openApi/restful/pblprfr?service=${encodeURIComponent(KOPIS_KEY)}&stdate=${TODAY}&eddate=${ymd(HORIZON)}&cpage=${page}&rows=100`);
@@ -398,6 +432,7 @@ function dedupe(items) {
 }
 
 async function main() {
+  try { PREV = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
   const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis };
   // SOURCES=coex,nol 처럼 일부만 실행하면 나머지 출처는 이전 파일 데이터를 그대로 둔다 (디버깅용)
   const only = (process.env.SOURCES || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -410,12 +445,12 @@ async function main() {
   const report = {};
   results.forEach((r, i) => {
     if (r.status === 'fulfilled') { items = items.concat(r.value); report[names[i]] = r.value.length; }
+    else if (r.reason.skipped) report[names[i]] = '건너뜀: ' + r.reason.message;
     else { report[names[i]] = 'ERROR: ' + r.reason.message; console.error(`[${names[i]}]`, r.reason.message); }
   });
 
   // 실패한 출처는 이전 파일의 데이터로 메운다 (하루 장애로 목록이 비지 않도록)
-  let prev = null;
-  try { prev = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
+  const prev = PREV;
   for (const [i, name] of names.entries()) {
     if (results[i].status === 'rejected' && prev?.items) {
       const kept = prev.items.filter(it => it.src === name);
@@ -433,7 +468,7 @@ async function main() {
   items = dedupe(items.filter(it => it.title && it.start && (!it.end || it.end >= TODAY)))
     .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
 
-  const failedAll = results.every(r => r.status === 'rejected');
+  const failedAll = results.every(r => r.status === 'rejected' && !r.reason.skipped);
   if (failedAll) { console.error('모든 출처 실패, 파일을 갱신하지 않습니다.'); process.exit(1); }
 
   await mkdir(dirname(OUT.pathname), { recursive: true });
