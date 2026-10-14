@@ -420,15 +420,34 @@ async function kopis() {
 }
 
 // ---------- 합치기 ----------
+// 출처가 달라도 같은 행사면 하나로: 제목에서 연도·회차·판매 꼬리말을 뺀 뒤 기간이 겹치면 같은 행사로 본다
+function normTitle(t) {
+  return (t || '')
+    .replace(/［[^］]*］|\[[^\]]*\]|\([^)]*\)|《[^》]*》|〈[^〉]*〉/g, ' ')
+    .replace(/20\d\d년?|제?\s*\d+\s*(회|주년|차|위|일권)|시즌\s*\d+|얼리버드|단독판매|티켓|입장권|굿즈|전용|상품|특별패키지|패키지|할인|\d+%|\b(in|at)\b/gi, ' ')
+    .replace(/[^0-9a-z가-힣]/gi, '')
+    .toLowerCase();
+}
+const richness = it => (it.summary ? 4 : 0) + (it.img ? 2 : 0) + (it.homepage ? 1 : 0) + (it.tel ? 1 : 0);
 function dedupe(items) {
-  const seen = new Map();
+  const groups = new Map();
   for (const it of items) {
-    const k = it.title.replace(/\s+/g, '').toLowerCase() + '|' + it.start;
-    const prev = seen.get(k);
-    if (!prev) seen.set(k, it);
-    else seen.set(k, { ...prev, img: prev.img || it.img, homepage: prev.homepage || it.homepage, summary: prev.summary || it.summary, tel: prev.tel || it.tel });
+    let k = normTitle(it.title) || it.title;
+    // '봉주르 장자크 상페' 와 '봉주르 장자크 상페 세상을 그린 시선' 처럼 한쪽이 다른 쪽의 앞부분이면 같은 행사로 본다
+    if (k.length >= 8) for (const key of groups.keys()) if (key.length >= 8 && (key.startsWith(k) || k.startsWith(key))) { k = key; break; }
+    if (!groups.has(k)) groups.set(k, []);
+    const g = groups.get(k);
+    const hit = g.find(o => (it.start || '0') <= (o.end || '9') && (o.start || '0') <= (it.end || '9'));
+    if (!hit) { g.push({ ...it }); continue; }
+    // 정보가 더 많은 쪽을 기준으로 하고 빈 칸은 다른 쪽에서 채운다. 기간은 둘을 합친다.
+    const [base, other] = richness(it) > richness(hit) ? [it, hit] : [hit, it];
+    Object.assign(hit, { ...base,
+      img: base.img || other.img, homepage: base.homepage || other.homepage, summary: base.summary || other.summary, tel: base.tel || other.tel,
+      place: base.place || other.place, area: base.area || other.area, lat: base.lat || other.lat, lng: base.lng || other.lng,
+      start: [base.start, other.start].filter(Boolean).sort()[0], end: [base.end, other.end].filter(Boolean).sort().pop(),
+    });
   }
-  return [...seen.values()];
+  return [...groups.values()].flat();
 }
 
 async function main() {

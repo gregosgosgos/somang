@@ -620,14 +620,27 @@ function writeCache(items) {
   try { localStorage.setItem(CACHE_STORAGE, JSON.stringify({ at: Date.now(), items })); } catch (e) {}
 }
 
+// 수집기와 같은 기준으로 중복 제거: 제목에서 연도·회차·꼬리말을 뺀 뒤 기간이 겹치면 같은 행사
+function normTitle(t) {
+  return (t || '')
+    .replace(/［[^］]*］|\[[^\]]*\]|\([^)]*\)|《[^》]*》|〈[^〉]*〉/g, ' ')
+    .replace(/20\d\d년?|제?\s*\d+\s*(회|주년|차|위|일권)|시즌\s*\d+|얼리버드|단독판매|티켓|입장권|굿즈|전용|상품|특별패키지|패키지|할인|\d+%|\b(in|at)\b/gi, ' ')
+    .replace(/[^0-9a-z가-힣]/gi, '')
+    .toLowerCase();
+}
 function dedupe(items) {
-  const seen = new Map();
+  const groups = new Map();
   for (const it of items) {
-    const k = (it.title || '').replace(/\s+/g, '').toLowerCase() + '|' + it.start;
-    if (!seen.has(k)) seen.set(k, it);
-    else if (!seen.get(k).img && it.img) seen.set(k, { ...seen.get(k), img: it.img });
+    let k = normTitle(it.title) || it.title;
+    // '봉주르 장자크 상페' 와 '봉주르 장자크 상페 세상을 그린 시선' 처럼 한쪽이 다른 쪽의 앞부분이면 같은 행사로 본다
+    if (k.length >= 8) for (const key of groups.keys()) if (key.length >= 8 && (key.startsWith(k) || k.startsWith(key))) { k = key; break; }
+    if (!groups.has(k)) groups.set(k, []);
+    const g = groups.get(k);
+    const hit = g.find(o => (it.start || '0') <= (o.end || '9') && (o.start || '0') <= (it.end || '9'));
+    if (!hit) g.push({ ...it });
+    else Object.assign(hit, { img: hit.img || it.img, homepage: hit.homepage || it.homepage, summary: hit.summary || it.summary, tel: hit.tel || it.tel });
   }
-  return [...seen.values()];
+  return [...groups.values()].flat();
 }
 
 async function load(force) {
