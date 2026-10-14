@@ -263,7 +263,6 @@
   .facets { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; margin: 0 0 14px; padding-top: 10px; border-top: 1px solid var(--line); }
   .facets dt { color: var(--sub); white-space: nowrap; }
   .facets dd { margin: 0; }
-  .facets .kw { display: inline-block; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; margin: 0 4px 3px 0; }
   .dlg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .dlg-actions a { text-decoration: none; }
 
@@ -318,6 +317,7 @@
       <span class="label">주제</span>
       <div class="chips" id="topicChips"></div>
     </div>
+    <div id="facetRows"></div>
     <div class="row">
       <span class="label">지역</span>
       <select id="area">
@@ -340,18 +340,7 @@
         <option value="38">전남</option>
         <option value="39">제주</option>
       </select>
-      <select id="who" title="누구와 가기 좋은지 (AI 분류)">
-        <option value="">누구와</option>
-        <option>연인·데이트</option>
-        <option>가족·아이</option>
-        <option>부모님·효도</option>
-        <option>친구</option>
-        <option>혼자</option>
-        <option>외국인</option>
-        <option>반려동물 동반</option>
-        <option>비즈니스·전문가</option>
-      </select>
-      <input type="search" id="q" placeholder="이름·장소·키워드 검색 (예: 불꽃, 야경, 데이트, 효도)">
+      <input type="search" id="q" placeholder="이름·장소 검색 (예: 불꽃, 비엔날레, 미술관)">
       <select id="sort">
         <option value="start">시작일순</option>
         <option value="end">마감 임박순</option>
@@ -583,6 +572,26 @@ function tagsOf(it) {
   if (it.kind === 'edu') return ['기타'];
   return ['기타'];
 }
+// AI 부가 분류 칩: 값이 하나라도 있는 행만 보이고, 건수는 다른 조건 안에서 센다
+function buildFacetChips() {
+  const wrap = document.getElementById('facetRows');
+  const html = [];
+  for (const [key, label, values] of FACETS) {
+    const counts = {};
+    for (const it of filtered(false, false, key)) {
+      const v = it.ai?.[key]; if (!v) continue;
+      for (const x of Array.isArray(v) ? v : [v]) counts[x] = (counts[x] || 0) + 1;
+    }
+    const avail = values.filter(v => counts[v]);
+    if (!avail.length && !state.facet[key]) continue;
+    if (state.facet[key] && !counts[state.facet[key]]) state.facet[key] = '';
+    html.push(`<div class="row"><span class="label">${label}</span><div class="chips" data-facet="${key}">` +
+      `<button class="chip" data-value="" aria-pressed="${!state.facet[key]}">전체</button>` +
+      avail.map(v => `<button class="chip" data-value="${esc(v)}" aria-pressed="${state.facet[key] === v}">${esc(v)}<small>${counts[v]}</small></button>`).join('') +
+      '</div></div>');
+  }
+  wrap.innerHTML = html.join('');
+}
 function buildTopicChips() {
   const counts = {};
   for (const it of filtered(true)) for (const t of it.tags) counts[t] = (counts[t] || 0) + 1;
@@ -802,11 +811,21 @@ function setUpdated(v) {
 }
 
 // ===== 필터 & 렌더 =====
-const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all', sub: 'all', who: '' };
+const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all', sub: 'all', facet: {} };
+// AI 가 붙인 부가 분류를 칩으로 고른다 (scripts/classify.mjs 의 TAXONOMY 와 같은 값)
+const FACETS = [
+  ['who', '누구와', ['연인·데이트', '가족·아이', '부모님·효도', '친구', '혼자', '외국인', '반려동물 동반', '비즈니스·전문가']],
+  ['age', '연령대', ['유아', '어린이', '청소년', '20대', '30대', '40대', '50대', '60대 이상']],
+  ['mood', '분위기', ['로맨틱', '힐링·여유', '활기찬·신나는', '감성·예술', '교육·배움', '트렌디·핫플', '전통·고즈넉', '럭셔리', '가성비']],
+  ['cost', '비용', ['무료', '1만원 이하', '1~3만원', '3만원 이상']],
+  ['time', '시간대', ['낮', '밤', '낮·밤']],
+  ['setting', '실내외', ['실내', '야외', '실내외']],
+  ['stay', '소요', ['1시간 이내', '2~3시간', '반나절', '하루 이상']],
+];
 const PAGE = 120; // 한 번에 그리는 카드 수 (1,000건이 넘어 한꺼번에 그리면 느리다)
 let shown = PAGE;
 
-function filtered(ignoreTopic, ignoreSub) {
+function filtered(ignoreTopic, ignoreSub, ignoreFacet) {
   const today = new Date();
   const t = ymd(today);
   const weekEnd = ymd(addDays(today, 7 - ((today.getDay() + 6) % 7) - 1));
@@ -816,7 +835,10 @@ function filtered(ignoreTopic, ignoreSub) {
     if (state.kind === 'fav') { if (!FAVS.has(it.id)) return false; }
     else if (state.kind !== 'all' && it.kind !== state.kind) return false;
     if (state.area && String(it.area) !== state.area) return false;
-    if (state.who && !(it.ai?.who || []).includes(state.who)) return false;
+    for (const [key] of FACETS) {
+      const want = state.facet[key]; if (!want || key === ignoreFacet) continue;
+      const have = it.ai?.[key]; if (!(Array.isArray(have) ? have.includes(want) : have === want)) return false;
+    }
     if (!ignoreTopic && state.topic !== 'all' && !(it.tags || []).includes(state.topic)) return false;
     if (!ignoreSub && state.kind === 'show' && state.sub !== 'all' && it.sub !== state.sub) return false;
     const live = it.start <= t && (!it.end || it.end >= t);
@@ -839,7 +861,7 @@ function filtered(ignoreTopic, ignoreSub) {
 function searchText(it) {
   if (!it._search) {
     const a = it.ai || {};
-    it._search = [it.title, it.place, it.summary, (it.tags || []).join(' '), a.blurb, (a.keywords || []).join(' '), (a.who || []).join(' '), (a.mood || []).join(' '), (a.age || []).join(' ')]
+    it._search = [it.title, it.place, it.summary, (it.tags || []).join(' '), a.blurb, (a.who || []).join(' '), (a.mood || []).join(' '), (a.age || []).join(' ')]
       .filter(Boolean).join(' ').toLowerCase();
   }
   return it._search;
@@ -874,6 +896,7 @@ function render() {
   }
   buildSubChips();   // 공연을 고르면 장르 칩
   buildTopicChips(); // 종류·기간·지역·검색을 바꾸면 주제 건수도 그 범위 안에서 다시 센다
+  buildFacetChips();
   const all = filtered();
   const list = all.slice(0, shown);
   const grid = document.getElementById('grid');
@@ -907,9 +930,8 @@ function renderFacets(it) {
   const rows = [
     ['누구와', (a.who || []).join(', ')], ['연령대', (a.age || []).join(', ')], ['분위기', (a.mood || []).join(', ')],
     ['장소', a.setting], ['시간대', a.time], ['비용', a.cost], ['소요', a.stay],
-    ['키워드', (a.keywords || []).map(k => `<span class="kw">${esc(k)}</span>`).join('')],
   ].filter(([, v]) => v);
-  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === '키워드' ? v : esc(v)}</dd>`).join('');
+  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
   el.hidden = !rows.length;
 }
 async function openDetail(it) {
@@ -965,7 +987,11 @@ bindChips('whenChips', 'when');
 bindChips('topicChips', 'topic');
 bindChips('subChips', 'sub');
 document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; shown = PAGE; render(); });
-document.getElementById('who').addEventListener('change', e => { state.who = e.target.value; shown = PAGE; render(); });
+document.getElementById('facetRows').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  state.facet[b.parentElement.dataset.facet] = b.dataset.value;
+  shown = PAGE; render();
+});
 document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; shown = PAGE; render(); });
 document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; shown = PAGE; render(); });
 document.getElementById('more').addEventListener('click', () => { shown += PAGE; render(); });

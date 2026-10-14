@@ -20,7 +20,7 @@ const MODEL = process.env.AI_MODEL || 'claude-opus-5-5';
 const LIMIT = Number(process.env.AI_LIMIT || 2000);
 const FORCE = !!process.env.AI_FORCE;
 const BATCH = 20; // 항목당 출력이 늘어 배치를 줄인다
-export const VERSION = 3;
+export const VERSION = 4;
 
 export const TAXONOMY = {
   kind: {
@@ -70,8 +70,7 @@ const SYSTEM = `당신은 한국의 전시·축제·공연·팝업 행사 정보
 7. setting: ${TAXONOMY.setting.join(' / ')} 중 하나. time: 주로 즐기는 시간대, ${TAXONOMY.time.join(' / ')} 중 하나 (야행·불꽃·야간개장은 밤).
 8. cost: 1인 입장료 수준, ${TAXONOMY.cost.join(' / ')} 중 하나. 요금 정보가 있으면 그것을 쓰고, 공공 축제·거리 행사는 대개 무료, 티켓 판매 공연·상업 전시는 가격을 모르면 미상.
 9. stay: 보통 머무는 시간, ${TAXONOMY.stay.join(' / ')} 중 하나.
-10. keywords: 검색용 자유 키워드 5~10개 (각 1~3어절). 제목·장소·내용에서 뽑은 핵심어, 지역명, 작가·출연진, 상징물(예: 벚꽃, 한강, 야경, 공룡, 재즈), 용도(예: 데이트, 주말 나들이, 효도)를 섞습니다. 분류 이름을 그대로 반복하지 않습니다.
-11. blurb: 행사를 한 줄로 소개하는 문장 (40~70자, 존댓말 없이 '~하는 전시'처럼 명사형으로 끝냄). 제목을 되풀이하지 말고 무엇을 보고 하는지, 누구에게 좋은지 담습니다.
+10. blurb: 행사를 한 줄로 소개하는 문장 (40~70자, 존댓말 없이 '~하는 전시'처럼 명사형으로 끝냄). 제목을 되풀이하지 말고 무엇을 보고 하는지, 누구에게 좋은지 담습니다.
 
 판단 재료: 제목이 가장 중요하고, 장소·출처·설명·장르힌트는 보조입니다. 출처가 coex/kintex/bexco 면 전시장 행사(대개 박람회), nol/melon 이면 티켓 판매 상품, popply 면 팝업스토어, tour 면 관광공사 축제·행사, ci 면 문화정보원 공연·전시·교육입니다.
 입력에 주어진 id 를 그대로 돌려주고, 모든 항목을 빠짐없이 분류합니다.`;
@@ -96,10 +95,9 @@ const SCHEMA = {
           time: { type: 'string', enum: TAXONOMY.time },
           cost: { type: 'string', enum: TAXONOMY.cost },
           stay: { type: 'string', enum: TAXONOMY.stay },
-          keywords: { type: 'array', items: { type: 'string' } },
           blurb: { type: 'string' },
         },
-        required: ['id', 'kind', 'genre', 'topics', 'who', 'age', 'mood', 'setting', 'time', 'cost', 'stay', 'keywords', 'blurb'],
+        required: ['id', 'kind', 'genre', 'topics', 'who', 'age', 'mood', 'setting', 'time', 'cost', 'stay', 'blurb'],
         additionalProperties: false,
       },
     },
@@ -170,7 +168,7 @@ async function main() {
           v: VERSION, kind: r.kind, genre: r.kind === 'show' ? (r.genre || '기타') : '', topics: uniq(r.topics, 4),
           who: uniq(r.who, 4), age: uniq(r.age, 5), mood: uniq(r.mood, 3),
           setting: r.setting, time: r.time, cost: r.cost, stay: r.stay,
-          keywords: uniq(r.keywords, 10).map(k => k.slice(0, 20)), blurb: (r.blurb || '').trim().slice(0, 90),
+          blurb: (r.blurb || '').trim().slice(0, 90),
         };
         done++;
       }
