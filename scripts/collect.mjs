@@ -14,6 +14,7 @@
 //   7. 멜론티켓 전시/행사 (ticket.melon.com)                        — 키 불필요
 //   8. NOL 티켓(옛 인터파크) 전시 (nol.yanolja.com)                 — 키 불필요, playwright 필요
 //   9. KOPIS 공연예술통합전산망 (kopis.or.kr)                       — KOPIS_KEY 필요
+//  10. 팝플리 팝업스토어 (popply.co.kr)                            — 키 불필요, 사이트가 쓰는 공개 JSON
 //
 // 티켓 사이트는 개편되면 깨질 수 있다. 출처 하나가 실패해도 나머지는 저장되고,
 // 실패한 출처는 이전 파일의 데이터를 유지한다. 실패 내역은 events.json 의 sources 에 남는다.
@@ -423,6 +424,31 @@ async function kopis() {
   return items;
 }
 
+// ---------- 10. 팝플리 (팝업스토어) ----------
+async function popply() {
+  const H = { headers: { 'User-Agent': UA, Referer: 'https://popply.co.kr/popup', Origin: 'https://popply.co.kr', Accept: 'application/json' } };
+  const [storeBody, catBody] = await Promise.all([get('https://api.popply.co.kr/api/store/?', H), get('https://api.popply.co.kr/api/common/category', H).catch(() => '{}')]);
+  let json; try { json = JSON.parse(storeBody); } catch { throw new Error('팝플리 응답 해석 실패: ' + storeBody.slice(0, 80)); }
+  const list = Array.isArray(json?.data) ? json.data : [];
+  if (!list.length) throw new Error('팝플리 목록이 비어 있음 (구조 변경?)');
+  const cats = new Map();
+  try { for (const c of JSON.parse(catBody).data || []) cats.set(c.categoryId, c.name); } catch {}
+  return list.filter(o => o.title && o.startDate && !o.isDelete).map(o => {
+    const cat = cats.get(o.categoryId) || '';
+    const tags = (o.hashtag || '').split(',').map(t => t.trim()).filter(Boolean).slice(0, 5).map(t => '#' + t).join(' ');
+    const place = [o.address, o.detailAddress].filter(Boolean).join(' ');
+    return {
+      id: 'popply-' + o.storeId, src: 'popply',
+      title: text(o.title), start: digits(o.startDate), end: digits(o.endDate),
+      place, area: areaFromText(`${o.topLevelAddress} ${o.address}`),
+      img: o.thumbnails || '', tel: '', lat: o.latitude ? String(o.latitude) : '', lng: o.longitude ? String(o.longitude) : '',
+      homepage: `https://popply.co.kr/popup/${o.storeId}`,
+      summary: [cat, o.mainBrand && o.mainBrand !== o.title ? o.mainBrand : '', tags].filter(Boolean).join(' · '),
+      kind: 'popup',
+    };
+  });
+}
+
 // ---------- 합치기 ----------
 // 출처가 달라도 같은 행사면 하나로: 제목에서 연도·회차·판매 꼬리말을 뺀 뒤 기간이 겹치면 같은 행사로 본다
 function normTitle(t) {
@@ -456,7 +482,7 @@ function dedupe(items) {
 
 async function main() {
   try { PREV = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
-  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis };
+  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis, popply };
   // SOURCES=coex,nol 처럼 일부만 실행하면 나머지 출처는 이전 파일 데이터를 그대로 둔다 (디버깅용)
   const only = (process.env.SOURCES || '').split(',').map(s => s.trim()).filter(Boolean);
   const sources = only.length ? Object.fromEntries(Object.entries(all).filter(([n]) => only.includes(n))) : all;
