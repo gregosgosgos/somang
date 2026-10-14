@@ -461,13 +461,15 @@ function normTitle(t) {
 const richness = it => (it.summary ? 4 : 0) + (it.img ? 2 : 0) + (it.homepage ? 1 : 0) + (it.tel ? 1 : 0);
 function dedupe(items) {
   const groups = new Map();
+  const byId = new Map(); // 같은 출처에서 같은 id 로 두 번 나오면 (제목만 조금 다른 경우) 무조건 같은 행사
   for (const it of items) {
     let k = normTitle(it.title) || it.title;
+    if (byId.has(it.id)) k = byId.get(it.id); else byId.set(it.id, k);
     // '봉주르 장자크 상페' 와 '봉주르 장자크 상페 세상을 그린 시선' 처럼 한쪽이 다른 쪽의 앞부분이면 같은 행사로 본다
     if (k.length >= 8) for (const key of groups.keys()) if (key.length >= 8 && (key.startsWith(k) || k.startsWith(key))) { k = key; break; }
     if (!groups.has(k)) groups.set(k, []);
     const g = groups.get(k);
-    const hit = g.find(o => (it.start || '0') <= (o.end || '9') && (o.start || '0') <= (it.end || '9'));
+    const hit = g.find(o => o.id === it.id) || g.find(o => (it.start || '0') <= (o.end || '9') && (o.start || '0') <= (it.end || '9'));
     if (!hit) { g.push({ ...it }); continue; }
     // 정보가 더 많은 쪽을 기준으로 하고 빈 칸은 다른 쪽에서 채운다. 기간은 둘을 합친다.
     const [base, other] = richness(it) > richness(hit) ? [it, hit] : [hit, it];
