@@ -884,7 +884,7 @@ async function openDetail(it) {
   document.getElementById('dlgOverview').textContent = it.summary || (it.src === 'tour' && getKey() ? '상세 정보를 불러오는 중…' : '');
   const home = document.getElementById('dlgHome');
   // 문화포털(culture.go.kr/oneCltInfo)에는 상세 페이지가 없어 오류가 나므로 그 링크는 숨긴다 (다음 수집에서 원문 링크로 바뀜)
-  const link = it.homepage && !/culture\.go\.kr\/oneCltInfo/.test(it.homepage) ? it.homepage : '';
+  const link = it.homepage && !/culture\.go\.kr\/oneCltInfo/.test(it.homepage) ? it.homepage.replace(/&amp;/gi, '&').replace(/&amp;/gi, '&') : '';
   home.hidden = !link;
   if (link) home.href = link;
   document.getElementById('dlgSearch').href = 'https://search.naver.com/search.naver?query=' + encodeURIComponent(it.title);

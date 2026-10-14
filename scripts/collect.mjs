@@ -192,7 +192,7 @@ async function cultureInfo() {
     const p = prevById.get(it.id);
     if (!p || !p.detail) continue;
     it.detail = true;
-    if (p.homepage && !/culture\.go\.kr\/oneCltInfo/.test(p.homepage)) it.homepage = p.homepage;
+    if (p.homepage && !/culture\.go\.kr\/oneCltInfo/.test(p.homepage)) it.homepage = p.homepage.replace(/&amp;/gi, '&').replace(/&amp;/gi, '&');
     if (p.summary) it.summary = p.summary;
     if (p.price) it.price = p.price;
     if (p.tel) it.tel = p.tel;
@@ -207,7 +207,8 @@ async function cultureInfo() {
     if (/<(errMsg|returnAuthMsg|resultMsg)>/.test(xml) && !/<item>/.test(xml)) throw new Error(explainGatewayLimit(xml));
     if (!/<item>/.test(xml)) { lastDetailError = '응답에 item 없음: ' + xml.slice(0, 160).replace(/\s+/g, ' '); throw new Error(lastDetailError); }
     const g = tag => text(xml.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`))?.[1]);
-    const url = (g('url') || g('placeUrl') || '').trim();
+    const unamp = u => { let t = u; while (/&amp;/i.test(t)) t = t.replace(/&amp;/gi, '&'); return t; }; // 원문 URL 에 &amp; 가 이중으로 들어오는 경우가 있다
+    const url = unamp((g('url') || g('placeUrl') || '').trim());
     if (/^https?:\/\//.test(url) && !/culture\.go\.kr\/oneCltInfo/.test(url)) it.homepage = url;
     const body = clip(g('contents1'));
     if (body) it.summary = it.summary ? `${it.summary} · ${body}` : body;
