@@ -260,6 +260,10 @@
   .dlg-body dt { color: var(--sub); }
   .dlg-body dd { margin: 0; }
   .overview { font-size: 14px; color: var(--ink); max-height: 180px; overflow: auto; margin-bottom: 14px; white-space: pre-line; }
+  .facets { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; margin: 0 0 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .facets dt { color: var(--sub); white-space: nowrap; }
+  .facets dd { margin: 0; }
+  .facets .kw { display: inline-block; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; margin: 0 4px 3px 0; }
   .dlg-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .dlg-actions a { text-decoration: none; }
 
@@ -336,7 +340,18 @@
         <option value="38">전남</option>
         <option value="39">제주</option>
       </select>
-      <input type="search" id="q" placeholder="이름·장소 검색 (예: 불꽃, 비엔날레, 미술관)">
+      <select id="who" title="누구와 가기 좋은지 (AI 분류)">
+        <option value="">누구와</option>
+        <option>연인·데이트</option>
+        <option>가족·아이</option>
+        <option>부모님·효도</option>
+        <option>친구</option>
+        <option>혼자</option>
+        <option>외국인</option>
+        <option>반려동물 동반</option>
+        <option>비즈니스·전문가</option>
+      </select>
+      <input type="search" id="q" placeholder="이름·장소·키워드 검색 (예: 불꽃, 야경, 데이트, 효도)">
       <select id="sort">
         <option value="start">시작일순</option>
         <option value="end">마감 임박순</option>
@@ -389,6 +404,7 @@
       <dt>출처</dt><dd id="dlgSrc"></dd>
     </dl>
     <div class="overview" id="dlgOverview"></div>
+    <dl class="facets" id="dlgFacets" hidden></dl>
     <div class="dlg-actions">
       <a class="btn primary" id="dlgHome" target="_blank" rel="noopener" hidden>공식 안내 ↗</a>
       <a class="btn" id="dlgSearch" target="_blank" rel="noopener">네이버 검색 ↗</a>
@@ -786,7 +802,7 @@ function setUpdated(v) {
 }
 
 // ===== 필터 & 렌더 =====
-const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all', sub: 'all' };
+const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all', sub: 'all', who: '' };
 const PAGE = 120; // 한 번에 그리는 카드 수 (1,000건이 넘어 한꺼번에 그리면 느리다)
 let shown = PAGE;
 
@@ -800,6 +816,7 @@ function filtered(ignoreTopic, ignoreSub) {
     if (state.kind === 'fav') { if (!FAVS.has(it.id)) return false; }
     else if (state.kind !== 'all' && it.kind !== state.kind) return false;
     if (state.area && String(it.area) !== state.area) return false;
+    if (state.who && !(it.ai?.who || []).includes(state.who)) return false;
     if (!ignoreTopic && state.topic !== 'all' && !(it.tags || []).includes(state.topic)) return false;
     if (!ignoreSub && state.kind === 'show' && state.sub !== 'all' && it.sub !== state.sub) return false;
     const live = it.start <= t && (!it.end || it.end >= t);
@@ -807,7 +824,7 @@ function filtered(ignoreTopic, ignoreSub) {
     if (state.when === 'soon' && it.start <= t) return false;
     if (state.when === 'week' && !(it.start <= weekEnd && (!it.end || it.end >= t))) return false;
     if (state.when === 'month' && !(it.start <= monthEnd && (!it.end || it.end >= t))) return false;
-    if (q && !(`${it.title} ${it.place || ''} ${it.summary || ''} ${(it.tags || []).join(' ')}`.toLowerCase().includes(q))) return false;
+    if (q && !searchText(it).includes(q)) return false;
     return true;
   });
   const cmp = {
@@ -818,8 +835,18 @@ function filtered(ignoreTopic, ignoreSub) {
   return list.sort(cmp);
 }
 
-// 설명이 없는 항목은 장소와 종류로 한 줄을 만든다
+// 검색 대상 문자열: 제목·장소·설명·주제에 AI 가 붙인 키워드·한줄소개·대상·분위기까지
+function searchText(it) {
+  if (!it._search) {
+    const a = it.ai || {};
+    it._search = [it.title, it.place, it.summary, (it.tags || []).join(' '), a.blurb, (a.keywords || []).join(' '), (a.who || []).join(' '), (a.mood || []).join(' '), (a.age || []).join(' ')]
+      .filter(Boolean).join(' ').toLowerCase();
+  }
+  return it._search;
+}
+// 카드 한 줄 설명: AI 한줄소개 > 수집된 소개글 > 장소와 종류로 만든 문장
 function descOf(it) {
+  if (it.ai?.blurb) return it.ai.blurb;
   if (it.summary && it.summary.length > 14) return it.summary;
   const where = shortPlace(it.place).split(/\s+/).slice(0, 4).join(' ') || AREA_NAMES[it.area] || '';
   if (it.summary) return where ? `${it.summary} · ${where}` : it.summary;
@@ -872,6 +899,19 @@ function render() {
 
 // ===== 상세 모달 =====
 const dlg = document.getElementById('dlg');
+// AI 가 붙인 부가 정보 (대상·연령·분위기·비용·키워드)
+function renderFacets(it) {
+  const el = document.getElementById('dlgFacets');
+  const a = it.ai;
+  if (!a || !a.who) { el.hidden = true; el.innerHTML = ''; return; }
+  const rows = [
+    ['누구와', (a.who || []).join(', ')], ['연령대', (a.age || []).join(', ')], ['분위기', (a.mood || []).join(', ')],
+    ['장소', a.setting], ['시간대', a.time], ['비용', a.cost], ['소요', a.stay],
+    ['키워드', (a.keywords || []).map(k => `<span class="kw">${esc(k)}</span>`).join('')],
+  ].filter(([, v]) => v);
+  el.innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${k === '키워드' ? v : esc(v)}</dd>`).join('');
+  el.hidden = !rows.length;
+}
 async function openDetail(it) {
   document.getElementById('dlgImg').innerHTML = it.img ? `<img src="${esc(it.img)}" alt="" referrerpolicy="no-referrer">` : '';
   document.getElementById('dlgImg').style.display = it.img ? '' : 'none';
@@ -882,6 +922,7 @@ async function openDetail(it) {
   document.getElementById('dlgTel').textContent = it.tel || '-';
   document.getElementById('dlgSrc').textContent = (SRC_LABEL[it.src] || it.src) + (it.ai ? ' · 분류: AI' : ' · 분류: 키워드');
   document.getElementById('dlgOverview').textContent = it.summary || (it.src === 'tour' && getKey() ? '상세 정보를 불러오는 중…' : '');
+  renderFacets(it);
   const home = document.getElementById('dlgHome');
   // 문화포털(culture.go.kr/oneCltInfo)에는 상세 페이지가 없어 오류가 나므로 그 링크는 숨긴다 (다음 수집에서 원문 링크로 바뀜)
   const link = it.homepage && !/culture\.go\.kr\/oneCltInfo/.test(it.homepage) ? it.homepage.replace(/&amp;/gi, '&').replace(/&amp;/gi, '&') : '';
@@ -924,6 +965,7 @@ bindChips('whenChips', 'when');
 bindChips('topicChips', 'topic');
 bindChips('subChips', 'sub');
 document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; shown = PAGE; render(); });
+document.getElementById('who').addEventListener('change', e => { state.who = e.target.value; shown = PAGE; render(); });
 document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; shown = PAGE; render(); });
 document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; shown = PAGE; render(); });
 document.getElementById('more').addEventListener('click', () => { shown += PAGE; render(); });
