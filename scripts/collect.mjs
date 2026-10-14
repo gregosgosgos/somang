@@ -199,11 +199,13 @@ async function cultureInfo() {
   }
   const need = live.filter(it => !it.detail && it.seq);
   let ok = 0;
-  await mapPool(need.slice(0, Number(process.env.CI_DETAIL_LIMIT || 700)), 2, async it => {
+  const limit = Number(process.env.CI_DETAIL_LIMIT || 700);
+  const failed = await mapPool(need.slice(0, limit), 1, async it => {
     let xml;
     try { xml = await get(`${GW}/B553457/cultureinfo/detail2?serviceKey=${encodeURIComponent(KEY)}&seq=${it.seq}`); }
     catch (e) { lastDetailError = e.message; throw e; }
-    if (/<(errMsg|returnAuthMsg)>/.test(xml)) throw new Error(explainGatewayLimit(xml));
+    if (/<(errMsg|returnAuthMsg|resultMsg)>/.test(xml) && !/<item>/.test(xml)) throw new Error(explainGatewayLimit(xml));
+    if (!/<item>/.test(xml)) { lastDetailError = '응답에 item 없음: ' + xml.slice(0, 160).replace(/\s+/g, ' '); throw new Error(lastDetailError); }
     const g = tag => text(xml.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`))?.[1]);
     const url = (g('url') || g('placeUrl') || '').trim();
     if (/^https?:\/\//.test(url) && !/culture\.go\.kr\/oneCltInfo/.test(url)) it.homepage = url;
@@ -214,8 +216,8 @@ async function cultureInfo() {
     if (!it.img && g('imgUrl')) it.img = g('imgUrl').replace(/^http:\/\//, 'https://');
     it.detail = true; ok++;
   }, 'ci');
-  if (need.length) console.log(`[ci] 상세 ${ok}/${Math.min(need.length, Number(process.env.CI_DETAIL_LIMIT || 700))}건 조회, 남은 미조회 ${need.length - ok}건`);
-  if (need.length && !ok) console.error('[ci] 상세를 하나도 못 받음:', lastDetailError || '원인 불명');
+  if (need.length) console.log(`[ci] 상세 ${ok}/${Math.min(need.length, limit)}건 조회, 남은 미조회 ${need.length - ok}건`);
+  if (failed) console.error(`[ci] 상세 실패 ${failed}건, 마지막 오류:`, lastDetailError || '원인 불명');
   return live;
 }
 
