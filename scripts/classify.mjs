@@ -64,7 +64,7 @@ const SYSTEM = `당신은 한국의 전시·축제·공연·팝업 행사 정보
    - 영화제·상영회는 '영화·영상', 도서전·북토크·문학·인문학 강좌는 '책·문학·인문', 과학축전·천문·우주·환경·생태는 '과학·우주·환경'.
    - 마라톤·걷기·캠핑·아웃도어·레저는 '스포츠·레저·캠핑', 게임·e스포츠·보드게임·카드게임은 '게임·e스포츠', 플리마켓·아트마켓·장터·바자회는 '마켓·플리마켓', 여행 박람회·관광 행사는 '여행·관광'.
 
-4. who: 이 행사가 잘 맞는 동행 유형. ${TAXONOMY.who.join(', ')} 중 1~4개. 실제로 어울리는 것만 고릅니다 (산업 박람회에 '연인·데이트'를 붙이지 않습니다).
+4. who: 이 행사가 잘 맞는 동행 유형. ${TAXONOMY.who.join(', ')} 중 1~4개. 실제로 어울리는 것만 고릅니다. 반도체·건설·의료기기·채용·수출상담처럼 산업·비즈니스 성격의 박람회·컨퍼런스에는 '연인·데이트'와 '로맨틱'을 절대 붙이지 않고 '비즈니스·전문가'를 씁니다 (카페쇼·웨딩·펫·아트페어처럼 일반 관람객이 가는 박람회는 예외).
 5. age: 즐기기 좋은 연령대. ${TAXONOMY.age.join(', ')} 중 1~5개. 어린이 대상이면 유아·어린이, 성인 전시·공연이면 20~50대처럼 폭넓게.
 6. mood: 분위기. ${TAXONOMY.mood.join(', ')} 중 1~3개.
 7. setting: ${TAXONOMY.setting.join(' / ')} 중 하나. time: 주로 즐기는 시간대, ${TAXONOMY.time.join(' / ')} 중 하나 (야행·불꽃·야간개장은 밤).
@@ -120,6 +120,19 @@ export function describe(it) {
   };
 }
 
+// 모델 결과를 규칙으로 다듬는다. 산업·비즈니스 성격 행사(소비자용 주제가 하나도 없는 것)에는 '연인·데이트'와 '로맨틱'을 붙이지 않는다.
+const CONSUMER_TOPICS = new Set(['회화·조각', '사진', '미디어아트·몰입형', '캐릭터·애니·웹툰', '디자인·건축', '공예·도자', '패션·뷰티', '역사·문화유산', '전통·민속', '자연·꽃·정원', '음악', '영화·영상', '먹거리·특산물', '커피·술·디저트', '빛·불꽃·드론', '리빙·인테리어', '반려동물', '웨딩·출산·육아', '책·문학·인문', '키즈·가족', '스포츠·레저·캠핑', '게임·e스포츠', '건강·웰니스', '마켓·플리마켓', '야간·야행', '여행·관광']);
+export function normalize(ai) {
+  if (!ai || !ai.who) return ai;
+  const industrial = (ai.topics || []).some(t => t === '산업·기술' || t === '비즈니스·창업·채용' || t === '자동차·모빌리티') && !(ai.topics || []).some(t => CONSUMER_TOPICS.has(t));
+  if (industrial || ai.who.includes('비즈니스·전문가') && ai.who.length === 1) {
+    ai.who = ai.who.filter(w => w !== '연인·데이트');
+    ai.mood = (ai.mood || []).filter(m => m !== '로맨틱');
+    if (!ai.who.length) ai.who = ['비즈니스·전문가'];
+  }
+  return ai;
+}
+
 export async function classifyBatch(client, items) {
   const response = await client.messages.create({
     model: MODEL,
@@ -141,6 +154,9 @@ function needsAi(it) {
 
 async function main() {
   const data = JSON.parse(await readFile(OUT, 'utf8'));
+  let fixed = 0;
+  for (const it of data.items) { if (!it.ai?.who) continue; const before = JSON.stringify([it.ai.who, it.ai.mood]); normalize(it.ai); if (JSON.stringify([it.ai.who, it.ai.mood]) !== before) fixed++; }
+  if (fixed) { console.log(`AI 분류 규칙 보정: ${fixed}건`); await writeFile(OUT, JSON.stringify(data, null, 0) + '\n'); }
   const todo = data.items.filter(needsAi).slice(0, LIMIT);
   if (!todo.length) { console.log('AI 분류: 새로 분류할 항목 없음'); return; }
   if (!KEY) { console.log(`AI 분류: ANTHROPIC_API_KEY 없음, ${todo.length}건 건너뜀 (규칙 분류 사용)`); return; }
@@ -170,6 +186,7 @@ async function main() {
           setting: r.setting, time: r.time, cost: r.cost, stay: r.stay,
           blurb: (r.blurb || '').trim().slice(0, 90),
         };
+        normalize(it.ai);
         done++;
       }
       const missing = batch.filter(it => !results.some(r => r.id === it.id)).length;
