@@ -176,7 +176,7 @@ async function cultureInfo() {
         place: [area, sigungu, place].filter(Boolean).join(' '), area: areaFromText(`${area} ${sigungu} ${place}`),
         img: g(b, 'thumbnail').replace(/^http:\/\//, 'https://'), // 사이트가 https 라 http 이미지는 차단됨
         tel: '', lat: g(b, 'gpsY'), lng: g(b, 'gpsX'),
-        homepage: g(b, 'seq') ? `https://www.culture.go.kr/oneCltInfo/oneCltInfoView.do?seq=${g(b, 'seq')}` : '',
+        homepage: '', // 문화포털에는 상세 페이지가 없다. 아래 detail2 의 관람URL(원문)을 쓴다
         summary: realm && realm !== service ? realm : '',
         kind: service === '전시' ? 'expo' : service === '공연' ? 'show' : service === '교육/체험' ? 'edu' : classify(title, realm, 'fest'),
       });
@@ -184,7 +184,39 @@ async function cultureInfo() {
     const total = Number(xml.match(/<totalCount>(\d+)/)?.[1] || 0);
     if (blocks.length < 100 || page * 100 >= total) break;
   }
-  return items;
+  // 목록에는 링크가 없어 detail2 로 관람URL·소개·요금·문의처를 받는다. 이미 받은 항목은 이전 파일에서 이어받고,
+  // 새 항목만 조회한다 (일일 호출 한도를 생각해 한 번에 CI_DETAIL_LIMIT 건, 기본 700).
+  const live = items.filter(it => !it.end || it.end >= TODAY);
+  const prevById = new Map((PREV?.items || []).filter(p => p.src === 'ci').map(p => [p.id, p]));
+  for (const it of live) {
+    const p = prevById.get(it.id);
+    if (!p || !p.detail) continue;
+    it.detail = true;
+    if (p.homepage && !/culture\.go\.kr\/oneCltInfo/.test(p.homepage)) it.homepage = p.homepage;
+    if (p.summary) it.summary = p.summary;
+    if (p.price) it.price = p.price;
+    if (p.tel) it.tel = p.tel;
+  }
+  const need = live.filter(it => !it.detail && it.seq);
+  let ok = 0;
+  await mapPool(need.slice(0, Number(process.env.CI_DETAIL_LIMIT || 700)), 2, async it => {
+    let xml;
+    try { xml = await get(`${GW}/B553457/cultureinfo/detail2?serviceKey=${encodeURIComponent(KEY)}&seq=${it.seq}`); }
+    catch (e) { lastDetailError = e.message; throw e; }
+    if (/<(errMsg|returnAuthMsg)>/.test(xml)) throw new Error(explainGatewayLimit(xml));
+    const g = tag => text(xml.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`))?.[1]);
+    const url = (g('url') || g('placeUrl') || '').trim();
+    if (/^https?:\/\//.test(url) && !/culture\.go\.kr\/oneCltInfo/.test(url)) it.homepage = url;
+    const body = clip(g('contents1'));
+    if (body) it.summary = it.summary ? `${it.summary} · ${body}` : body;
+    const price = g('price'); if (price) it.price = price.slice(0, 200);
+    const phone = g('phone'); if (phone) it.tel = phone.slice(0, 60);
+    if (!it.img && g('imgUrl')) it.img = g('imgUrl').replace(/^http:\/\//, 'https://');
+    it.detail = true; ok++;
+  }, 'ci');
+  if (need.length) console.log(`[ci] 상세 ${ok}/${Math.min(need.length, Number(process.env.CI_DETAIL_LIMIT || 700))}건 조회, 남은 미조회 ${need.length - ok}건`);
+  if (need.length && !ok) console.error('[ci] 상세를 하나도 못 받음:', lastDetailError || '원인 불명');
+  return live;
 }
 
 // ---------- 3. 코엑스 ----------
