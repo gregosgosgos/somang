@@ -93,53 +93,66 @@
   .filters {
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px;
+    border-radius: 16px;
+    padding: 14px 16px 12px;
     box-shadow: var(--shadow);
-    display: grid;
-    gap: 10px;
     margin-bottom: 14px;
   }
+  .search-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .search-box {
+    flex: 1 1 260px; display: flex; align-items: center; gap: 8px;
+    background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px;
+  }
+  .search-box .icon { font-size: 14px; opacity: .55; }
+  .search-box input { flex: 1; min-width: 0; border: none; background: transparent; font: inherit; padding: 10px 0; color: var(--ink); outline: none; }
+  .search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip {
-    border: 1px solid var(--line);
-    background: var(--field);
-    color: var(--ink);
-    border-radius: 999px;
-    padding: 5px 12px;
-    font-size: 13px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .chip[aria-pressed="true"] {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-ink);
-  }
-  input[type=search], select {
-    font: inherit;
-    padding: 8px 12px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--field);
-    color: var(--ink);
-    min-width: 0;
-  }
-  input[type=search] { flex: 1 1 200px; }
   .label { font-size: 12px; color: var(--sub); min-width: 44px; }
+  select {
+    font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--field); color: var(--ink); min-width: 0;
+  }
   .btn {
-    font: inherit;
-    font-weight: 500;
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--accent-line);
-    background: var(--accent-soft);
-    color: var(--accent);
-    cursor: pointer;
+    font: inherit; font-weight: 500; padding: 8px 14px; border-radius: 10px;
+    border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); cursor: pointer;
   }
   .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.ghost { background: transparent; border-color: var(--line); color: var(--sub); }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--accent-line); }
   .btn:disabled { opacity: .5; cursor: default; }
+
+  /* 선택한 조건 요약 */
+  .active-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; padding: 8px 0 4px; font-size: 12px; color: var(--sub); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 2px;
+    background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line);
+    border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12px; font-weight: 500;
+  }
+  .pill b { font-weight: 400; opacity: .7; margin-right: 3px; }
+  .pill button { border: none; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 13px; line-height: 1; padding: 2px 5px; border-radius: 999px; }
+  .pill button:hover { background: rgba(0,0,0,.08); }
+
+  /* 조건 묶음 */
+  .fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .fgroup.wide { grid-column: 1 / -1; }
+  .fgroup h4 { margin: 0 0 6px; font-size: 11.5px; font-weight: 600; color: var(--sub); letter-spacing: .03em; }
+  .fgroup h4 small { font-weight: 400; margin-left: 6px; opacity: .8; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 999px; padding: 4px 10px; font-size: 12.5px; line-height: 1.3;
+    cursor: pointer; font-family: inherit; transition: background .1s, border-color .1s, color .1s, opacity .1s;
+  }
+  .chip:hover { border-color: var(--accent-line); background: var(--accent-soft); }
+  .chip small { font-size: 10.5px; color: var(--sub); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .chip[aria-pressed="true"] small { color: inherit; opacity: .8; }
+  .chip.zero { opacity: .38; }
+  .chip.zero:hover { opacity: .7; }
+  .dates { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--sub); flex-wrap: wrap; }
+  .dates input[type=date] { font: inherit; font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--ink); }
+  .dates input[type=date]:focus { outline: none; border-color: var(--accent); }
+  @media (max-width: 720px) { .fgrid { grid-template-columns: 1fr; gap: 12px; } .filters { padding: 12px; } }
 
   /* 상태 표시 */
   .status { font-size: 13px; color: var(--sub); margin: 6px 2px 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -200,8 +213,6 @@
   .tag.live { background: var(--accent-soft); color: var(--accent); }
   .tag.soon { background: var(--warn-soft); color: var(--warn-ink); }
   .tag.topic { background: var(--field); color: var(--sub); border: 1px solid var(--line); }
-  #topicChips .chip { font-size: 12px; padding: 4px 10px; }
-  #topicChips .chip small { opacity: .7; margin-left: 3px; }
   .title {
     font-weight: 700;
     font-size: 13px;
@@ -286,68 +297,18 @@
   <div id="notice"></div>
 
   <section class="filters" aria-label="필터">
-    <div class="row">
-      <span class="label">종류</span>
-      <div class="chips" id="kindChips">
-        <button class="chip" data-kind="all" aria-pressed="true">전체</button>
-        <button class="chip" data-kind="fest">축제</button>
-        <button class="chip" data-kind="expo">전시</button>
-        <button class="chip" data-kind="fair">박람회</button>
-        <button class="chip" data-kind="show">공연</button>
-        <button class="chip" data-kind="popup">팝업</button>
-        <button class="chip" data-kind="edu">체험·교육</button>
-        <button class="chip" data-kind="fav">★ 즐겨찾기</button>
-      </div>
-    </div>
-    <div class="row" id="subRow" hidden>
-      <span class="label">장르</span>
-      <div class="chips" id="subChips"></div>
-    </div>
-    <div class="row">
-      <span class="label">기간</span>
-      <div class="chips" id="whenChips">
-        <button class="chip" data-when="all" aria-pressed="true">전체</button>
-        <button class="chip" data-when="live">진행 중</button>
-        <button class="chip" data-when="week">이번 주</button>
-        <button class="chip" data-when="month">이번 달</button>
-        <button class="chip" data-when="soon">예정</button>
-      </div>
-    </div>
-    <div class="row">
-      <span class="label">주제</span>
-      <div class="chips" id="topicChips"></div>
-    </div>
-    <div id="facetRows"></div>
-    <div class="row">
-      <span class="label">지역</span>
-      <select id="area">
-        <option value="">전국</option>
-        <option value="1">서울</option>
-        <option value="31">경기</option>
-        <option value="2">인천</option>
-        <option value="32">강원</option>
-        <option value="3">대전</option>
-        <option value="8">세종</option>
-        <option value="33">충북</option>
-        <option value="34">충남</option>
-        <option value="4">대구</option>
-        <option value="35">경북</option>
-        <option value="6">부산</option>
-        <option value="7">울산</option>
-        <option value="36">경남</option>
-        <option value="5">광주</option>
-        <option value="37">전북</option>
-        <option value="38">전남</option>
-        <option value="39">제주</option>
-      </select>
-      <input type="search" id="q" placeholder="이름·장소 검색 (예: 불꽃, 비엔날레, 미술관)">
-      <select id="sort">
+    <div class="search-bar">
+      <label class="search-box"><span class="icon">🔍</span><input type="search" id="q" placeholder="행사 이름, 장소, 소개 검색" autocomplete="off"></label>
+      <select id="sort" aria-label="정렬">
         <option value="start">시작일순</option>
         <option value="end">마감 임박순</option>
         <option value="title">이름순</option>
       </select>
-      <button class="btn" id="refresh" title="데이터 다시 불러오기">🔄 새로고침</button>
+      <button class="btn ghost" id="reset" title="모든 조건 지우기">조건 초기화</button>
+      <button class="btn ghost" id="refresh" title="데이터 다시 불러오기">🔄</button>
     </div>
+    <div class="active-bar" id="activeBar"></div>
+    <div class="fgrid" id="fgrid"></div>
   </section>
 
   <div class="status"><span id="count"></span><span id="updated"></span></div>
@@ -536,17 +497,6 @@ function subOf(it) {
   const realm = (it.summary || '').split(' · ')[0];
   return REALM_GENRE[realm] || '기타';
 }
-function buildSubChips() {
-  const row = document.getElementById('subRow');
-  if (state.kind !== 'show') { row.hidden = true; return; }
-  const counts = {};
-  for (const it of filtered(false, true)) counts[it.sub] = (counts[it.sub] || 0) + 1;
-  const el = document.getElementById('subChips');
-  el.innerHTML = `<button class="chip" data-sub="all" aria-pressed="${state.sub === 'all'}">전체</button>` +
-    SHOW_GENRES.filter(g => counts[g]).map(g => `<button class="chip" data-sub="${esc(g)}" aria-pressed="${state.sub === g}">${esc(g)}<small>${counts[g]}</small></button>`).join('');
-  if (state.sub !== 'all' && !counts[state.sub]) state.sub = 'all';
-  row.hidden = false;
-}
 function tagsOf(it) {
   // ［서울］ ［북촌］ 같은 짧은 지역 꼬리표는 제목에서 뺀다
   const title = (it.title || '').replace(/［[^］]{1,6}］|\[[^\]]{1,6}\]/g, '').replace(/[⠀　 ]+/g, ' ').trim();
@@ -572,34 +522,43 @@ function tagsOf(it) {
   if (it.kind === 'edu') return ['기타'];
   return ['기타'];
 }
-// AI 부가 분류 칩: 값이 하나라도 있는 행만 보이고, 건수는 다른 조건 안에서 센다
-function buildFacetChips() {
-  const wrap = document.getElementById('facetRows');
-  const html = [];
-  for (const [key, label, values] of FACETS) {
-    const counts = {};
-    for (const it of filtered(false, false, key)) {
-      const v = it.ai?.[key]; if (!v) continue;
-      for (const x of Array.isArray(v) ? v : [v]) counts[x] = (counts[x] || 0) + 1;
-    }
-    const avail = values.filter(v => counts[v]);
-    if (!avail.length && !state.facet[key]) continue;
-    if (state.facet[key] && !counts[state.facet[key]]) state.facet[key] = '';
-    html.push(`<div class="row"><span class="label">${label}</span><div class="chips" data-facet="${key}">` +
-      `<button class="chip" data-value="" aria-pressed="${!state.facet[key]}">전체</button>` +
-      avail.map(v => `<button class="chip" data-value="${esc(v)}" aria-pressed="${state.facet[key] === v}">${esc(v)}<small>${counts[v]}</small></button>`).join('') +
-      '</div></div>');
-  }
-  wrap.innerHTML = html.join('');
+// 조건 칩을 한 번만 만든다. 이후에는 건수와 선택 표시만 바꾼다.
+function buildChipsOnce() {
+  const wrap = document.getElementById('fgrid');
+  wrap.innerHTML = GROUPS.map(g => `
+    <div class="fgroup${g.wide ? ' wide' : ''}" data-group="${g.key}">
+      <h4>${g.label}${g.note ? `<small>${g.note}</small>` : ''}</h4>
+      <div class="chips">${g.values.map(([v, label]) => `<button class="chip" data-value="${esc(v)}" aria-pressed="false">${esc(label)}<small></small></button>`).join('')}</div>
+      ${g.dates ? '<div class="dates"><input type="date" id="from" aria-label="시작일"><span>~</span><input type="date" id="to" aria-label="종료일"></div>' : ''}
+    </div>`).join('');
 }
-function buildTopicChips() {
-  const counts = {};
-  for (const it of filtered(true)) for (const t of it.tags) counts[t] = (counts[t] || 0) + 1;
-  const order = TAG_RULES.map(([n]) => n).concat(['지역 축제', '기타']).filter(n => counts[n]);
-  const el = document.getElementById('topicChips');
-  el.innerHTML = `<button class="chip" data-topic="all" aria-pressed="${state.topic === 'all'}">전체</button>` +
-    order.map(n => `<button class="chip" data-topic="${esc(n)}" aria-pressed="${state.topic === n}">${esc(n)}<small>${counts[n]}</small></button>`).join('');
-  if (state.topic !== 'all' && !counts[state.topic]) state.topic = 'all';
+// 각 칩의 건수(다른 조건 안에서 센 것)와 선택 상태를 갱신
+function syncChips() {
+  for (const g of GROUPS) {
+    const pool = filtered([g.key, ...(g.ignoreWith || [])]);
+    const box = document.querySelector(`.fgroup[data-group="${g.key}"]`);
+    for (const chip of box.querySelectorAll('.chip')) {
+      const v = chip.dataset.value;
+      const n = pool.reduce((c, it) => c + (g.test(it, v) ? 1 : 0), 0);
+      chip.lastElementChild.textContent = n;
+      chip.classList.toggle('zero', n === 0);
+      chip.setAttribute('aria-pressed', state.sel[g.key] === v);
+    }
+  }
+  const from = document.getElementById('from'), to = document.getElementById('to');
+  if (from.value !== state.from) from.value = state.from;
+  if (to.value !== state.to) to.value = state.to;
+}
+// 선택한 조건을 알약 모양으로 요약. × 로 하나씩 뺄 수 있다
+function renderActiveBar(total) {
+  const pills = [];
+  for (const g of GROUPS) { const v = state.sel[g.key]; if (v) pills.push([g.key, g.label, g.values.find(([x]) => x === v)?.[1] || v]); }
+  if (state.from || state.to) pills.push(['dates', '기간', `${state.from ? state.from.replace(/-/g, '.').slice(2) : ''} ~ ${state.to ? state.to.replace(/-/g, '.').slice(2) : ''}`]);
+  if (state.q.trim()) pills.push(['q', '검색', state.q.trim()]);
+  const el = document.getElementById('activeBar');
+  el.innerHTML = pills.length
+    ? pills.map(([k, l, v]) => `<span class="pill"><b>${esc(l)}</b>${esc(v)}<button data-clear="${esc(k)}" aria-label="${esc(l)} 조건 빼기">×</button></span>`).join('') + `<span style="margin-left:4px">${total}건</span>`
+    : `조건을 고르면 여기에 모입니다 · 전체 ${total}건`;
 }
 const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', visitseoul: '비짓서울', melon: '멜론티켓', nol: 'NOL 티켓', kopis: 'KOPIS', popply: '팝플리', sample: '예시' };
 // 카드에는 지역명을 따로 표시하므로 주소 앞의 시·도 이름은 뗀다
@@ -811,8 +770,8 @@ function setUpdated(v) {
 }
 
 // ===== 필터 & 렌더 =====
-const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all', sub: 'all', facet: {} };
-// AI 가 붙인 부가 분류를 칩으로 고른다 (scripts/classify.mjs 의 TAXONOMY 와 같은 값)
+const state = { q: '', sort: 'start', from: '', to: '', sel: {} };
+// AI 가 붙인 부가 분류 (scripts/classify.mjs 의 TAXONOMY 와 같은 값)
 const FACETS = [
   ['who', '누구와', ['연인·데이트', '가족·아이', '부모님·효도', '친구', '혼자', '외국인', '반려동물 동반', '비즈니스·전문가']],
   ['age', '연령대', ['유아', '어린이', '청소년', '20대', '30대', '40대', '50대', '60대 이상']],
@@ -820,32 +779,56 @@ const FACETS = [
   ['cost', '비용', ['무료', '1만원 이하', '1~3만원', '3만원 이상']],
   ['time', '시간대', ['낮', '밤', '낮·밤']],
   ['setting', '실내외', ['실내', '야외', '실내외']],
-  ['stay', '소요', ['1시간 이내', '2~3시간', '반나절', '하루 이상']],
+  ['stay', '소요 시간', ['1시간 이내', '2~3시간', '반나절', '하루 이상']],
 ];
+const AREA_ORDER = [1, 31, 2, 32, 3, 8, 33, 34, 4, 35, 6, 7, 36, 5, 37, 38, 39];
+// 오늘 기준 날짜 경계 (render 때마다 새로 계산)
+let D = {};
+function calcDates() {
+  const today = new Date(); const t = ymd(today);
+  const dow = (today.getDay() + 6) % 7; // 월=0
+  const sat = addDays(today, 5 - dow), sun = addDays(today, 6 - dow);
+  D = {
+    t, weekEnd: ymd(addDays(today, 6 - dow)),
+    satS: ymd(sat < today ? today : sat), sunS: ymd(sun),
+    monthEnd: ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0)),
+    nextStart: ymd(new Date(today.getFullYear(), today.getMonth() + 1, 1)), nextEnd: ymd(new Date(today.getFullYear(), today.getMonth() + 2, 0)),
+  };
+}
+const endOf = it => it.end || it.start;
+const WHEN = {
+  live: it => it.start <= D.t && endOf(it) >= D.t,
+  week: it => it.start <= D.weekEnd && endOf(it) >= D.t,
+  weekend: it => it.start <= D.sunS && endOf(it) >= D.satS,
+  month: it => it.start <= D.monthEnd && endOf(it) >= D.t,
+  next: it => it.start <= D.nextEnd && endOf(it) >= D.nextStart,
+  soon: it => it.start > D.t,
+};
+// 조건 묶음: 모든 칩을 처음에 한 번 만들어 두고 건수·선택 상태만 갱신한다 (화면이 흔들리지 않도록)
+const GROUPS = [
+  { key: 'kind', label: '종류', values: [['fest', '축제'], ['expo', '전시'], ['fair', '박람회'], ['show', '공연'], ['popup', '팝업'], ['edu', '체험·교육'], ['fav', '★ 즐겨찾기']], test: (it, v) => v === 'fav' ? FAVS.has(it.id) : it.kind === v },
+  { key: 'when', label: '기간', note: '날짜를 직접 고르면 그 기간에 열리는 행사', values: [['live', '진행 중'], ['week', '이번 주'], ['weekend', '이번 주말'], ['month', '이번 달'], ['next', '다음 달'], ['soon', '예정']], test: (it, v) => WHEN[v](it), dates: true },
+  { key: 'sub', label: '공연 장르', note: '고르면 종류가 공연으로 바뀝니다', values: SHOW_GENRES.map(g => [g, g]), test: (it, v) => it.kind === 'show' && it.sub === v, ignoreWith: ['kind'] },
+  { key: 'area', label: '지역', values: AREA_ORDER.map(c => [String(c), AREA_NAMES[c]]), test: (it, v) => String(it.area) === v },
+  { key: 'topic', label: '주제', wide: true, values: TAG_RULES.map(([n]) => [n, n]).concat([['지역 축제', '지역 축제'], ['기타', '기타']]), test: (it, v) => (it.tags || []).includes(v) },
+  ...FACETS.map(([key, label, values]) => ({ key, label, values: values.map(v => [v, v]), test: (it, v) => { const h = it.ai?.[key]; return Array.isArray(h) ? h.includes(v) : h === v; } })),
+];
+const GROUP_BY_KEY = Object.fromEntries(GROUPS.map(g => [g.key, g]));
 const PAGE = 120; // 한 번에 그리는 카드 수 (1,000건이 넘어 한꺼번에 그리면 느리다)
 let shown = PAGE;
 
-function filtered(ignoreTopic, ignoreSub, ignoreFacet) {
-  const today = new Date();
-  const t = ymd(today);
-  const weekEnd = ymd(addDays(today, 7 - ((today.getDay() + 6) % 7) - 1));
-  const monthEnd = ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+// ignore: 건수를 셀 때 빼고 볼 조건 묶음의 key 목록
+function filtered(ignore = []) {
   const q = state.q.trim().toLowerCase();
-  let list = ALL.filter(it => {
-    if (state.kind === 'fav') { if (!FAVS.has(it.id)) return false; }
-    else if (state.kind !== 'all' && it.kind !== state.kind) return false;
-    if (state.area && String(it.area) !== state.area) return false;
-    for (const [key] of FACETS) {
-      const want = state.facet[key]; if (!want || key === ignoreFacet) continue;
-      const have = it.ai?.[key]; if (!(Array.isArray(have) ? have.includes(want) : have === want)) return false;
+  const from = state.from.replace(/-/g, ''), to = state.to.replace(/-/g, '');
+  const useDates = (from || to) && !ignore.includes('when');
+  const list = ALL.filter(it => {
+    for (const g of GROUPS) {
+      const v = state.sel[g.key];
+      if (!v || ignore.includes(g.key)) continue;
+      if (!g.test(it, v)) return false;
     }
-    if (!ignoreTopic && state.topic !== 'all' && !(it.tags || []).includes(state.topic)) return false;
-    if (!ignoreSub && state.kind === 'show' && state.sub !== 'all' && it.sub !== state.sub) return false;
-    const live = it.start <= t && (!it.end || it.end >= t);
-    if (state.when === 'live' && !live) return false;
-    if (state.when === 'soon' && it.start <= t) return false;
-    if (state.when === 'week' && !(it.start <= weekEnd && (!it.end || it.end >= t))) return false;
-    if (state.when === 'month' && !(it.start <= monthEnd && (!it.end || it.end >= t))) return false;
+    if (useDates && !(it.start <= (to || '9') && endOf(it) >= (from || '0'))) return false;
     if (q && !searchText(it).includes(q)) return false;
     return true;
   });
@@ -857,7 +840,7 @@ function filtered(ignoreTopic, ignoreSub, ignoreFacet) {
   return list.sort(cmp);
 }
 
-// 검색 대상 문자열: 제목·장소·설명·주제에 AI 가 붙인 키워드·한줄소개·대상·분위기까지
+// 검색 대상 문자열: 제목·장소·설명·주제에 AI 가 붙인 한줄소개·대상·분위기까지
 function searchText(it) {
   if (!it._search) {
     const a = it.ai || {};
@@ -894,10 +877,10 @@ function render() {
       it.tags = it.ai.v >= AI_TOPIC_VERSION && it.ai.topics?.length ? it.ai.topics : tagsOf(it);
     } else { it.kind = kindOf(it); it.tags = tagsOf(it); it.sub = subOf(it); }
   }
-  buildSubChips();   // 공연을 고르면 장르 칩
-  buildTopicChips(); // 종류·기간·지역·검색을 바꾸면 주제 건수도 그 범위 안에서 다시 센다
-  buildFacetChips();
+  calcDates();
+  syncChips(); // 조건을 바꾸면 다른 칩의 건수도 그 범위 안에서 다시 센다
   const all = filtered();
+  renderActiveBar(all.length);
   const list = all.slice(0, shown);
   const grid = document.getElementById('grid');
   document.getElementById('count').textContent = all.length > list.length ? `${all.length}건 중 ${list.length}건 표시` : `${all.length}건`;
@@ -973,23 +956,35 @@ async function openDetail(it) {
 }
 
 // ===== 이벤트 =====
-function bindChips(id, attr) {
-  document.getElementById(id).addEventListener('click', e => {
-    const b = e.target.closest('.chip'); if (!b) return;
-    [...b.parentElement.children].forEach(c => c.setAttribute('aria-pressed', c === b));
-    state[attr] = b.dataset[attr];
-    if (attr === 'kind') state.sub = 'all';
-    shown = PAGE; render();
-  });
+buildChipsOnce();
+function setSel(key, value) {
+  state.sel[key] = state.sel[key] === value ? '' : value; // 같은 칩을 다시 누르면 해제
+  if (key === 'kind' && state.sel.kind !== 'show') state.sel.sub = '';
+  if (key === 'sub' && state.sel.sub) state.sel.kind = 'show';
+  if (key === 'when' && state.sel.when) { state.from = ''; state.to = ''; }
 }
-bindChips('kindChips', 'kind');
-bindChips('whenChips', 'when');
-bindChips('topicChips', 'topic');
-bindChips('subChips', 'sub');
-document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; shown = PAGE; render(); });
-document.getElementById('facetRows').addEventListener('click', e => {
+document.getElementById('fgrid').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
-  state.facet[b.parentElement.dataset.facet] = b.dataset.value;
+  setSel(b.closest('.fgroup').dataset.group, b.dataset.value);
+  shown = PAGE; render();
+});
+document.getElementById('fgrid').addEventListener('change', e => {
+  if (e.target.id !== 'from' && e.target.id !== 'to') return;
+  state[e.target.id] = e.target.value;
+  if (state.from && state.to && state.from > state.to) { state.to = state.from; }
+  state.sel.when = ''; // 날짜를 직접 고르면 기간 칩은 해제
+  shown = PAGE; render();
+});
+document.getElementById('activeBar').addEventListener('click', e => {
+  const b = e.target.closest('[data-clear]'); if (!b) return;
+  const k = b.dataset.clear;
+  if (k === 'dates') { state.from = ''; state.to = ''; }
+  else if (k === 'q') { state.q = ''; document.getElementById('q').value = ''; }
+  else { state.sel[k] = ''; if (k === 'kind') state.sel.sub = ''; }
+  shown = PAGE; render();
+});
+document.getElementById('reset').addEventListener('click', () => {
+  state.sel = {}; state.from = ''; state.to = ''; state.q = ''; document.getElementById('q').value = '';
   shown = PAGE; render();
 });
 document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; shown = PAGE; render(); });
@@ -1004,7 +999,7 @@ document.getElementById('grid').addEventListener('click', e => {
     FAVS.has(id) ? FAVS.delete(id) : FAVS.add(id);
     try { localStorage.setItem(FAV_STORAGE, JSON.stringify([...FAVS])); } catch (err) {}
     fav.textContent = FAVS.has(id) ? '★' : '☆';
-    if (state.kind === 'fav') render();
+    if (state.sel.kind === 'fav') render();
     return;
   }
   const card = e.target.closest('.card');
