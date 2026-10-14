@@ -517,6 +517,10 @@ async function main() {
   items = dedupe(items.filter(it => it.title && it.start && (!it.end || it.end >= TODAY)))
     .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
 
+  // AI 분류 결과(classify.mjs 가 붙이는 ai 칸)는 제목이 같으면 이어받는다 — 새 행사만 다시 분류하면 된다
+  const prevAi = new Map((prev?.items || []).filter(p => p.ai).map(p => [p.id, p]));
+  for (const it of items) { const p = prevAi.get(it.id); if (p && p.title === it.title) it.ai = p.ai; }
+
   const failedAll = results.every(r => r.status === 'rejected' && !r.reason.skipped);
   if (failedAll) { console.error('모든 출처 실패, 파일을 갱신하지 않습니다.'); process.exit(1); }
 
@@ -524,6 +528,7 @@ async function main() {
   await writeFile(OUT, JSON.stringify({
     generatedAt: new Date().toISOString(),
     sources: report,
+    aiClassified: prev?.aiClassified,
     items,
   }, null, 0) + '\n');
   console.log(`events.json 저장: ${items.length}건`, report);

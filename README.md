@@ -42,5 +42,6 @@
   - 키 없이 수집: 코엑스·킨텍스·벡스코 박람회, 비짓서울 전시(서울관광재단), 멜론티켓 전시/행사, NOL 티켓(옛 인터파크) 전시, 팝플리 팝업스토어
   - `DATA_GO_KR_KEY` Secret이 있으면: 한국관광공사 축제·행사, 한국문화정보원 공연·전시
   - `KOPIS_KEY` Secret이 있으면: [KOPIS 공연예술통합전산망](https://www.kopis.or.kr/por/cs/openapi/openApiList.do)의 전국 공연(뮤지컬·콘서트·연극)
+  - **AI 분류**: 저장소 Secrets에 `ANTHROPIC_API_KEY`를 넣으면 수집 뒤 `scripts/classify.mjs`가 새로 들어온 행사의 종류·장르·주제를 Claude(기본 `claude-opus-5-5`, 저장소 Variables의 `AI_MODEL`로 변경)로 매깁니다. 결과는 각 항목의 `ai` 칸에 저장되어 다음 날에는 새 행사만 분류합니다. 키가 없거나 분류가 안 된 항목은 페이지의 키워드 규칙을 씁니다.
   - 티켓 사이트는 개편되면 해당 출처만 비고 나머지는 유지됩니다. 실패 내역은 `events.json`의 `sources`와 Actions 로그에 남습니다. 로컬에서 일부 출처만 돌려 보려면 `SOURCES=nol,melon node scripts/collect.mjs`처럼 실행합니다 (NOL은 `npm i playwright` 필요).
 - **API 키**: [공공데이터포털](https://www.data.go.kr)에서 **한국관광공사_국문 관광정보 서비스_GW**와 **한국문화정보원_공연전시정보조회서비스**를 활용신청하면 받는 **일반 인증키(Decoding)** 하나로 두 서비스가 동작합니다. 식사 장부 계산기와 같은 방식으로 `#key=<인증키>` 링크 또는 ⚙️ 설정에서 입력합니다. Secrets 등록이 가장 간단하고, 브라우저에 직접 넣는 방식은 보조 수단입니다.

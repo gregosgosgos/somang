@@ -819,7 +819,13 @@ function statusTag(it) {
 }
 
 function render() {
-  for (const it of ALL) if (!it.tags) { it.kind = kindOf(it); it.tags = tagsOf(it); it.sub = subOf(it); }
+  for (const it of ALL) if (!it.tags) {
+    if (it.ai && KIND_LABEL[it.ai.kind]) {
+      // 수집 단계에서 Claude 가 매긴 분류가 있으면 그것을 쓰고, 없는 항목만 키워드 규칙으로
+      it.kind = it.ai.kind; it.sub = it.ai.kind === 'show' ? (it.ai.genre || '기타') : '';
+      it.tags = it.ai.topics?.length ? it.ai.topics : tagsOf(it);
+    } else { it.kind = kindOf(it); it.tags = tagsOf(it); it.sub = subOf(it); }
+  }
   buildSubChips();   // 공연을 고르면 장르 칩
   buildTopicChips(); // 종류·기간·지역·검색을 바꾸면 주제 건수도 그 범위 안에서 다시 센다
   const all = filtered();
@@ -855,7 +861,7 @@ async function openDetail(it) {
   document.getElementById('dlgDate').textContent = `${fmtDate(it.start)} ~ ${fmtDate(it.end)}`;
   document.getElementById('dlgPlace').textContent = it.place || '-';
   document.getElementById('dlgTel').textContent = it.tel || '-';
-  document.getElementById('dlgSrc').textContent = SRC_LABEL[it.src] || it.src;
+  document.getElementById('dlgSrc').textContent = (SRC_LABEL[it.src] || it.src) + (it.ai ? ' · 분류: AI' : ' · 분류: 키워드');
   document.getElementById('dlgOverview').textContent = it.summary || (it.src === 'tour' && getKey() ? '상세 정보를 불러오는 중…' : '');
   const home = document.getElementById('dlgHome');
   home.hidden = !it.homepage;
