@@ -150,12 +150,15 @@ async function main() {
   let Anthropic;
   try { Anthropic = require('@anthropic-ai/sdk'); Anthropic = Anthropic.default || Anthropic; }
   catch { console.error('AI 분류: @anthropic-ai/sdk 미설치 (npm i @anthropic-ai/sdk)'); process.exit(1); }
-  const client = new Anthropic({ apiKey: KEY });
+  const client = new Anthropic({ apiKey: KEY, maxRetries: 6 }); // 동시 요청으로 429 가 나면 SDK 가 물러섰다 다시 보낸다
 
   const byId = new Map(data.items.map(it => [it.id, it]));
-  let done = 0, failed = 0, inTok = 0, outTok = 0, cacheRead = 0;
-  for (let i = 0; i < todo.length; i += BATCH) {
-    const batch = todo.slice(i, i + BATCH);
+  let done = 0, failed = 0, inTok = 0, outTok = 0, cacheRead = 0, stop = false;
+  const batches = []; for (let i = 0; i < todo.length; i += BATCH) batches.push(todo.slice(i, i + BATCH));
+  // 전체 재분류(수천 건)는 한 배치씩 돌리면 두 시간 가까이 걸리므로 몇 개를 동시에 보낸다 (AI_PARALLEL, 기본 4)
+  let next = 0;
+  const worker = async () => { while (next < batches.length && !stop) { const i = next++; await runBatch(batches[i], i); } };
+  async function runBatch(batch, bi) {
     try {
       const { results, usage } = await classifyBatch(client, batch);
       inTok += usage.input_tokens || 0; outTok += usage.output_tokens || 0; cacheRead += usage.cache_read_input_tokens || 0;
@@ -172,14 +175,15 @@ async function main() {
         done++;
       }
       const missing = batch.filter(it => !results.some(r => r.id === it.id)).length;
-      if (missing) console.warn(`  배치 ${i / BATCH + 1}: ${missing}건 응답 누락`);
+      if (missing) console.warn(`  배치 ${bi + 1}: ${missing}건 응답 누락`);
     } catch (e) {
       failed += batch.length;
       const msg = e instanceof Anthropic.RateLimitError ? '요청 한도 초과' : e instanceof Anthropic.AuthenticationError ? 'API 키가 올바르지 않음' : e instanceof Anthropic.APIError ? `API 오류 ${e.status}: ${e.message}` : e.message;
-      console.error(`  배치 ${i / BATCH + 1} 실패: ${msg}`);
-      if (e instanceof Anthropic.AuthenticationError) break;
+      console.error(`  배치 ${bi + 1} 실패: ${msg}`);
+      if (e instanceof Anthropic.AuthenticationError) stop = true;
     }
   }
+  await Promise.all(Array.from({ length: Math.min(Number(process.env.AI_PARALLEL || 4), batches.length) }, worker));
   data.aiClassified = { model: MODEL, version: VERSION, at: new Date().toISOString() };
   await writeFile(OUT, JSON.stringify(data, null, 0) + '\n');
   const remaining = data.items.filter(needsAi).length;
