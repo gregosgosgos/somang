@@ -59,7 +59,8 @@ const SCHEMA = {
           id: { type: 'string' },
           kind: { type: 'string', enum: Object.keys(TAXONOMY.kind) },
           genre: { type: 'string', enum: [...TAXONOMY.genre, ''] },
-          topics: { type: 'array', items: { type: 'string', enum: TAXONOMY.topics }, maxItems: 3 },
+          // 구조화 출력 스키마는 maxItems 를 지원하지 않으므로, 3개 제한은 프롬프트와 저장 시 slice 로 처리
+          topics: { type: 'array', items: { type: 'string', enum: TAXONOMY.topics } },
         },
         required: ['id', 'kind', 'genre', 'topics'],
         additionalProperties: false,
