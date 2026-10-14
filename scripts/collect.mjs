@@ -178,7 +178,7 @@ async function cultureInfo() {
         tel: '', lat: g(b, 'gpsY'), lng: g(b, 'gpsX'),
         homepage: g(b, 'seq') ? `https://www.culture.go.kr/oneCltInfo/oneCltInfoView.do?seq=${g(b, 'seq')}` : '',
         summary: realm && realm !== service ? realm : '',
-        kind: service === '전시' ? 'expo' : service === '공연' ? 'show' : classify(title, realm, 'fest'),
+        kind: service === '전시' ? 'expo' : service === '공연' ? 'show' : service === '교육/체험' ? 'edu' : classify(title, realm, 'fest'),
       });
     }
     const total = Number(xml.match(/<totalCount>(\d+)/)?.[1] || 0);
