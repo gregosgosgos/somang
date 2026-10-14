@@ -159,21 +159,25 @@ async function tourApi() {
 async function cultureInfo() {
   if (!KEY) throw Object.assign(new Error('DATA_GO_KR_KEY 없음'), { skipped: true });
   const items = [];
-  const base = `${GW}/B553457/cultureinfo/period2?serviceKey=${encodeURIComponent(KEY)}&from=${TODAY}&to=${ymd(HORIZON)}&rows=100&sortStdr=1`;
+  // 페이지 파라미터는 문서와 달리 numOfrows / PageNo 만 동작한다 (rows, cPage 는 무시됨)
+  const base = `${GW}/B553457/cultureinfo/period2?serviceKey=${encodeURIComponent(KEY)}&from=${TODAY}&to=${ymd(HORIZON)}&numOfrows=100&sortStdr=1`;
   for (let page = 1; page <= 20; page++) {
-    const xml = await get(`${base}&cPage=${page}`);
+    const xml = await get(`${base}&PageNo=${page}`);
     if (/<(errMsg|returnAuthMsg)>/.test(xml)) throw new Error('문화정보원: ' + (xml.match(/<returnAuthMsg>([^<]+)/)?.[1] || xml.slice(0, 120)));
     const blocks = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => m[1]);
     const g = (b, tag) => text(b.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`))?.[1]);
     for (const b of blocks) {
       const title = g(b, 'title'); if (!title) continue;
-      const realm = g(b, 'realmName'), place = g(b, 'place'), area = g(b, 'area');
+      const realm = g(b, 'realmName'), place = g(b, 'place'), area = g(b, 'area'), sigungu = g(b, 'sigungu'), service = g(b, 'serviceName');
       items.push({
         id: 'ci-' + (g(b, 'seq') || title), src: 'ci', seq: g(b, 'seq'),
         title, start: digits(g(b, 'startDate')), end: digits(g(b, 'endDate')),
-        place: `${area} ${place}`.trim(), area: areaFromText(`${area} ${g(b, 'sigungu')} ${place}`),
-        img: g(b, 'thumbnail'), tel: '', lat: g(b, 'gpsY'), lng: g(b, 'gpsX'),
-        kind: realm.includes('전시') ? 'expo' : realm ? (classify(title, realm) === 'expo' ? 'expo' : 'show') : classify(title),
+        place: [area, sigungu, place].filter(Boolean).join(' '), area: areaFromText(`${area} ${sigungu} ${place}`),
+        img: g(b, 'thumbnail').replace(/^http:\/\//, 'https://'), // 사이트가 https 라 http 이미지는 차단됨
+        tel: '', lat: g(b, 'gpsY'), lng: g(b, 'gpsX'),
+        homepage: g(b, 'seq') ? `https://www.culture.go.kr/oneCltInfo/oneCltInfoView.do?seq=${g(b, 'seq')}` : '',
+        summary: realm && realm !== service ? realm : '',
+        kind: service === '전시' ? 'expo' : service === '공연' ? 'show' : classify(title, realm, 'fest'),
       });
     }
     const total = Number(xml.match(/<totalCount>(\d+)/)?.[1] || 0);

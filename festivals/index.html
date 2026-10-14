@@ -326,6 +326,7 @@
   <div class="status"><span id="count"></span><span id="updated"></span></div>
   <div class="grid" id="grid"></div>
   <div class="empty" id="empty" hidden>조건에 맞는 행사가 없습니다.</div>
+  <div style="text-align:center;margin:18px 0"><button class="btn" id="more" hidden>더 보기</button></div>
 
   <details class="settings">
     <summary>⚙️ 설정 (API 키)</summary>
@@ -478,14 +479,17 @@ function tagsOf(it) {
       .filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]);
     tags = hits.slice(0, 2).filter(([, c], i) => i === 0 || c >= 3).map(([n]) => n);
   }
-  // 특별한 주제가 없는 축제는 '지역 축제'로 묶는다
-  if (!tags.length) return (it.kind === 'fest' || /축제|페스티벌|페스타|festival|festa|문화제|문화의 달|문화가 있는/i.test(title)) ? ['지역 축제'] : ['기타'];
-  return tags;
+  if (tags.length) return tags;
+  // 단서가 없을 때: 축제 → 지역 축제, 전시 전문 출처의 전시 → 미술·회화, 전시장의 전시 → 박람회, 공연 → 기타 공연
+  if (it.kind === 'fest' || /축제|페스티벌|페스타|festival|festa|문화제|문화의 달|문화가 있는/i.test(title)) return ['지역 축제'];
+  if (it.kind === 'expo') return [VENUE_SRC.has(it.src) ? '박람회·비즈니스' : '미술·회화'];
+  if (it.kind === 'show') return ['기타 공연'];
+  return ['기타'];
 }
 function buildTopicChips() {
   const counts = {};
   for (const it of ALL) for (const t of it.tags) counts[t] = (counts[t] || 0) + 1;
-  const order = TAG_RULES.map(([n]) => n).concat(['지역 축제', '기타']).filter(n => counts[n]);
+  const order = TAG_RULES.map(([n]) => n).concat(['지역 축제', '기타 공연', '기타']).filter(n => counts[n]);
   const el = document.getElementById('topicChips');
   el.innerHTML = `<button class="chip" data-topic="all" aria-pressed="${state.topic === 'all'}">전체</button>` +
     order.map(n => `<button class="chip" data-topic="${esc(n)}" aria-pressed="${state.topic === n}">${esc(n)}<small>${counts[n]}</small></button>`).join('');
@@ -702,6 +706,8 @@ function setUpdated(v) {
 
 // ===== 필터 & 렌더 =====
 const state = { kind: 'all', when: 'all', area: '', q: '', sort: 'start', topic: 'all' };
+const PAGE = 120; // 한 번에 그리는 카드 수 (1,000건이 넘어 한꺼번에 그리면 느리다)
+let shown = PAGE;
 
 function filtered() {
   const today = new Date();
@@ -732,8 +738,9 @@ function filtered() {
 
 // 설명이 없는 항목은 장소와 종류로 한 줄을 만든다
 function descOf(it) {
-  if (it.summary) return it.summary;
+  if (it.summary && it.summary.length > 14) return it.summary;
   const where = shortPlace(it.place).split(/\s+/).slice(0, 4).join(' ') || AREA_NAMES[it.area] || '';
+  if (it.summary) return where ? `${it.summary} · ${where}` : it.summary;
   return where ? `${where}에서 열리는 ${KIND_LABEL[it.kind]}` : `${SRC_LABEL[it.src] || ''} 등록 ${KIND_LABEL[it.kind]}`;
 }
 
@@ -753,10 +760,14 @@ function render() {
     buildTopicChips();
     document.getElementById('topicChips').dataset.for = String(ALL.length) + (ALL[0]?.id || '');
   }
-  const list = filtered();
+  const all = filtered();
+  const list = all.slice(0, shown);
   const grid = document.getElementById('grid');
-  document.getElementById('count').textContent = `${list.length}건`;
-  document.getElementById('empty').hidden = list.length > 0;
+  document.getElementById('count').textContent = all.length > list.length ? `${all.length}건 중 ${list.length}건 표시` : `${all.length}건`;
+  document.getElementById('empty').hidden = all.length > 0;
+  const more = document.getElementById('more');
+  more.hidden = all.length <= list.length;
+  more.textContent = `더 보기 (${Math.min(PAGE, all.length - list.length)}건 더)`;
   const icon = { fest: '🎉', expo: '🖼️', show: '🎭' };
   grid.innerHTML = list.map(it => `
     <article class="card" data-id="${esc(it.id)}" tabindex="0">
@@ -815,15 +826,16 @@ function bindChips(id, attr) {
     const b = e.target.closest('.chip'); if (!b) return;
     [...b.parentElement.children].forEach(c => c.setAttribute('aria-pressed', c === b));
     state[attr] = b.dataset[attr];
-    render();
+    shown = PAGE; render();
   });
 }
 bindChips('kindChips', 'kind');
 bindChips('whenChips', 'when');
 bindChips('topicChips', 'topic');
-document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; render(); });
-document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; render(); });
-document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; render(); });
+document.getElementById('area').addEventListener('change', e => { state.area = e.target.value; shown = PAGE; render(); });
+document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; shown = PAGE; render(); });
+document.getElementById('q').addEventListener('input', e => { state.q = e.target.value; shown = PAGE; render(); });
+document.getElementById('more').addEventListener('click', () => { shown += PAGE; render(); });
 document.getElementById('refresh').addEventListener('click', () => load(true));
 
 document.getElementById('grid').addEventListener('click', e => {
