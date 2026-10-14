@@ -19,8 +19,8 @@ const KEY = process.env.ANTHROPIC_API_KEY || '';
 const MODEL = process.env.AI_MODEL || 'claude-opus-5-5';
 const LIMIT = Number(process.env.AI_LIMIT || 2000);
 const FORCE = !!process.env.AI_FORCE;
-const BATCH = 30;
-export const VERSION = 2;
+const BATCH = 20; // 항목당 출력이 늘어 배치를 줄인다
+export const VERSION = 3;
 
 export const TAXONOMY = {
   kind: {
@@ -39,6 +39,14 @@ export const TAXONOMY = {
     '책·문학·인문', '과학·우주·환경', '키즈·가족', '스포츠·레저·캠핑', '게임·e스포츠', '건강·웰니스',
     '마켓·플리마켓', '야간·야행', '자동차·모빌리티', '여행·관광',
   ],
+  // 아래는 검색·추천용 부가 정보 (데이트 코스, 효도 여행, 분야별 글쓰기 등 다른 프로그램에서 쓰기 위한 것)
+  who: ['연인·데이트', '가족·아이', '부모님·효도', '친구', '혼자', '외국인', '반려동물 동반', '비즈니스·전문가'],
+  age: ['유아', '어린이', '청소년', '20대', '30대', '40대', '50대', '60대 이상'],
+  mood: ['로맨틱', '힐링·여유', '활기찬·신나는', '감성·예술', '교육·배움', '트렌디·핫플', '전통·고즈넉', '럭셔리', '가성비'],
+  setting: ['실내', '야외', '실내외'],
+  time: ['낮', '밤', '낮·밤'],
+  cost: ['무료', '1만원 이하', '1~3만원', '3만원 이상', '미상'],
+  stay: ['1시간 이내', '2~3시간', '반나절', '하루 이상'],
 };
 
 const SYSTEM = `당신은 한국의 전시·축제·공연·팝업 행사 정보를 분류하는 사서입니다. 각 행사에 대해 다음을 정합니다.
@@ -56,6 +64,15 @@ const SYSTEM = `당신은 한국의 전시·축제·공연·팝업 행사 정보
    - 영화제·상영회는 '영화·영상', 도서전·북토크·문학·인문학 강좌는 '책·문학·인문', 과학축전·천문·우주·환경·생태는 '과학·우주·환경'.
    - 마라톤·걷기·캠핑·아웃도어·레저는 '스포츠·레저·캠핑', 게임·e스포츠·보드게임·카드게임은 '게임·e스포츠', 플리마켓·아트마켓·장터·바자회는 '마켓·플리마켓', 여행 박람회·관광 행사는 '여행·관광'.
 
+4. who: 이 행사가 잘 맞는 동행 유형. ${TAXONOMY.who.join(', ')} 중 1~4개. 실제로 어울리는 것만 고릅니다 (산업 박람회에 '연인·데이트'를 붙이지 않습니다).
+5. age: 즐기기 좋은 연령대. ${TAXONOMY.age.join(', ')} 중 1~5개. 어린이 대상이면 유아·어린이, 성인 전시·공연이면 20~50대처럼 폭넓게.
+6. mood: 분위기. ${TAXONOMY.mood.join(', ')} 중 1~3개.
+7. setting: ${TAXONOMY.setting.join(' / ')} 중 하나. time: 주로 즐기는 시간대, ${TAXONOMY.time.join(' / ')} 중 하나 (야행·불꽃·야간개장은 밤).
+8. cost: 1인 입장료 수준, ${TAXONOMY.cost.join(' / ')} 중 하나. 요금 정보가 있으면 그것을 쓰고, 공공 축제·거리 행사는 대개 무료, 티켓 판매 공연·상업 전시는 가격을 모르면 미상.
+9. stay: 보통 머무는 시간, ${TAXONOMY.stay.join(' / ')} 중 하나.
+10. keywords: 검색용 자유 키워드 5~10개 (각 1~3어절). 제목·장소·내용에서 뽑은 핵심어, 지역명, 작가·출연진, 상징물(예: 벚꽃, 한강, 야경, 공룡, 재즈), 용도(예: 데이트, 주말 나들이, 효도)를 섞습니다. 분류 이름을 그대로 반복하지 않습니다.
+11. blurb: 행사를 한 줄로 소개하는 문장 (40~70자, 존댓말 없이 '~하는 전시'처럼 명사형으로 끝냄). 제목을 되풀이하지 말고 무엇을 보고 하는지, 누구에게 좋은지 담습니다.
+
 판단 재료: 제목이 가장 중요하고, 장소·출처·설명·장르힌트는 보조입니다. 출처가 coex/kintex/bexco 면 전시장 행사(대개 박람회), nol/melon 이면 티켓 판매 상품, popply 면 팝업스토어, tour 면 관광공사 축제·행사, ci 면 문화정보원 공연·전시·교육입니다.
 입력에 주어진 id 를 그대로 돌려주고, 모든 항목을 빠짐없이 분류합니다.`;
 
@@ -72,8 +89,17 @@ const SCHEMA = {
           genre: { type: 'string', enum: [...TAXONOMY.genre, ''] },
           // 구조화 출력 스키마는 maxItems 를 지원하지 않으므로, 3개 제한은 프롬프트와 저장 시 slice 로 처리
           topics: { type: 'array', items: { type: 'string', enum: TAXONOMY.topics } },
+          who: { type: 'array', items: { type: 'string', enum: TAXONOMY.who } },
+          age: { type: 'array', items: { type: 'string', enum: TAXONOMY.age } },
+          mood: { type: 'array', items: { type: 'string', enum: TAXONOMY.mood } },
+          setting: { type: 'string', enum: TAXONOMY.setting },
+          time: { type: 'string', enum: TAXONOMY.time },
+          cost: { type: 'string', enum: TAXONOMY.cost },
+          stay: { type: 'string', enum: TAXONOMY.stay },
+          keywords: { type: 'array', items: { type: 'string' } },
+          blurb: { type: 'string' },
         },
-        required: ['id', 'kind', 'genre', 'topics'],
+        required: ['id', 'kind', 'genre', 'topics', 'who', 'age', 'mood', 'setting', 'time', 'cost', 'stay', 'keywords', 'blurb'],
         additionalProperties: false,
       },
     },
@@ -90,14 +116,16 @@ export function describe(it) {
     place: (it.place || '').slice(0, 60),
     src: it.src,
     kindHint: it.kind, // 수집 단계의 1차 판정
-    desc: (it.summary || '').slice(0, 160),
+    desc: (it.summary || '').slice(0, 200),
+    price: (it.price || '').slice(0, 80),
+    start: it.start, end: it.end,
   };
 }
 
 export async function classifyBatch(client, items) {
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 8000,
+    max_tokens: 16000,
     output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
     system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: '다음 행사들을 분류하세요.\n' + JSON.stringify(items.map(describe), null, 0) }],
@@ -134,7 +162,13 @@ async function main() {
       for (const r of results) {
         const it = byId.get(r.id);
         if (!it) continue;
-        it.ai = { v: VERSION, kind: r.kind, genre: r.kind === 'show' ? (r.genre || '기타') : '', topics: [...new Set(r.topics)].slice(0, 4) };
+        const uniq = (a, n) => [...new Set((a || []).map(x => String(x).trim()).filter(Boolean))].slice(0, n);
+        it.ai = {
+          v: VERSION, kind: r.kind, genre: r.kind === 'show' ? (r.genre || '기타') : '', topics: uniq(r.topics, 4),
+          who: uniq(r.who, 4), age: uniq(r.age, 5), mood: uniq(r.mood, 3),
+          setting: r.setting, time: r.time, cost: r.cost, stay: r.stay,
+          keywords: uniq(r.keywords, 10).map(k => k.slice(0, 20)), blurb: (r.blurb || '').trim().slice(0, 90),
+        };
         done++;
       }
       const missing = batch.filter(it => !results.some(r => r.id === it.id)).length;
