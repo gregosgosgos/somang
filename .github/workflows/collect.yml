@@ -29,6 +29,12 @@ jobs:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
           KOPIS_KEY: ${{ secrets.KOPIS_KEY }}
         run: node scripts/collect.mjs
+      - name: 장소 좌표 찾기 (지도용, 새 장소만)
+        env:
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+        # 좌표 서비스가 막혀도 수집 결과는 커밋되도록 실패를 무시한다
+        continue-on-error: true
+        run: node scripts/geocode.mjs
       - name: AI 분류 (새 행사만, ANTHROPIC_API_KEY 없으면 건너뜀)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -42,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add festivals/data/events.json
+          git add festivals/data/events.json festivals/data/geocache.json
           if git diff --cached --quiet; then
             echo "변경 없음"
           else
