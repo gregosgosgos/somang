@@ -463,31 +463,83 @@ function normTitle(t) {
   return (t || '')
     .replace(/［[^］]*］|\[[^\]]*\]|\([^)]*\)|《[^》]*》|〈[^〉]*〉/g, ' ')
     .replace(/20\d\d년?|제?\s*\d+\s*(회|주년|차|위|일권)|시즌\s*\d+|얼리버드|단독판매|티켓|입장권|굿즈|전용|상품|특별패키지|패키지|할인|\d+%|\b(in|at)\b/gi, ' ')
-    .replace(/[^0-9a-z가-힣]/gi, '')
+    .replace(/[^0-9a-z가-힣\u2160-\u217f]/gi, '')
     .toLowerCase();
 }
+// '기획전시'처럼 장르 낱말만 남는 이름은 서로 다른 행사도 같아 보이므로 원래 제목 전체를 쓴다
+const GENERIC_KEY = /^(기획전시|특별전시?|기획전|전시|공연|체험|교육|프로그램|축제|행사|강좌|클래스|뮤지컬|연극|콘서트)+$/;
+const sameArea = (a, b) => !a.area || !b.area || a.area === b.area;
 const richness = it => (it.summary ? 4 : 0) + (it.img ? 2 : 0) + (it.homepage ? 1 : 0) + (it.tel ? 1 : 0);
 function dedupe(items) {
   const groups = new Map();
   const byId = new Map(); // 같은 출처에서 같은 id 로 두 번 나오면 (제목만 조금 다른 경우) 무조건 같은 행사
   for (const it of items) {
-    let k = normTitle(it.title) || it.title;
+    let k = normTitle(it.title);
+    if (k.length < 4 || GENERIC_KEY.test(k)) k = (it.title || '').replace(/\s+/g, '').toLowerCase();
     if (byId.has(it.id)) k = byId.get(it.id); else byId.set(it.id, k);
     // '봉주르 장자크 상페' 와 '봉주르 장자크 상페 세상을 그린 시선' 처럼 한쪽이 다른 쪽의 앞부분이면 같은 행사로 본다
     if (k.length >= 8) for (const key of groups.keys()) if (key.length >= 8 && (key.startsWith(k) || k.startsWith(key))) { k = key; break; }
     if (!groups.has(k)) groups.set(k, []);
     const g = groups.get(k);
-    const hit = g.find(o => o.id === it.id) || g.find(o => (it.start || '0') <= (o.end || '9') && (o.start || '0') <= (it.end || '9'));
+    // 같은 이름이라도 지역이 다르면 (전국 투어의 도시별 공연) 다른 항목
+    const hit = g.find(o => o.id === it.id) || g.find(o => sameArea(o, it) && (it.start || '0') <= (o.end || '9') && (o.start || '0') <= (it.end || '9'));
     if (!hit) { g.push({ ...it }); continue; }
     // 정보가 더 많은 쪽을 기준으로 하고 빈 칸은 다른 쪽에서 채운다. 기간은 둘을 합친다.
     const [base, other] = richness(it) > richness(hit) ? [it, hit] : [hit, it];
     Object.assign(hit, { ...base,
       img: base.img || other.img, homepage: base.homepage || other.homepage, summary: base.summary || other.summary, tel: base.tel || other.tel,
+      price: base.price || other.price,
       place: base.place || other.place, area: base.area || other.area, lat: base.lat || other.lat, lng: base.lng || other.lng,
       start: [base.start, other.start].filter(Boolean).sort()[0], end: [base.end, other.end].filter(Boolean).sort().pop(),
     });
   }
-  return [...groups.values()].flat();
+  return mergeSameEvent([...groups.values()].flat());
+}
+
+// 출처마다 제목 쓰는 법이 달라 생기는 중복을 한 번 더 합친다.
+//   '브람스' (NOL) = '[서울] 뮤지컬 브람스' (문화정보원)
+//   '《마틴 파 : We Are Martin Parr》' = '[서울시립 사진미술관] 마틴 파 : We Are Martin Parr'
+// 핵심 이름은 꺾쇠 안의 이름을 살리고, 앞머리 꼬리표·장르 낱말·연도·회차를 뗀 것이다.
+const CORE_DROP = /뮤지컬|연극|음악극|콘서트|전시회?|특별전|기획전|초대전|개인전|공연|오페라|발레|창극|리사이틀|내한|단독판매|단독|앵콜|이머시브|케이팝|정기공연|전국투어|투어|기념|10주년|\d+주년/g;
+function coreName(t) {
+  let s = (t || '').replace(/&amp;/g, '&').replace(/,\s*\d+위$/, '');
+  const inner = s.match(/[〈<《「『]([^〉>》」』]{2,})[〉>》」』]/);
+  if (inner) s = '〈' + inner[1]; // 꺾쇠 안 이름이면 두 글자('지젤')도 믿을 만하므로 표시를 남긴다
+  return s.replace(/［[^］]*］|\[[^\]]*\]|\([^)]*\)/g, ' ').replace(/20\d\d(?:년|\s|$)|제?\s*\d+\s*(?:회|차|기)\b/g, ' ')
+    .replace(CORE_DROP, ' ').replace(/[^0-9a-z가-힣\u2160-\u217f〈]/gi, '').toLowerCase();
+}
+// 본행사와 딸린 프로그램(연계 행사, 관객과의 대화, 모집 공고, 부가 서비스)은 이름이 같아도 다른 항목이다
+const SIDE = /연계|관객과의|대화|모집|워크숍|워크샵|클래스|강연|특강|체험|자막|예약 서비스|팸투어|부스/;
+const TITLE_AD = /단독판매|좌석우위|\d+위$|할인|얼리버드/;
+const placeKey = p => (p || '').replace(/^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\S*\s*/, '').replace(/[^0-9a-z가-힣]/gi, '').slice(0, 8);
+function mergeSameEvent(items) {
+  const byCore = new Map(), out = [];
+  for (const it of items) {
+    const c = coreName(it.title);
+    const bare = c.replace('〈', ''); // 표시는 길이 기준에만 쓰고 비교는 이름만으로
+    if (bare.length < (c.startsWith('〈') ? 2 : 3) || GENERIC_KEY.test(bare)) { out.push(it); continue; }
+    const list = byCore.get(bare) || [];
+    const hit = list.find(o =>
+      (it.start || '0') <= (o.end || o.start || '9') && (o.start || '0') <= (it.end || it.start || '9') &&
+      sameArea(it, o) &&
+      SIDE.test(it.title) === SIDE.test(o.title) &&
+      // 같은 출처끼리는 장소까지 같아야 (지점·회차가 다른 상품을 합치지 않도록)
+      (it.src !== o.src || !it.place || !o.place || placeKey(it.place) === placeKey(o.place)));
+    if (!hit) { list.push(it); byCore.set(bare, list); out.push(it); continue; }
+    const [base, other] = richness(it) > richness(hit) ? [it, hit] : [hit, it];
+    const also = [...new Set([...(hit.also || []), ...(it.also || []), base.src === other.src ? null : other.src].filter(Boolean))];
+    Object.assign(hit, { ...base,
+      // 제목은 꼬리표·순위가 덜 붙은 쪽 (NOL 의 '단독판매', ', 2위' 따위)
+      // 제목은 딸린 프로그램·광고 문구가 없는 쪽, 그다음 정보가 많은(긴) 쪽
+      title: [base.title, other.title].sort((a, b) => SIDE.test(a) - SIDE.test(b) || TITLE_AD.test(a) - TITLE_AD.test(b) || b.length - a.length)[0],
+      img: base.img || other.img, homepage: base.homepage || other.homepage, summary: base.summary || other.summary, tel: base.tel || other.tel,
+      price: base.price || other.price, famous: base.famous || other.famous,
+      place: base.place || other.place, area: base.area || other.area, lat: base.lat || other.lat, lng: base.lng || other.lng,
+      start: [base.start, other.start].filter(Boolean).sort()[0], end: [base.end, other.end].filter(Boolean).sort().pop(),
+      ...(also.length ? { also } : {}),
+    });
+  }
+  return out;
 }
 
 async function main() {

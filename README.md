@@ -63,7 +63,7 @@
     | `cost` / `stay` | 무료 · 1만원 이하 · 1~3만원 · 3만원 이상 · 미상 / 1시간 이내 · 2~3시간 · 반나절 · 하루 이상 |
     | `blurb` | 한 줄 소개 (40~70자) |
 
-    항목 자체에는 `price`(요금 문구, 있을 때), `famous`(문체부 문화관광축제 등급, 해당할 때)도 있습니다.
+    항목 자체에는 `price`(요금 문구, 있을 때), `famous`(문체부 문화관광축제 등급, 해당할 때), `also`(같은 행사를 함께 실은 다른 출처들)도 있습니다.
 
     분류 체계를 바꾸면 `scripts/classify.mjs`의 `TAXONOMY`와 `VERSION`을 올립니다. 그러면 다음 수집 때 전체를 다시 분류합니다.
   - 티켓 사이트는 개편되면 해당 출처만 비고 나머지는 유지됩니다. 실패 내역은 `events.json`의 `sources`와 Actions 로그에 남습니다. 로컬에서 일부 출처만 돌려 보려면 `SOURCES=nol,melon node scripts/collect.mjs`처럼 실행합니다 (NOL은 `npm i playwright` 필요).
