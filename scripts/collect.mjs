@@ -27,6 +27,11 @@ const require = createRequire(import.meta.url); // playwright 는 선택 의존�
 const OUT = new URL('../festivals/data/events.json', import.meta.url);
 const KEY = process.env.DATA_GO_KR_KEY || '';
 const KOPIS_KEY = process.env.KOPIS_KEY || '';
+// 새 출처는 scripts/sources/ 에 한 파일씩 둔다
+import { lck } from './sources/lck.mjs';
+import { sports } from './sources/sports.mjs';
+import { marathon } from './sources/marathon.mjs';
+import { themepark } from './sources/themepark.mjs';
 import { UA, GW, today, pad, ymd, addDays, dashed, dotted, TODAY, HORIZON, AREA_BY_NAME, VENUE_HINTS, areaFromText, classify, ymdLoose, decodeEntities, text, digits, clip, mapPool, get } from './lib.mjs';
 let PREV = null; // 이전 수집 결과 (main 에서 읽어 둠)
 
@@ -476,7 +481,7 @@ function dedupe(items) {
 
 async function main() {
   try { PREV = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
-  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis, popply };
+  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis, popply, sports, lck, marathon, themepark };
   // SOURCES=coex,nol 처럼 일부만 실행하면 나머지 출처는 이전 파일 데이터를 그대로 둔다 (디버깅용)
   const only = (process.env.SOURCES || '').split(',').map(s => s.trim()).filter(Boolean);
   const sources = only.length ? Object.fromEntries(Object.entries(all).filter(([n]) => only.includes(n))) : all;
