@@ -126,7 +126,9 @@
   .btn:disabled { opacity: .5; cursor: default; }
 
   /* 선택한 조건 요약 */
-  .active-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 38px; padding: 8px 0 4px; font-size: 12px; color: var(--sub); }
+  /* 조건이 늘어도 높이가 변하지 않도록 한 줄로 두고 넘치면 가로로 밀어 본다 */
+  .active-bar { display: flex; flex-wrap: nowrap; gap: 6px; align-items: center; height: 40px; padding: 6px 0 4px; font-size: 12px; color: var(--sub); overflow-x: auto; overflow-y: hidden; white-space: nowrap; scrollbar-width: thin; }
+  .active-bar > * { flex: none; }
   .pill {
     display: inline-flex; align-items: center; gap: 2px;
     background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line);
@@ -148,7 +150,8 @@
     cursor: pointer; font-family: inherit; transition: background .1s, border-color .1s, color .1s, opacity .1s;
   }
   .chip:hover { border-color: var(--accent-line); background: var(--accent-soft); }
-  .chip small { font-size: 10.5px; color: var(--sub); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  /* 건수 칸 폭을 고정해 숫자가 바뀌어도 칩 너비와 줄바꿈이 그대로이게 한다 */
+  .chip small { display: inline-block; min-width: 4ch; font-size: 10.5px; color: var(--sub); margin-left: 4px; font-variant-numeric: tabular-nums; text-align: left; }
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .chip[aria-pressed="true"] small { color: inherit; opacity: .8; }
   .chip.zero { opacity: .38; }
@@ -550,7 +553,7 @@ function syncChips() {
       const n = pool.reduce((c, it) => c + (g.test(it, v) ? 1 : 0), 0);
       chip.lastElementChild.textContent = n;
       chip.classList.toggle('zero', n === 0);
-      chip.setAttribute('aria-pressed', state.sel[g.key] === v);
+      chip.setAttribute('aria-pressed', !!state.sel[g.key]?.has(v));
     }
   }
   const from = document.getElementById('from'), to = document.getElementById('to');
@@ -560,7 +563,7 @@ function syncChips() {
 // 선택한 조건을 알약 모양으로 요약. × 로 하나씩 뺄 수 있다
 function renderActiveBar(total) {
   const pills = [];
-  for (const g of GROUPS) { const v = state.sel[g.key]; if (v) pills.push([g.key, g.label, g.values.find(([x]) => x === v)?.[1] || v]); }
+  for (const g of GROUPS) for (const v of state.sel[g.key] || []) pills.push([`${g.key}|${v}`, g.label, g.values.find(([x]) => x === v)?.[1] || v]);
   if (state.from || state.to) pills.push(['dates', '기간', `${state.from ? state.from.replace(/-/g, '.').slice(2) : ''} ~ ${state.to ? state.to.replace(/-/g, '.').slice(2) : ''}`]);
   if (state.q.trim()) pills.push(['q', '검색', state.q.trim()]);
   const el = document.getElementById('activeBar');
@@ -832,9 +835,10 @@ function filtered(ignore = []) {
   const useDates = (from || to) && !ignore.includes('when');
   const list = ALL.filter(it => {
     for (const g of GROUPS) {
-      const v = state.sel[g.key];
-      if (!v || ignore.includes(g.key)) continue;
-      if (!g.test(it, v)) return false;
+      const set = state.sel[g.key];
+      if (!set || !set.size || ignore.includes(g.key)) continue;
+      let ok = false; for (const v of set) if (g.test(it, v)) { ok = true; break; }
+      if (!ok) return false;
     }
     if (useDates && !(it.start <= (to || '9') && endOf(it) >= (from || '0'))) return false;
     if (q && !searchText(it).includes(q)) return false;
@@ -965,11 +969,15 @@ async function openDetail(it) {
 
 // ===== 이벤트 =====
 buildChipsOnce();
+// 칩은 여러 개 고를 수 있다. 같은 칩을 다시 누르면 빠진다.
+const selOf = key => state.sel[key] || (state.sel[key] = new Set());
 function setSel(key, value) {
-  state.sel[key] = state.sel[key] === value ? '' : value; // 같은 칩을 다시 누르면 해제
-  if (key === 'kind' && state.sel.kind !== 'show') state.sel.sub = '';
-  if (key === 'sub' && state.sel.sub) state.sel.kind = 'show';
-  if (key === 'when' && state.sel.when) { state.from = ''; state.to = ''; }
+  const set = selOf(key);
+  set.has(value) ? set.delete(value) : set.add(value);
+  // 공연 장르를 고르면 종류에 공연을 넣고, 종류에서 공연을 빼면 장르 선택도 비운다
+  if (key === 'sub' && set.size) selOf('kind').add('show');
+  if (key === 'kind' && !set.has('show')) selOf('sub').clear();
+  if (key === 'when' && set.size) { state.from = ''; state.to = ''; }
 }
 document.getElementById('fgrid').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
@@ -980,7 +988,7 @@ document.getElementById('fgrid').addEventListener('change', e => {
   if (e.target.id !== 'from' && e.target.id !== 'to') return;
   state[e.target.id] = e.target.value;
   if (state.from && state.to && state.from > state.to) { state.to = state.from; }
-  state.sel.when = ''; // 날짜를 직접 고르면 기간 칩은 해제
+  selOf('when').clear(); // 날짜를 직접 고르면 기간 칩은 해제
   shown = PAGE; render();
 });
 document.getElementById('activeBar').addEventListener('click', e => {
@@ -988,7 +996,7 @@ document.getElementById('activeBar').addEventListener('click', e => {
   const k = b.dataset.clear;
   if (k === 'dates') { state.from = ''; state.to = ''; }
   else if (k === 'q') { state.q = ''; document.getElementById('q').value = ''; }
-  else { state.sel[k] = ''; if (k === 'kind') state.sel.sub = ''; }
+  else { const [key, v] = k.split('|'); selOf(key).delete(v); if (key === 'kind' && v === 'show') selOf('sub').clear(); }
   shown = PAGE; render();
 });
 document.getElementById('reset').addEventListener('click', () => {
@@ -1007,7 +1015,7 @@ document.getElementById('grid').addEventListener('click', e => {
     FAVS.has(id) ? FAVS.delete(id) : FAVS.add(id);
     try { localStorage.setItem(FAV_STORAGE, JSON.stringify([...FAVS])); } catch (err) {}
     fav.textContent = FAVS.has(id) ? '★' : '☆';
-    if (state.sel.kind === 'fav') render();
+    if (state.sel.kind?.has('fav')) render();
     return;
   }
   const card = e.target.closest('.card');
