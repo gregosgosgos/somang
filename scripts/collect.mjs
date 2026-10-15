@@ -27,87 +27,8 @@ const require = createRequire(import.meta.url); // playwright 는 선택 의존�
 const OUT = new URL('../festivals/data/events.json', import.meta.url);
 const KEY = process.env.DATA_GO_KR_KEY || '';
 const KOPIS_KEY = process.env.KOPIS_KEY || '';
-// 일부 사이트(킨텍스)는 브라우저가 아닌 UA를 거부하므로 일반 브라우저 UA를 쓴다
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
-const GW = 'https://apis.data.go.kr';
-
-const today = new Date();
-const pad = n => String(n).padStart(2, '0');
-const ymd = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
-const dashed = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const dotted = d => `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`;
-const TODAY = ymd(today);
+import { UA, GW, today, pad, ymd, addDays, dashed, dotted, TODAY, HORIZON, AREA_BY_NAME, VENUE_HINTS, areaFromText, classify, ymdLoose, decodeEntities, text, digits, clip, mapPool, get } from './lib.mjs';
 let PREV = null; // 이전 수집 결과 (main 에서 읽어 둠)
-const HORIZON = addDays(today, 180); // 앞으로 6개월
-
-const AREA_BY_NAME = [
-  ['서울', 1], ['인천', 2], ['대전', 3], ['대구', 4], ['광주', 5], ['부산', 6], ['울산', 7], ['세종', 8],
-  ['경기', 31], ['강원', 32], ['충북', 33], ['충청북', 33], ['충남', 34], ['충청남', 34], ['경북', 35], ['경상북', 35],
-  ['경남', 36], ['경상남', 36], ['전북', 37], ['전라북', 37], ['전남', 38], ['전라남', 38], ['제주', 39]];
-// 주소 없이 장소명만 있을 때 쓰는 유명 장소 → 지역 힌트 (티켓 사이트용)
-const VENUE_HINTS = [
-  [/경복궁|창덕궁|덕수궁|창경궁|종묘|국립중앙박물관|고궁박물관|북촌|홍대|성수|한남|이태원|잠실|코엑스|DDP|동대문|예술의전당|롯데월드|롯데뮤지엄|더현대|여의도|용산|강남|신촌|합정|을지로|명동|인사동|삼청|청담|압구정|마곡|노들섬|세종문화회관|국립현대미술관 서울|서울시립|그라운드시소|뮤지엄산/, 1],
-  [/해운대|광안리|벡스코|부산/, 6], [/킨텍스|일산|고양|수원|용인|성남|판교|파주|광명|안양|부천|과천|에버랜드|뮤지엄 산|원주/, 31],
-  [/대구/, 4], [/인천|송도|파라다이스시티/, 2], [/광주/, 5], [/대전/, 3], [/울산/, 7], [/세종/, 8],
-  [/제주|서귀포/, 39], [/강릉|속초|춘천|양양|평창|원주|강원/, 32], [/전주|군산|익산|전북/, 37], [/여수|순천|목포|광양|전남/, 38],
-  [/경주|포항|안동|구미|경북/, 35], [/창원|김해|진주|통영|거제|경남/, 36], [/청주|충북/, 33], [/천안|아산|공주|보령|충남/, 34],
-];
-const areaFromText = t => {
-  for (const [n, c] of AREA_BY_NAME) if ((t || '').includes(n)) return c;
-  for (const [re, c] of VENUE_HINTS) if (re.test(t || '')) return c;
-  return 0;
-};
-
-function classify(title, realm, fallback = 'fest') {
-  const t = `${title || ''} ${realm || ''}`;
-  if (/전시|展|갤러리|미술|아트페어|비엔날레|사진전|기획전|특별전|박람회|엑스포|expo|exhibition|페어|fair|쇼\b|show\b|대전\b/i.test(t)) return 'expo';
-  if (/축제|페스티벌|페스타|festival|fest\b|불꽃|장터|마켓|빛축제|등축제/i.test(t)) return 'fest';
-  if (/연극|뮤지컬|오페라|무용|발레|콘서트|음악|국악|공연|리사이틀|연주회|극장|concert/i.test(t)) return 'show';
-  return fallback;
-}
-// 'YY.MM.DD' 또는 'YYYY.MM.DD' → 'YYYYMMDD'
-const ymdLoose = s => { const d = (s || '').replace(/\D/g, ''); return d.length === 6 ? '20' + d : d.slice(0, 8); };
-const decodeEntities = s => (s || '')
-  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-  .replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n))
-  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
-  .replace(/&(lsquo|rsquo|ldquo|rdquo|middot|hellip|ndash|mdash|bull|times|deg|rarr|larr);/g, (_, k) => ({ lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”', middot: '·', hellip: '…', ndash: '–', mdash: '—', bull: '•', times: '×', deg: '°', rarr: '→', larr: '←' }[k]));
-const text = s => decodeEntities((s || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
-const digits = s => (s || '').replace(/\D/g, '').slice(0, 8);
-// 카드에 보여줄 한 줄 설명: 태그 제거 후 앞부분만
-const clip = (s, n = 140) => { const t = text((s || '').replace(/<br\s*\/?>/gi, ' ')); return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t; };
-// 동시 요청 수를 제한해 상세 페이지를 순회 (실패는 무시)
-async function mapPool(items, size, fn, label = '') {
-  let i = 0, fail = 0;
-  await Promise.all(Array.from({ length: Math.min(size, items.length) }, async () => {
-    while (i < items.length) { const it = items[i++]; try { await fn(it); } catch { fail++; } }
-  }));
-  if (label) console.log(`[${label}] 상세 ${items.length}건 중 실패 ${fail}건`);
-  return fail;
-}
-
-async function get(url, opts = {}) {
-  // 네트워크 오류나 5xx 는 최대 3번 재시도 (공공데이터포털 게이트웨이가 가끔 연결을 끊는다)
-  let lastErr;
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    try {
-      const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'ko' }, redirect: 'follow', signal: AbortSignal.timeout(60000), ...opts });
-      if (res.status >= 500) throw new Error(`${res.status} ${url}`);
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        const why = body.match(/<returnAuthMsg>([^<]+)|"returnAuthMsg"\s*:\s*"([^"]+)"|<errMsg>([^<]+)/);
-        throw Object.assign(new Error(`${res.status} ${why ? (why[1] || why[2] || why[3]) : ''} ${url.split('?')[0]}`.trim()), { noRetry: true });
-      }
-      return await res.text();
-    } catch (e) {
-      lastErr = e;
-      if (e.noRetry) throw e;
-      await new Promise(r => setTimeout(r, 2000 * attempt));
-    }
-  }
-  throw lastErr;
-}
 
 let lastDetailError = '';
 function explainGatewayLimit(body) {
@@ -380,58 +301,94 @@ async function visitseoul() {
 }
 
 // ---------- 7. 멜론티켓 ----------
+// 장르별로 받아 합친다. summary 첫 토막은 페이지의 공연 장르 판정(REALM_GENRE)에 쓰인다.
+const MELON_GENRES = [
+  ['GENRE_EXH_ALL', 'expo', '전시/행사'], ['GENRE_CON_ALL', 'show', '음악/콘서트'], ['GENRE_ART_ALL', 'show', '뮤지컬/오페라'],
+  ['GENRE_CLA_ALL', 'show', '클래식'], ['GENRE_FAN_ALL', 'show', '팬미팅'],
+];
+// 좌석 등급별 가격 → "R석 99,000원 / S석 77,000원" (AI 의 비용 판정에 쓰인다)
+function melonPrice(json) {
+  try {
+    const list = JSON.parse(json || '{}')?.data?.list || [];
+    return list.filter(x => Number(x.basePrice) > 0).slice(0, 3).map(x => `${x.seatGradeName || ''} ${Number(x.basePrice).toLocaleString('ko-KR')}원`.trim()).join(' / ');
+  } catch { return ''; }
+}
 async function melon() {
-  const url = 'https://ticket.melon.com/performance/ajax/prodList.json?commCode=&sortType=HIT&perfGenreCode=GENRE_EXH_ALL&perfThemeCode=&filterCode=FILTER_ALL&v=1';
-  const body = await get(url, { headers: { 'User-Agent': UA, Referer: 'https://ticket.melon.com/concert/index.htm?genreType=GENRE_EXH', 'X-Requested-With': 'XMLHttpRequest' } });
-  let json;
-  try { json = JSON.parse(body); } catch { throw new Error('멜론티켓 응답 해석 실패: ' + body.slice(0, 80)); }
-  const list = Array.isArray(json.data) ? json.data : [];
-  return list.map(o => {
-    const m = (o.periodInfo || '').match(/([\d.]+)\s*-\s*([\d.]+)/);
-    return {
-      id: 'melon-' + o.prodId, src: 'melon',
-      title: text(o.title), start: ymdLoose(m?.[1] || o.periodInfo), end: ymdLoose(m?.[2] || m?.[1] || o.periodInfo),
-      place: `${o.regionName || ''} ${o.placeName || ''}`.trim(), area: areaFromText(`${o.regionName} ${o.placeName}`),
-      img: o.posterImg ? 'https://cdnticket.melon.co.kr' + o.posterImg : '', tel: '',
-      homepage: `https://ticket.melon.com/performance/index.htm?prodId=${o.prodId}`,
-      summary: clip(o.summary) || '',
-      kind: classify(o.title, '', 'expo'),
-    };
-  }).filter(it => it.title && it.start);
+  const out = [];
+  for (const [code, kind, label] of MELON_GENRES) {
+    const url = `https://ticket.melon.com/performance/ajax/prodList.json?commCode=&sortType=HIT&perfGenreCode=${code}&perfThemeCode=&filterCode=FILTER_ALL&v=1`;
+    const body = await get(url, { headers: { 'User-Agent': UA, Referer: 'https://ticket.melon.com/concert/index.htm', 'X-Requested-With': 'XMLHttpRequest' } });
+    let json;
+    try { json = JSON.parse(body); } catch { throw new Error('멜론티켓 응답 해석 실패: ' + body.slice(0, 80)); }
+    for (const o of Array.isArray(json.data) ? json.data : []) {
+      const m = (o.periodInfo || '').match(/([\d.]+)\s*-\s*([\d.]+)/);
+      const desc = clip(o.summary);
+      out.push({
+        id: 'melon-' + o.prodId, src: 'melon',
+        title: text(o.title), start: ymdLoose(m?.[1] || o.periodInfo), end: ymdLoose(m?.[2] || m?.[1] || o.periodInfo),
+        place: `${o.regionName || ''} ${o.placeName || ''}`.trim(), area: areaFromText(`${o.regionName} ${o.placeName}`),
+        img: o.posterImg ? 'https://cdnticket.melon.co.kr' + o.posterImg : '', tel: '',
+        homepage: `https://ticket.melon.com/performance/index.htm?prodId=${o.prodId}`,
+        summary: desc ? `${label} · ${desc}` : label,
+        price: melonPrice(o.seatGradeJson),
+        kind: kind === 'expo' ? classify(o.title, '', 'expo') : 'show',
+      });
+    }
+  }
+  return out.filter(it => it.title && it.start);
 }
 
 // ---------- 8. NOL 티켓 (헤드리스 브라우저) ----------
+// 장르 페이지마다 같은 구조 (카드 링크의 aria-label 에 "제목, 장소, 공연 기간: 26.09.23 ~ 27.03.01")
+const NOL_GENRES = [
+  ['exhibition', 'expo', '전시/행사'], ['musical', 'show', '뮤지컬/오페라'], ['concert', 'show', '음악/콘서트'],
+  ['play', 'show', '연극'], ['classic', 'show', '클래식'], ['family', 'show', '아동/가족'],
+];
 async function nol() {
   let pw;
   try { pw = require('playwright'); } catch { throw new Error('playwright 미설치 (npm i playwright && npx playwright install chromium)'); }
   const browser = await pw.chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
+  const out = [], failed = [];
   try {
     const ctx = await browser.newContext({ locale: 'ko-KR', userAgent: UA, viewport: { width: 1280, height: 900 } });
     const page = await ctx.newPage();
-    await page.goto('https://nol.yanolja.com/ticket/genre/exhibition', { waitUntil: 'networkidle', timeout: 60000 });
-    for (let i = 0; i < 10; i++) { await page.mouse.wheel(0, 2500); await page.waitForTimeout(500); }
-    const raw = await page.evaluate(() => {
-      const seen = new Set(), out = [];
-      for (const a of document.querySelectorAll('a[aria-label*="공연 기간"]')) {
-        if (seen.has(a.href)) continue; seen.add(a.href);
-        out.push({ href: a.href, label: a.getAttribute('aria-label'), img: a.querySelector('img')?.getAttribute('src') || '' });
-      }
-      return out;
-    });
-    if (!raw.length) throw new Error('NOL 페이지에서 항목을 찾지 못함 (구조 변경?)');
-    return raw.map(r => {
-      // "제목, 장소, 공연 기간: 26.09.23 ~ 27.03.01"
-      const m = r.label.match(/^(.*),\s*([^,]*),\s*공연 기간:\s*([\d.]+)\s*~\s*([\d.]+)\s*$/);
-      if (!m) return null;
-      const title = text(m[1]).replace(/[\u2800\u3000]+/g, ' ').trim(), place = text(m[2]).replace(/^공연장\s*:\s*/, '');
-      return {
-        id: 'nol-' + (r.href.match(/products\/(\d+)/)?.[1] || title), src: 'nol',
-        title, start: ymdLoose(m[3]), end: ymdLoose(m[4]),
-        place, area: areaFromText(`${title} ${place}`), img: r.img, tel: '', homepage: r.href,
-        kind: classify(title, '', 'expo'),
-      };
-    }).filter(Boolean);
+    for (const [slug, kind, label] of NOL_GENRES) {
+      try {
+        // networkidle 은 콘서트 페이지의 유튜브 영상 때문에 끝나지 않으므로 카드가 뜰 때까지만 기다린다
+        await page.goto(`https://nol.yanolja.com/ticket/genre/${slug}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await page.waitForSelector('a[aria-label*="공연 기간"]', { timeout: 20000 }).catch(() => {});
+        // 아래로 내릴 때마다 카드가 더 붙으므로, 개수가 더 늘지 않을 때까지 내린다
+        for (let i = 0, last = -1, same = 0; i < 30 && same < 3; i++) {
+          await page.mouse.wheel(0, 3000); await page.waitForTimeout(500);
+          const n = await page.$$eval('a[aria-label*="공연 기간"]', as => new Set(as.map(a => a.href)).size);
+          same = n === last ? same + 1 : 0; last = n;
+        }
+        const raw = await page.evaluate(() => {
+          const seen = new Set(), list = [];
+          for (const a of document.querySelectorAll('a[aria-label*="공연 기간"]')) {
+            if (seen.has(a.href)) continue; seen.add(a.href);
+            list.push({ href: a.href, label: a.getAttribute('aria-label'), img: a.querySelector('img')?.getAttribute('src') || '' });
+          }
+          return list;
+        });
+        if (!raw.length) { failed.push(slug); continue; }
+        for (const r of raw) {
+          const m = r.label.match(/^(.*),\s*([^,]*),\s*공연 기간:\s*([\d.]+)\s*~\s*([\d.]+)\s*$/);
+          if (!m) continue;
+          const title = text(m[1]).replace(/[⠀　]+/g, ' ').trim(), place = text(m[2]).replace(/^공연장\s*:\s*/, '');
+          out.push({
+            id: 'nol-' + (r.href.match(/products\/(\d+)/)?.[1] || title), src: 'nol',
+            title, start: ymdLoose(m[3]), end: ymdLoose(m[4]),
+            place, area: areaFromText(`${title} ${place}`), img: r.img, tel: '', homepage: r.href,
+            summary: label, kind: kind === 'expo' ? classify(title, '', 'expo') : 'show',
+          });
+        }
+      } catch (e) { failed.push(`${slug}(${e.message.slice(0, 40)})`); }
+    }
   } finally { await browser.close(); }
+  if (failed.length) console.warn('[nol] 항목을 못 찾은 장르:', failed.join(', '));
+  if (!out.length) throw new Error('NOL 페이지에서 항목을 찾지 못함 (구조 변경?)');
+  return out;
 }
 
 // ---------- 9. KOPIS 공연예술통합전산망 ----------
