@@ -4,17 +4,15 @@
 //
 //   DATA_GO_KR_KEY=<공공데이터포털 인증키> node scripts/collect.mjs
 //
-// 출처
-//   1. 한국관광공사 TourAPI 4.0 searchFestival2 (축제·공연·행사)   — 키 필요
-//   2. 한국문화정보원 공연전시정보 period2 (공연·전시)              — 키 필요
-//   3. 코엑스 행사일정 (www.coex.co.kr)                            — 키 불필요
-//   4. 킨텍스 행사일정 (www.kintex.com)                            — 키 불필요
-//   5. 벡스코 행사일정 (www.bexco.co.kr)                           — 키 불필요
-//   6. 비짓서울 전시 (korean.visitseoul.net, 서울관광재단)           — 키 불필요
-//   7. 멜론티켓 전시/행사 (ticket.melon.com)                        — 키 불필요
-//   8. NOL 티켓(옛 인터파크) 전시 (nol.yanolja.com)                 — 키 불필요, playwright 필요
-//   9. KOPIS 공연예술통합전산망 (kopis.or.kr)                       — KOPIS_KEY 필요
-//  10. 팝플리 팝업스토어 (popply.co.kr)                            — 키 불필요, 사이트가 쓰는 공개 JSON
+// 출처 (괄호는 키 필요 여부)
+//   공공: 관광공사 TourAPI·문화정보원 공연전시 (DATA_GO_KR_KEY), KOPIS (KOPIS_KEY), 서울문화포털, 경기문화재단,
+//         문체부 문화관광축제·지역축제 개최계획, 전국전통시장 표준데이터 5일장, 국립공원 탐방프로그램, 숲나들e 휴양림 프로그램,
+//         국립중앙도서관 행사, KOBIZ 영화제
+//   전시장: 코엑스, 킨텍스, 벡스코 / 관광: 비짓서울
+//   티켓: 멜론티켓·NOL 티켓(playwright) 전 장르, 네이버 스포츠 경기 일정, LoL e스포츠 일정
+//   체험: 프립, 솜씨당, 웰촌 농촌체험, 템플스테이(접속 대기열), 마라톤온라인, 에버랜드·롯데월드, 알라딘 작가 행사
+//   팝업: 팝플리
+//   이 파일 안의 출처 외에는 scripts/sources/ 에 한 파일씩 있다.
 //
 // 티켓 사이트는 개편되면 깨질 수 있다. 출처 하나가 실패해도 나머지는 저장되고,
 // 실패한 출처는 이전 파일의 데이터를 유지한다. 실패 내역은 events.json 의 sources 에 남는다.
@@ -39,6 +37,12 @@ import { market5 } from './sources/market5.mjs';
 import { booktalk } from './sources/booktalk.mjs';
 import { filmfest } from './sources/filmfest.mjs';
 import { fleamarket } from './sources/fleamarket.mjs';
+import { frip } from './sources/frip.mjs';
+import { sssd } from './sources/sssd.mjs';
+import { welchon } from './sources/welchon.mjs';
+import { knps } from './sources/knps.mjs';
+import { foresttrip } from './sources/foresttrip.mjs';
+import { templestay } from './sources/templestay.mjs';
 import { UA, GW, today, pad, ymd, addDays, dashed, dotted, TODAY, HORIZON, AREA_BY_NAME, VENUE_HINTS, areaFromText, classify, ymdLoose, decodeEntities, text, digits, clip, mapPool, get } from './lib.mjs';
 let PREV = null; // 이전 수집 결과 (main 에서 읽어 둠)
 
@@ -489,7 +493,8 @@ function dedupe(items) {
 async function main() {
   try { PREV = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
   const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis, popply, sports, lck, marathon, themepark,
-    seoul, gyeonggi, famousfest, market5, booktalk, filmfest, fleamarket };
+    seoul, gyeonggi, famousfest, market5, booktalk, filmfest, fleamarket,
+    frip, sssd, welchon, knps, foresttrip, templestay };
   // SOURCES=coex,nol 처럼 일부만 실행하면 나머지 출처는 이전 파일 데이터를 그대로 둔다 (디버깅용)
   const only = (process.env.SOURCES || '').split(',').map(s => s.trim()).filter(Boolean);
   const sources = only.length ? Object.fromEntries(Object.entries(all).filter(([n]) => only.includes(n))) : all;
