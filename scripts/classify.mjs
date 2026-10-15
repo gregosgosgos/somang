@@ -17,7 +17,7 @@ const require = createRequire(import.meta.url);
 const OUT = new URL('../festivals/data/events.json', import.meta.url);
 const KEY = process.env.ANTHROPIC_API_KEY || '';
 const MODEL = process.env.AI_MODEL || 'claude-opus-5-5';
-const LIMIT = Number(process.env.AI_LIMIT || 2000);
+const LIMIT = Number(process.env.AI_LIMIT || 4000); // 출처를 늘리면 첫날 새 행사가 수천 건이라 넉넉히
 const FORCE = !!process.env.AI_FORCE;
 const BATCH = 20; // 항목당 출력이 늘어 배치를 줄인다
 export const VERSION = 4;
@@ -30,6 +30,7 @@ export const TAXONOMY = {
     show: '공연 (연극, 뮤지컬, 콘서트, 클래식, 국악, 무용 등 객석에서 보는 공연)',
     popup: '팝업 (팝업스토어, 브랜드 체험관)',
     edu: '체험·교육 (강좌, 클래스, 워크숍, 교육 프로그램, 투어, 해설, 의식 재현처럼 참여하는 프로그램)',
+    sport: '스포츠 (프로야구·축구·농구·배구 경기, e스포츠 리그 경기처럼 관람석에서 보는 경기. 마라톤처럼 직접 참가하는 대회는 fest)',
   },
   genre: ['뮤지컬·오페라', '연극', '콘서트', '클래식', '국악·전통', '무용·발레', '아동·가족', '기타'],
   topics: [
