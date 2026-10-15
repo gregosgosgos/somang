@@ -32,6 +32,13 @@ import { lck } from './sources/lck.mjs';
 import { sports } from './sources/sports.mjs';
 import { marathon } from './sources/marathon.mjs';
 import { themepark } from './sources/themepark.mjs';
+import { seoul } from './sources/seoul.mjs';
+import { gyeonggi } from './sources/gyeonggi.mjs';
+import { famousfest, famousMatch } from './sources/famousfest.mjs';
+import { market5 } from './sources/market5.mjs';
+import { booktalk } from './sources/booktalk.mjs';
+import { filmfest } from './sources/filmfest.mjs';
+import { fleamarket } from './sources/fleamarket.mjs';
 import { UA, GW, today, pad, ymd, addDays, dashed, dotted, TODAY, HORIZON, AREA_BY_NAME, VENUE_HINTS, areaFromText, classify, ymdLoose, decodeEntities, text, digits, clip, mapPool, get } from './lib.mjs';
 let PREV = null; // 이전 수집 결과 (main 에서 읽어 둠)
 
@@ -481,7 +488,8 @@ function dedupe(items) {
 
 async function main() {
   try { PREV = JSON.parse(await readFile(OUT, 'utf8')); } catch {}
-  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis, popply, sports, lck, marathon, themepark };
+  const all = { tour: tourApi, ci: cultureInfo, coex, kintex, bexco, visitseoul, melon, nol, kopis, popply, sports, lck, marathon, themepark,
+    seoul, gyeonggi, famousfest, market5, booktalk, filmfest, fleamarket };
   // SOURCES=coex,nol 처럼 일부만 실행하면 나머지 출처는 이전 파일 데이터를 그대로 둔다 (디버깅용)
   const only = (process.env.SOURCES || '').split(',').map(s => s.trim()).filter(Boolean);
   const sources = only.length ? Object.fromEntries(Object.entries(all).filter(([n]) => only.includes(n))) : all;
@@ -515,6 +523,13 @@ async function main() {
 
   items = dedupe(items.filter(it => it.title && it.start && (!it.end || it.end >= TODAY)))
     .sort((a, b) => a.start.localeCompare(b.start) || a.title.localeCompare(b.title));
+
+  // 문체부 지정 문화관광축제는 출처와 상관없이 famous 칸에 등급을 남긴다 (대표 축제 표시·정렬용)
+  // (공연·5일장처럼 이름만 겹치는 항목은 빼고, 축제처럼 보이는 제목에만)
+  for (const it of items) {
+    if (it.src === 'market5' || it.kind === 'show' || !/축제|페스티벌|페스타|festival|문화제|축전|대제전|한마당|박람회/i.test(it.title)) continue;
+    const f = famousMatch(it.title); if (f) it.famous = f.grade || '문화관광축제';
+  }
 
   // AI 분류 결과(classify.mjs 가 붙이는 ai 칸)는 제목이 같으면 이어받는다 — 새 행사만 다시 분류하면 된다
   const prevAi = new Map((prev?.items || []).filter(p => p.ai).map(p => [p.id, p]));

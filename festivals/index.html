@@ -215,6 +215,7 @@
   .tag.fair { background: var(--fair-soft); color: var(--fair); }
   .tag.edu { background: var(--edu-soft); color: var(--edu); }
   .tag.sport { background: var(--sport-soft); color: var(--sport); }
+  .tag.famous { background: var(--warn-soft); color: var(--warn-ink); }
   .tag.live { background: var(--accent-soft); color: var(--accent); }
   .tag.soon { background: var(--warn-soft); color: var(--warn-ink); }
   .tag.topic { background: var(--field); color: var(--sub); border: 1px solid var(--line); }
@@ -342,7 +343,7 @@
   </details>
 
   <footer>
-    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보, KOPIS, 코엑스·킨텍스·벡스코 행사일정, 비짓서울, 멜론티켓, NOL 티켓, 팝플리(팝업스토어). 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
+    데이터 출처: 한국관광공사 TourAPI 4.0, 한국문화정보원 공연전시정보, 서울문화포털, 경기문화재단, 문화체육관광부 지역축제·문화관광축제, 전국전통시장 표준데이터, 코엑스·킨텍스·벡스코 행사일정, 비짓서울, 멜론티켓, NOL 티켓, 팝플리(팝업스토어), 네이버 스포츠, LoL e스포츠, 마라톤온라인, 에버랜드·롯데월드, 알라딘·국립중앙도서관, KOBIZ. 일정은 변경될 수 있으니 방문 전 주최 측 안내를 확인하세요.
     · <a href="../">식사 장부 계산기</a>
   </footer>
 </div>
@@ -567,7 +568,7 @@ function renderActiveBar(total) {
     ? pills.map(([k, l, v]) => `<span class="pill"><b>${esc(l)}</b>${esc(v)}<button data-clear="${esc(k)}" aria-label="${esc(l)} 조건 빼기">×</button></span>`).join('') + `<span style="margin-left:4px">${total}건</span>`
     : `조건을 고르면 여기에 모입니다 · 전체 ${total}건`;
 }
-const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', visitseoul: '비짓서울', melon: '멜론티켓', nol: 'NOL 티켓', kopis: 'KOPIS', popply: '팝플리', sample: '예시' };
+const SRC_LABEL = { tour: '한국관광공사', ci: '한국문화정보원', coex: '코엑스', kintex: '킨텍스', bexco: '벡스코', visitseoul: '비짓서울', melon: '멜론티켓', nol: 'NOL 티켓', kopis: 'KOPIS', popply: '팝플리', sports: '네이버 스포츠', lck: 'LoL e스포츠', marathon: '마라톤온라인', themepark: '놀이공원', seoul: '서울문화포털', gyeonggi: '경기문화재단', famousfest: '문화체육관광부', market5: '전국전통시장 표준데이터', booktalk: '알라딘·국립중앙도서관', filmfest: 'KOBIZ 영화제', fleamarket: '문화체육관광부 지역축제', frip: '프립', sssd: '솜씨당', templestay: '템플스테이', welchon: '웰촌', knps: '국립공원공단', foresttrip: '숲나들e', sample: '예시' };
 // 카드에는 지역명을 따로 표시하므로 주소 앞의 시·도 이름은 뗀다
 function shortPlace(place) {
   return (place || '').replace(/^(서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원특별자치도|강원도|충청북도|충청남도|전북특별자치도|전라북도|전라남도|경상북도|경상남도|제주특별자치도|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\s*/, '');
@@ -901,7 +902,7 @@ function render() {
       <div class="thumb">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : icon[it.kind]}</div>
       <button class="fav" data-fav="${esc(it.id)}" aria-label="즐겨찾기">${FAVS.has(it.id) ? '★' : '☆'}</button>
       <div class="body">
-        <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}${it.sub ? ' · ' + esc(it.sub) : ''}</span>${statusTag(it)}${(it.tags || []).slice(0, 2).map(t => `<span class="tag topic">${esc(t)}</span>`).join('')}</div>
+        <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}${it.sub ? ' · ' + esc(it.sub) : ''}</span>${it.famous ? '<span class="tag famous">대표 축제</span>' : ''}${statusTag(it)}${(it.tags || []).slice(0, 2).map(t => `<span class="tag topic">${esc(t)}</span>`).join('')}</div>
         <div class="title">${esc(it.title)}</div>
         <div class="desc">${esc(descOf(it))}</div>
         <div class="meta">${fmtDate(it.start)} ~ ${fmtDate(it.end)}</div>
