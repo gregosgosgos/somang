@@ -32,6 +32,8 @@ jobs:
       - name: 장소 좌표 찾기 (지도용, 새 장소만)
         env:
           KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+          # 새 장소가 있을 때만 시간을 쓴다. 처음 한 번은 전체를 채우느라 길게 걸린다
+          GEOCODE_MINUTES: 45
         # 좌표 서비스가 막혀도 수집 결과는 커밋되도록 실패를 무시한다
         continue-on-error: true
         run: node scripts/geocode.mjs

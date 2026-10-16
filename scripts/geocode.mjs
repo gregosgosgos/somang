@@ -89,6 +89,8 @@ async function kakao(q, area) {
   return null;
 }
 
+const saveCache = cache => writeFile(CACHE, JSON.stringify(Object.fromEntries(Object.entries(cache).sort()), null, 0) + '\n');
+
 async function main() {
   const data = JSON.parse(await readFile(OUT, 'utf8'));
   let cache = {};
@@ -120,6 +122,8 @@ async function main() {
     } catch (e) { if (e.stop) { stopped = e.message; break; } }
     cache[k] = hit ? { p: hit, lv, t: today } : { p: null, t: today };
     hit ? found++ : miss++;
+    // 중간에 끊겨도 찾은 만큼은 남도록 100곳마다 캐시를 저장
+    if ((found + miss) % 100 === 0) await saveCache(cache);
   }
   // 이번에 찾은 것까지 반영
   for (const it of data.items) {
@@ -127,7 +131,7 @@ async function main() {
     const c = cache[key(it)];
     if (c && c.p) { it.geo = c.p; it.geoLv = c.lv; }
   }
-  await writeFile(CACHE, JSON.stringify(Object.fromEntries(Object.entries(cache).sort()), null, 0) + '\n');
+  await saveCache(cache);
   await writeFile(OUT, JSON.stringify(data, null, 0) + '\n');
   const onMap = data.items.filter(i => i.geo).length;
   console.log(`좌표: 출처 ${fromSrc}, 캐시 ${fromCache}, 새로 찾음 ${found}, 못 찾음 ${miss}, 남은 장소 ${todo.size - found - miss}${stopped ? ' (' + stopped + ')' : ''} → 지도 표시 ${onMap}/${data.items.length}건 (${KAKAO ? '카카오' : 'Photon'})`);
