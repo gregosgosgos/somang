@@ -250,6 +250,8 @@
     overflow: hidden;
   }
   .meta { font-size: 11px; color: var(--sub); line-height: 1.35; }
+  /* 사진 바로 아래 기간 (위아래 여백 조금) */
+  .cdate { font-size: 11.5px; font-weight: 600; color: var(--ink); line-height: 1.3; padding: 2px 0 3px; font-variant-numeric: tabular-nums; }
   .desc {
     font-size: 11.5px;
     color: var(--sub);
@@ -982,10 +984,10 @@ function render() {
       <div class="thumb">${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : icon[it.kind]}</div>
       <button class="fav" data-fav="${esc(it.id)}" aria-label="즐겨찾기">${FAVS.has(it.id) ? '★' : '☆'}</button>
       <div class="body">
+        <div class="cdate">${fmtDate(it.start)} ~ ${fmtDate(it.end)}</div>
         <div class="tags"><span class="tag ${it.kind}">${KIND_LABEL[it.kind]}${it.sub ? ' · ' + esc(it.sub) : ''}</span>${it.famous ? '<span class="tag famous">대표 축제</span>' : ''}${statusTag(it)}${(it.tags || []).slice(0, 2).map(t => `<span class="tag topic">${esc(t)}</span>`).join('')}</div>
         <div class="title">${esc(it.title)}</div>
         <div class="desc">${esc(descOf(it))}</div>
-        <div class="meta">${fmtDate(it.start)} ~ ${fmtDate(it.end)}</div>
         <div class="meta">📍 ${esc(AREA_NAMES[it.area] || '')} ${esc(shortPlace(it.place))}</div>
       </div>
     </article>`).join('');
