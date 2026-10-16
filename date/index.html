@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>데이트 코스</title>
+<meta name="description" content="날짜·지역·분위기만 고르면 그날 열리는 전시·공연·축제를 중심으로 근처 카페·식당·산책 코스를 짜 줍니다">
+<meta name="theme-color" content="#c2416b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="데이트 코스">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --bg: #fbf7f6;
+    --card: #ffffff;
+    --ink: #2a2223;
+    --sub: #8a7d7e;
+    --line: #eee2e1;
+    --field: #f6eeed;
+    --accent: #c2416b;
+    --accent-ink: #ffffff;
+    --accent-soft: #fbe8ee;
+    --accent-line: #f0c6d3;
+    --event: #7c3f9e;  --event-soft: #f0e6f7;
+    --cafe: #9a5b2e;   --cafe-soft: #f8ebe0;
+    --food: #c0492f;   --food-soft: #fbe6e0;
+    --bar: #6a3a7a;    --bar-soft: #f1e5f5;
+    --walk: #2f7d4f;   --walk-soft: #e2f3e8;
+    --warn-ink: #93540b; --warn-soft: #fdf3e2;
+    --shadow: 0 1px 3px rgba(70, 40, 45, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1718; --card: #262021; --ink: #efe6e7; --sub: #a8999b; --line: #3b3133; --field: #322a2c;
+      --accent: #f08aa8; --accent-ink: #2a1219; --accent-soft: #3a2229; --accent-line: #5a3340;
+      --event: #c293de; --event-soft: #30243a; --cafe: #e0a57a; --cafe-soft: #3a2b20; --food: #ef8f78; --food-soft: #3a231e;
+      --bar: #cf9ee0; --bar-soft: #33233a; --walk: #7fd0a0; --walk-soft: #1d3326;
+      --warn-ink: #e5a95a; --warn-soft: #362b1a; --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1c1718; --card: #262021; --ink: #efe6e7; --sub: #a8999b; --line: #3b3133; --field: #322a2c;
+    --accent: #f08aa8; --accent-ink: #2a1219; --accent-soft: #3a2229; --accent-line: #5a3340;
+    --event: #c293de; --event-soft: #30243a; --cafe: #e0a57a; --cafe-soft: #3a2b20; --food: #ef8f78; --food-soft: #3a231e;
+    --bar: #cf9ee0; --bar-soft: #33233a; --walk: #7fd0a0; --walk-soft: #1d3326;
+    --warn-ink: #e5a95a; --warn-soft: #362b1a; --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    font-size: 15px; line-height: 1.5;
+  }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 18px 16px calc(60px + env(safe-area-inset-bottom)); }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 12px; margin-bottom: 14px; }
+  h1 { font-family: "Gowun Batang", serif; font-size: 26px; margin: 0; letter-spacing: -.01em; }
+  .lead { color: var(--sub); margin: 2px 0 0; font-size: 13.5px; }
+  .toplink { font-size: 13px; white-space: nowrap; text-decoration: none; }
+
+  /* 조건 */
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); }
+  .row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: start; padding: 7px 0; }
+  .row + .row { border-top: 1px dashed var(--line); }
+  .row > b { font-size: 12.5px; color: var(--sub); font-weight: 500; padding-top: 5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--field); border-radius: 999px;
+    padding: 4px 11px; font-size: 13px; cursor: pointer; line-height: 1.4;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
+  .chip:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .chip input[type="date"] { border: 0; background: transparent; font: inherit; color: inherit; padding: 0; width: 118px; }
+  .go {
+    width: 100%; margin-top: 10px; padding: 12px; border: 0; border-radius: 12px;
+    background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 16px; cursor: pointer;
+  }
+  .go:disabled { opacity: .6; cursor: progress; }
+
+  /* 코스 */
+  .course { margin-top: 18px; }
+  .course-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .course-head h2 { font-family: "Gowun Batang", serif; font-size: 21px; margin: 0; line-height: 1.3; }
+  .course-head .meta { color: var(--sub); font-size: 13px; margin-top: 2px; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .btn {
+    border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+    padding: 6px 10px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .btn.primary { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 500; }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .stop { display: grid; grid-template-columns: 48px 1fr; gap: 10px; }
+  .stop .time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; padding-top: 12px; text-align: right; }
+  .scard {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    display: grid; grid-template-columns: 1fr auto; box-shadow: var(--shadow);
+  }
+  .scard.has-img { grid-template-columns: 92px 1fr auto; }
+  .scard img { width: 92px; height: 100%; min-height: 92px; object-fit: cover; display: block; background: var(--field); }
+  .sbody { padding: 10px 12px; min-width: 0; }
+  .sbody .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; margin-right: 4px; }
+  .badge.event { background: var(--event-soft); color: var(--event); }
+  .badge.cafe { background: var(--cafe-soft); color: var(--cafe); }
+  .badge.food { background: var(--food-soft); color: var(--food); }
+  .badge.bar { background: var(--bar-soft); color: var(--bar); }
+  .badge.walk { background: var(--walk-soft); color: var(--walk); }
+  .sbody .name { font-weight: 700; margin-top: 3px; line-height: 1.35; }
+  .sbody .desc { color: var(--sub); font-size: 12.5px; margin-top: 2px; line-height: 1.45; }
+  .sbody .links { display: flex; gap: 10px; margin-top: 5px; font-size: 12.5px; flex-wrap: wrap; }
+  .swap { border: 0; border-left: 1px solid var(--line); background: transparent; padding: 0 12px; cursor: pointer; color: var(--sub); font-size: 12px; }
+  .swap:hover { color: var(--accent); background: var(--accent-soft); }
+  .swap span { display: block; font-size: 22px; line-height: 1.1; font-weight: 700; }
+  .move { margin: 0 0 0 58px; padding: 6px 0 6px 14px; border-left: 2px dashed var(--line); color: var(--sub); font-size: 12.5px; }
+  .note { background: var(--warn-soft); color: var(--warn-ink); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin: 10px 0; }
+  #cmap { height: 300px; border-radius: 14px; border: 1px solid var(--line); margin-top: 14px; background: var(--field); overflow: hidden; }
+  .pin {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 700; font-size: 13px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  }
+
+  /* 다른 후보 · 저장 */
+  h3 { font-size: 15px; margin: 26px 0 8px; }
+  .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .pick { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; text-align: left; padding: 0; display: flex; flex-direction: column; }
+  .pick:hover { border-color: var(--accent-line); }
+  .pick img, .pick .noimg { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--field); }
+  .pick .noimg { display: grid; place-items: center; font-size: 28px; }
+  .pick div.t { padding: 7px 9px 9px; font-size: 13px; font-weight: 500; line-height: 1.35; }
+  .pick small { display: block; color: var(--sub); font-weight: 400; font-size: 11.5px; margin-top: 2px; }
+  .saved { list-style: none; padding: 0; margin: 0; }
+  .saved li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .saved a { text-decoration: none; color: var(--ink); }
+  .saved small { color: var(--sub); }
+  .empty { color: var(--sub); text-align: center; padding: 30px 10px; }
+  .skel { height: 92px; border-radius: 14px; background: linear-gradient(90deg, var(--field), var(--card), var(--field)); background-size: 200% 100%; animation: sk 1.2s infinite; margin-bottom: 10px; }
+  @keyframes sk { to { background-position: -200% 0; } }
+  footer { color: var(--sub); font-size: 12px; margin-top: 30px; line-height: 1.6; }
+  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 13px; z-index: 50; }
+
+  @media (max-width: 520px) {
+    h1 { font-size: 23px; }
+    .row { grid-template-columns: 1fr; gap: 4px; }
+    .row > b { padding-top: 0; }
+    .course-head { flex-direction: column; }
+    .actions { justify-content: flex-start; }
+    .stop { grid-template-columns: 40px 1fr; gap: 8px; }
+    .move { margin-left: 48px; }
+    .scard.has-img { grid-template-columns: 76px 1fr auto; }
+    .scard img { width: 76px; min-height: 76px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>💑 데이트 코스</h1>
+      <p class="lead">조건만 고르면 그날 열리는 행사를 중심으로 코스를 짜 드려요</p>
+    </div>
+    <a class="toplink" href="../festivals/">전체 행사 보기 →</a>
+  </header>
+
+  <section class="panel" aria-label="조건">
+    <div class="row"><b>언제</b><div class="chips" id="when"></div></div>
+    <div class="row"><b>어디서</b><div class="chips" id="where"></div></div>
+    <div class="row"><b>시간대</b><div class="chips" id="slot"></div></div>
+    <div class="row"><b>분위기</b><div class="chips" id="mood"></div></div>
+    <div class="row"><b>예산·날씨</b><div class="chips" id="opts"></div></div>
+    <button class="go" id="go" disabled>행사 정보를 불러오는 중…</button>
+  </section>
+
+  <section class="course" id="course" aria-live="polite"></section>
+
+  <section id="picksWrap" hidden>
+    <h3>이 조건에 맞는 다른 행사로 짜기</h3>
+    <div class="picks" id="picks"></div>
+  </section>
+
+  <section id="savedWrap" hidden>
+    <h3>저장한 코스</h3>
+    <ul class="saved" id="saved"></ul>
+  </section>
+
+  <footer>
+    행사는 <a href="../festivals/">전시·축제 모아보기</a>와 같은 공공데이터·예매처 정보이고, 주변 장소는 <span id="spotSrc">카카오 로컬 / 오픈스트리트맵</span> 자료입니다.
+    운영 시간·예약 여부는 방문 전에 꼭 확인하세요. 홈 화면에 추가하면 앱처럼 쓸 수 있어요.
+  </footer>
+</div>
+
+<script>
+// ===== 기본값 =====
+const AREA_NAMES = { 1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
+  31:'경기', 32:'강원', 33:'충북', 34:'충남', 35:'경북', 36:'경남', 37:'전북', 38:'전남', 39:'제주' };
+const MOODS = ['로맨틱', '감성·예술', '힐링·여유', '활기찬·신나는', '트렌디·핫플', '전통·고즈넉'];
+const TYPE_LABEL = { event: '행사', cafe: '카페', food: '식사', bar: '한잔', walk: '산책' };
+const KIND_LABEL = { fest: '축제', expo: '전시', fair: '박람회', show: '공연', popup: '팝업', edu: '체험', sport: '스포츠' };
+const KIND_ICON = { fest: '🎉', expo: '🖼️', fair: '🏢', show: '🎭', popup: '🛍️', edu: '🧑‍🏫', sport: '🏟️' };
+const GRID = 0.005;
+const CHAIN = /스타벅스|이디야|투썸|메가(MGC)?커피|메가커피|컴포즈|빽다방|할리스|파스쿠찌|커피빈|폴바셋|엔제리너스|매머드|더벤티|맥도날드|버거킹|롯데리아|KFC|맘스터치|김밥천국|김밥|본죽|파리바게뜨|뚜레쥬르|서브웨이|도미노|피자헛|교촌|BBQ|bhc|이삭토스트|공차|배스킨|던킨|편의점|GS25|CU |세븐일레븐|역전할머니|백채김치찌개|홍콩반점/i;
+const DATE_FOOD = /이탈리|파스타|양식|스테이크|비스트로|다이닝|와인|일식|오마카세|스시|초밥|브런치|레스토랑|프렌치|프랑스|피자|타파스|트라토리아|오스테리아|퓨전|태국|베트남|멕시칸|라멘|덮밥|이자카야|화덕/;
+const PLAIN_FOOD = /국밥|해장|분식|기사식당|순대|감자탕|뼈|설렁탕|백반|구내식당|중국집|짜장|치킨|족발|보쌈|곱창|김치찌개/;
+const DUR = { '1시간 이내': 60, '2~3시간': 120, '반나절': 180, '하루 이상': 240 };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ymd = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+const isoOf = s => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+const fromIso = s => s.replace(/-/g, '');
+const dateLabel = s => { const d = new Date(isoOf(s) + 'T00:00'); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`; };
+const hhmm = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+function dist(a, b) { // 미터
+  const R = 6371000, toR = Math.PI / 180, dLat = (b[0] - a[0]) * toR, dLng = (b[1] - a[1]) * toR;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+// ===== 상태 =====
+const today = new Date();
+function nextDow(dow) { const d = new Date(today); d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7)); return d; }
+const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+const WHEN = [['오늘', ymd(today)], ['내일', ymd(tomorrow)], ['이번 토요일', ymd(nextDow(6))], ['이번 일요일', ymd(nextDow(0))]];
+const saved = store.get('date.prefs', {});
+const state = {
+  date: WHEN.find(w => w[1] === saved.date)?.[1] || (today.getDay() >= 1 && today.getDay() <= 4 ? WHEN[2][1] : WHEN[0][1]),
+  areas: new Set(saved.areas || []), near: null,
+  slot: saved.slot || 'day', moods: new Set(saved.moods || []),
+  free: false, indoor: false, seed: 0,
+};
+let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null;
+
+// ===== 조건 칩 =====
+function chip(label, pressed, onClick, extra = '') {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.innerHTML = label + extra;
+  b.setAttribute('aria-pressed', pressed); b.onclick = onClick; return b;
+}
+function drawChips() {
+  const when = $('#when'); when.innerHTML = '';
+  for (const [l, v] of WHEN) when.appendChild(chip(l, state.date === v, () => { state.date = v; drawChips(); }));
+  const custom = !WHEN.some(w => w[1] === state.date);
+  const c = chip('', custom, () => {}, `<input type="date" aria-label="날짜 고르기" value="${isoOf(state.date)}" min="${isoOf(ymd(today))}">`);
+  c.querySelector('input').onchange = e => { if (e.target.value) { state.date = fromIso(e.target.value); drawChips(); } };
+  when.appendChild(c);
+
+  const where = $('#where'); where.innerHTML = '';
+  where.appendChild(chip('📍 내 근처', !!state.near, () => {
+    if (state.near) { state.near = null; drawChips(); return; }
+    if (!navigator.geolocation) return toast('이 브라우저는 위치를 알 수 없어요');
+    navigator.geolocation.getCurrentPosition(p => { state.near = [p.coords.latitude, p.coords.longitude]; state.areas.clear(); drawChips(); },
+      () => toast('위치 권한이 없어 지역을 직접 골라 주세요'), { timeout: 10000, maximumAge: 600000 });
+  }));
+  where.appendChild(chip('전국', !state.near && !state.areas.size, () => { state.near = null; state.areas.clear(); drawChips(); }));
+  for (const [code, name] of Object.entries(AREA_NAMES)) where.appendChild(chip(name, state.areas.has(+code), () => {
+    state.near = null; state.areas.has(+code) ? state.areas.delete(+code) : state.areas.add(+code); drawChips();
+  }));
+
+  const slot = $('#slot'); slot.innerHTML = '';
+  slot.appendChild(chip('☀️ 낮 코스 (13시~)', state.slot === 'day', () => { state.slot = 'day'; drawChips(); }));
+  slot.appendChild(chip('🌙 저녁 코스 (17시 반~)', state.slot === 'night', () => { state.slot = 'night'; drawChips(); }));
+
+  const mood = $('#mood'); mood.innerHTML = '';
+  for (const m of MOODS) mood.appendChild(chip(m, state.moods.has(m), () => { state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); drawChips(); }));
+
+  const opts = $('#opts'); opts.innerHTML = '';
+  opts.appendChild(chip('💸 무료 행사만', state.free, () => { state.free = !state.free; drawChips(); }));
+  opts.appendChild(chip('☔ 실내만', state.indoor, () => { state.indoor = !state.indoor; drawChips(); }));
+  store.set('date.prefs', { date: state.date, areas: [...state.areas], slot: state.slot, moods: [...state.moods] });
+}
+
+// ===== 데이터 =====
+async function load() {
+  drawChips();
+  $('#course').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+  const [ev, sp] = await Promise.all([
+    fetch('../festivals/data/events.json').then(r => r.json()),
+    fetch('data/spots.json').then(r => r.ok ? r.json() : { cells: {} }).catch(() => ({ cells: {} })),
+  ]);
+  ALL = (ev.items || []).filter(it => it.geo && (it.geoLv === 'src' || it.geoLv === 'place'));
+  for (const it of ALL) BY_ID.set(it.id, it);
+  SPOTS = sp;
+  $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
+  $('#go').disabled = false; $('#go').textContent = '코스 짜기';
+  // 공유 링크로 들어왔으면 그 코스를 그대로 보여 준다
+  const shared = readShare();
+  if (shared) { COURSE = shared; drawCourse(); drawPicks(); }
+  else { $('#course').innerHTML = ''; }
+  drawSaved();
+}
+
+// ===== 후보 행사 =====
+const cellKey = (lat, lng) => `${Math.round(lat / GRID)}_${Math.round(lng / GRID)}`;
+function spotsNear(p, maxM = 1200) {
+  const ci = Math.round(p[0] / GRID), cj = Math.round(p[1] / GRID), out = [], seen = new Set();
+  for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) {
+    const c = SPOTS.cells?.[`${ci + di}_${cj + dj}`]; if (!c) continue;
+    c.s.forEach((s, idx) => {
+      const k = s[0] + s[2]; if (seen.has(k)) return; seen.add(k);
+      const d = dist(p, [s[2], s[3]]); if (d > maxM) return;
+      out.push({ name: s[0], type: s[1], geo: [s[2], s[3]], sub: s[4], kid: s[5], d, rank: c.src === 'kakao' ? idx : 0 });
+    });
+  }
+  return out;
+}
+function hasSpots(p) { return !!SPOTS.cells?.[cellKey(p[0], p[1])]?.s?.length; }
+
+function candidates() {
+  const d = state.date;
+  const list = [];
+  for (const it of ALL) {
+    if (!(it.start <= d && (it.end || it.start) >= d)) continue;
+    if (it.kind === 'fair' || it.src === 'market5') continue;
+    const a = it.ai || {};
+    if (a.stay === '하루 이상') continue;
+    if (state.areas.size && !state.areas.has(it.area)) continue;
+    let km = 0;
+    if (state.near) { km = dist(state.near, it.geo) / 1000; if (km > 25) continue; }
+    if (state.free && a.cost !== '무료') continue;
+    if (state.indoor && a.setting !== '실내') continue;
+    let s = 0;
+    if ((a.who || []).includes('연인·데이트')) s += 4;
+    if ((a.mood || []).includes('로맨틱')) s += 2;
+    for (const m of state.moods) if ((a.mood || []).includes(m)) s += 3;
+    if (state.moods.size && !(a.mood || []).some(m => state.moods.has(m))) s -= 2;
+    if (it.famous) s += 1;
+    if (it.img) s += 1;
+    if (state.slot === 'night') { if ((a.time || '').includes('밤')) s += 2; if (it.kind === 'show') s += 1; }
+    else { if (a.time === '밤') s -= 3; if ((a.time || '').includes('낮')) s += 1; }
+    if (hasSpots(it.geo)) s += 2;
+    s -= km / 4;
+    list.push({ it, s });
+  }
+  return list.sort((a, b) => b.s - a.s || (a.it.id < b.it.id ? -1 : 1)).map(x => x.it);
+}
+
+// ===== 코스 만들기 =====
+function rankSpots(list, type, from) {
+  return list.filter(s => s.type === type).map(s => {
+    let k = s.d / 300 + s.rank * 0.15 + (CHAIN.test(s.name) ? 6 : 0);
+    if (type === 'food') { const t = s.name + ' ' + s.sub; if (DATE_FOOD.test(t)) k -= 2; if (PLAIN_FOOD.test(t)) k += 3; }
+    if (from) k += dist(from, s.geo) / 600;
+    return { s, k };
+  }).sort((a, b) => a.k - b.k).map(x => x.s).slice(0, 8);
+}
+const asStop = (type, ref, alts) => ({ type, ref, alts, i: 0 });
+const evRef = it => ({ e: it.id });
+const spRef = s => ({ s: [s.name, s.type, s.geo[0], s.geo[1], s.sub, s.kid] });
+
+function buildCourse(main) {
+  const near = spotsNear(main.geo);
+  // 두 번째 행사는 짧게 들르기 좋은 전시·팝업·축제 위주 (공연·클래스는 시간이 길고 예약이 필요)
+  const others = candidates().filter(o => o.id !== main.id && !['show', 'edu', 'sport'].includes(o.kind) && dist(o.geo, main.geo) < 1500).slice(0, 6);
+  const cafe = rankSpots(near, 'cafe'), food = rankSpots(near, 'food'), bar = rankSpots(near, 'bar'), walk = rankSpots(near, 'walk');
+  const stops = [];
+  const add = (type, arr) => { if (arr.length) stops.push(asStop(type, arr[0], arr)); };
+  if (state.slot === 'day') {
+    stops.push(asStop('event', evRef(main), [evRef(main)]));
+    add('cafe', cafe.map(spRef));
+    if (walk.length) add('walk', walk.map(spRef)); else if (others.length) add('event', others.map(evRef));
+    add('food', food.map(spRef));
+  } else {
+    add('food', food.map(spRef));
+    stops.push(asStop('event', evRef(main), [evRef(main)]));
+    add(bar.length ? 'bar' : 'cafe', (bar.length ? bar : cafe).map(spRef));
+  }
+  return { v: 1, date: state.date, slot: state.slot, stops, noSpots: !near.length };
+}
+
+// 정류장 정보 풀기
+function info(ref) {
+  if (ref.e) {
+    const it = BY_ID.get(ref.e); if (!it) return null;
+    const a = it.ai || {};
+    return { type: 'event', it, name: it.title, geo: it.geo, img: it.img,
+      desc: a.blurb || it.summary || '', sub: `${KIND_LABEL[it.kind] || ''}${a.cost && a.cost !== '미상' ? ' · ' + a.cost : ''}`,
+      place: it.place, dur: it.kind === 'show' || it.kind === 'sport' ? 150 : DUR[a.stay] || 90,
+      link: it.homepage || `https://search.naver.com/search.naver?query=${encodeURIComponent(it.title)}` };
+  }
+  const [name, type, lat, lng, sub, kid] = ref.s;
+  return { type, name, geo: [lat, lng], sub, desc: '', dur: { cafe: 60, food: 90, bar: 90, walk: 45 }[type] || 60,
+    link: kid ? `https://place.map.kakao.com/${kid}` : `https://map.naver.com/p/search/${encodeURIComponent(name)}?c=${lng},${lat},17,0,0,0,dh` };
+}
+function moveText(a, b) {
+  const m = dist(a, b);
+  if (m < 1500) return [`🚶 걸어서 ${Math.max(1, Math.round(m * 1.25 / 70))}분 · ${m < 1000 ? Math.round(m / 10) * 10 + 'm' : (m / 1000).toFixed(1) + 'km'}`, Math.round(m * 1.25 / 70)];
+  const t = Math.round(10 + m / 400);
+  return [`🚇 대중교통·택시 약 ${t}분 · ${(m / 1000).toFixed(1)}km`, t];
+}
+
+// ===== 그리기 =====
+function drawCourse() {
+  const box = $('#course');
+  if (!COURSE) { box.innerHTML = ''; return; }
+  const stops = COURSE.stops.map((s, idx) => ({ ...s, idx, x: info(s.alts[s.i] || s.ref) })).filter(s => s.x);
+  if (!stops.length) { box.innerHTML = '<div class="empty">이 행사는 더 이상 정보가 없어요. 다시 짜 주세요.</div>'; return; }
+  let t = COURSE.slot === 'day' ? 13 * 60 : 17 * 60 + 30, walkM = 0, html = '';
+  stops.forEach((s, n) => {
+    if (n) {
+      const [txt, mins] = moveText(stops[n - 1].x.geo, s.x.geo);
+      walkM += dist(stops[n - 1].x.geo, s.x.geo);
+      t += mins; t = Math.ceil(t / 10) * 10;
+      // 낮 코스의 식사는 저녁 시간에 맞춘다
+      if (COURSE.slot === 'day' && s.x.type === 'food') t = Math.max(t, 17 * 60 + 30);
+      html += `<li class="move">${txt}</li>`;
+    }
+    const x = s.x, alts = s.alts.length;
+    html += `<li class="stop"><div class="time">${hhmm(t)}</div>
+      <div class="scard ${x.img ? 'has-img' : ''}">
+        ${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-img');this.remove()">` : ''}
+        <div class="sbody">
+          <span class="badge ${x.type}">${n + 1}. ${TYPE_LABEL[x.type]}</span>${x.sub ? `<span class="badge" style="color:var(--sub)">${esc(x.sub)}</span>` : ''}
+          <div class="name">${esc(x.name)}</div>
+          ${x.desc ? `<div class="desc">${esc(x.desc)}</div>` : ''}
+          <div class="links"><a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '자세히' : '지도·리뷰'}</a>
+            ${x.place ? `<span style="color:var(--sub)">📍 ${esc(x.place)}</span>` : ''}</div>
+        </div>
+        ${alts > 1 ? `<button class="swap" data-swap="${s.idx}" title="다른 곳으로"><span>↻</span>바꾸기<br>${s.i + 1}/${alts}</button>` : '<span></span>'}
+      </div></li>`;
+    t += x.dur;
+  });
+  const main = stops.find(s => s.type === 'event');
+  box.innerHTML = `
+    <div class="course-head">
+      <div><h2>${dateLabel(COURSE.date)} ${COURSE.slot === 'day' ? '낮' : '저녁'} 코스</h2>
+        <div class="meta">${stops.length}곳 · 약 ${Math.round((t - (COURSE.slot === 'day' ? 780 : 1050)) / 60 * 2) / 2}시간 · 이동 ${(walkM / 1000).toFixed(1)}km</div></div>
+      <div class="actions">
+        <button class="btn primary" id="again">🔀 다른 코스</button>
+        <button class="btn" id="share">🔗 공유</button>
+        <button class="btn" id="save">☆ 저장</button>
+      </div>
+    </div>
+    ${COURSE.noSpots ? '<div class="note">이 주변 카페·식당 정보는 아직 모으는 중이에요. 행사 위주로 보여 드려요.</div>' : ''}
+    ${main && main.x.it.kind === 'show' ? '<div class="note">공연 시작 시간은 예매처에서 확인하고 앞뒤 일정을 맞춰 주세요.</div>' : ''}
+    ${main && COURSE.slot === 'night' && ['expo', 'popup'].includes(main.x.it.kind) ? '<div class="note">전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.</div>' : ''}
+    <ol class="timeline">${html}</ol>
+    <div id="cmap" aria-label="코스 지도"></div>`;
+  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => {
+    const st = COURSE.stops[+b.dataset.swap]; st.i = (st.i + 1) % st.alts.length; drawCourse(); writeShare();
+  });
+  $('#again').onclick = () => { state.seed++; makeCourse(); };
+  $('#share').onclick = share;
+  $('#save').onclick = () => {
+    const list = store.get('date.saved', []);
+    const title = `${dateLabel(COURSE.date)} · ${stops.find(s => s.type === 'event')?.x.name || stops[0].x.name}`;
+    list.unshift({ title, hash: shareHash(), at: Date.now() }); store.set('date.saved', list.slice(0, 30));
+    drawSaved(); toast('저장했어요');
+  };
+  drawMap(stops.map(s => s.x));
+}
+
+function drawPicks() {
+  const list = candidates().slice(0, 9);
+  const mainId = COURSE?.stops.find(s => s.type === 'event' && s.alts.length === 1)?.ref.e;
+  const items = list.filter(it => it.id !== mainId).slice(0, 8);
+  $('#picksWrap').hidden = !items.length;
+  $('#picks').innerHTML = items.map(it => `<button class="pick" data-pick="${esc(it.id)}">
+    ${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=noimg>${KIND_ICON[it.kind] || '✨'}</div>'">` : `<div class="noimg">${KIND_ICON[it.kind] || '✨'}</div>`}
+    <div class="t">${esc(it.title)}<small>${esc(AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${hasSpots(it.geo) ? '' : ' · 주변 정보 준비 중'}</small></div></button>`).join('');
+  $('#picks').querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+    COURSE = buildCourse(BY_ID.get(b.dataset.pick)); writeShare(); drawCourse(); drawPicks();
+    $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function drawSaved() {
+  const list = store.get('date.saved', []);
+  $('#savedWrap').hidden = !list.length;
+  $('#saved').innerHTML = list.map((c, n) => `<li><a href="#${esc(c.hash)}" data-open="${n}">${esc(c.title)}</a>
+    <button class="btn" data-del="${n}" aria-label="삭제">삭제</button></li>`).join('');
+  $('#saved').querySelectorAll('[data-open]').forEach(a => a.onclick = e => {
+    e.preventDefault(); location.hash = list[+a.dataset.open].hash; COURSE = readShare(); drawCourse(); drawPicks();
+    $('#course').scrollIntoView({ behavior: 'smooth' });
+  });
+  $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); store.set('date.saved', list); drawSaved(); });
+}
+
+function makeCourse() {
+  const list = candidates();
+  if (!list.length) {
+    COURSE = null;
+    $('#course').innerHTML = '<div class="empty">이 조건으로 열리는 행사가 없어요.<br>지역을 넓히거나 분위기·예산 조건을 빼 보세요.</div>';
+    $('#picksWrap').hidden = true; return;
+  }
+  // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 행사
+  const main = list[state.seed % Math.min(list.length, 40)];
+  COURSE = buildCourse(main);
+  writeShare(); drawCourse(); drawPicks();
+}
+
+// ===== 공유 (주소 # 뒤에 코스를 담는다) =====
+function shareHash() {
+  const data = { d: COURSE.date, sl: COURSE.slot, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i })), n: COURSE.noSpots ? 1 : 0 };
+  return 'c=' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function writeShare() { history.replaceState(null, '', '#' + shareHash()); }
+function readShare() {
+  const m = location.hash.match(/c=([\w-]+)/); if (!m) return null;
+  try {
+    const d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+    return { v: 1, date: d.d, slot: d.sl, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0] })) };
+  } catch { return null; }
+}
+async function share() {
+  writeShare();
+  const url = location.href;
+  const title = `${dateLabel(COURSE.date)} 데이트 코스`;
+  if (navigator.share) { try { await navigator.share({ title, url }); return; } catch {} }
+  try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요'); } catch { prompt('이 주소를 복사해 보내세요', url); }
+}
+
+// ===== 지도 (코스를 처음 보여 줄 때만 불러온다) =====
+const MAPLIBRE = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl';
+let mapLib = null, MAP = null, markers = [];
+const darkMode = () => document.documentElement.dataset.theme === 'dark' || (matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light');
+function loadLib() {
+  if (mapLib) return mapLib;
+  return mapLib = new Promise((res, rej) => {
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = MAPLIBRE + '.css'; document.head.appendChild(css);
+    const js = document.createElement('script'); js.src = MAPLIBRE + '.js'; js.onload = res; js.onerror = rej; document.head.appendChild(js);
+  });
+}
+async function drawMap(points) {
+  const el = $('#cmap'); if (!el) return;
+  try { await loadLib(); } catch { el.innerHTML = '<div class="empty">지도를 불러오지 못했어요</div>'; return; }
+  if (MAP && MAP.getContainer() !== el) { MAP.remove(); MAP = null; }
+  const coords = points.map(p => [p.geo[1], p.geo[0]]);
+  const line = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+  const fit = () => {
+    const b = new maplibregl.LngLatBounds(coords[0], coords[0]); coords.forEach(c => b.extend(c));
+    MAP.resize();
+    MAP.fitBounds(b, { padding: { top: 50, right: 50, bottom: 70, left: 50 }, maxZoom: 16, duration: 0 });
+  };
+  const paint = () => {
+    markers.forEach(m => m.remove()); markers = [];
+    points.forEach((p, n) => {
+      const d = document.createElement('div'); d.className = 'pin'; d.textContent = n + 1; d.title = p.name;
+      markers.push(new maplibregl.Marker({ element: d }).setLngLat([p.geo[1], p.geo[0]]).addTo(MAP));
+    });
+    if (MAP.getSource('route')) MAP.getSource('route').setData(line);
+    else {
+      MAP.addSource('route', { type: 'geojson', data: line });
+      MAP.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(), 'line-width': 3, 'line-dasharray': [2, 1.5] } });
+    }
+    fit();
+  };
+  if (!MAP) {
+    MAP = new maplibregl.Map({ container: el, style: `https://tiles.openfreemap.org/styles/${darkMode() ? 'dark' : 'positron'}`,
+      center: coords[0], zoom: 14, cooperativeGestures: true, dragRotate: false, attributionControl: { compact: true } });
+    MAP.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    MAP.on('load', () => {
+      for (const l of MAP.getStyle().layers) if (l.type === 'symbol' && l.layout && l.layout['text-field']) MAP.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:ko'], ['get', 'name']]);
+      paint();
+      // 좁은 화면에서 출처 표기가 핀을 가리지 않도록 접어 둔다
+      el.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
+    });
+  } else paint();
+}
+
+$('#go').onclick = () => { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+load().catch(e => { $('#course').innerHTML = `<div class="empty">행사 정보를 불러오지 못했어요 (${esc(e.message)})</div>`; });
+
+// 홈 화면에 추가해 앱처럼 쓰도록 (오프라인에서도 마지막 데이터로 열림)
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

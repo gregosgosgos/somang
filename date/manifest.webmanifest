@@ -1,0 +1,15 @@
+{
+  "name": "데이트 코스",
+  "short_name": "데이트 코스",
+  "description": "날짜·지역·분위기만 고르면 그날 열리는 행사를 중심으로 카페·식당·산책 코스를 짜 줍니다",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf7f6",
+  "theme_color": "#c2416b",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

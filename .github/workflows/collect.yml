@@ -46,11 +46,17 @@ jobs:
             npm install --no-save --no-package-lock @anthropic-ai/sdk@0.133.0
           fi
           node scripts/classify.mjs
+      - name: 데이트 코스용 주변 장소 (카페·식당·산책, 새 지역만)
+        env:
+          KAKAO_REST_KEY: ${{ secrets.KAKAO_REST_KEY }}
+          SPOTS_MINUTES: 25
+        continue-on-error: true
+        run: node scripts/spots.mjs
       - name: 변경 사항 커밋
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add festivals/data/events.json festivals/data/geocache.json
+          git add festivals/data/events.json festivals/data/geocache.json date/data/spots.json
           if git diff --cached --quiet; then
             echo "변경 없음"
           else
