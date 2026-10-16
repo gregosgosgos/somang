@@ -65,6 +65,8 @@
 
     항목 자체에는 `price`(요금 문구, 있을 때), `famous`(문체부 문화관광축제 등급, 해당할 때), `also`(같은 행사를 함께 실은 다른 출처들)도 있습니다.
 
+    지도용 좌표는 `geo`(`[위도, 경도]`)와 `geoLv`(`src` 출처 좌표 · `place` 장소·주소로 찾음 · `area` 시·군·구 중심)입니다. `scripts/geocode.mjs`가 수집 직후 새 장소만 찾고 결과를 `festivals/data/geocache.json`에 쌓아 둡니다. 기본은 키가 필요 없는 [Photon](https://photon.komoot.io)(오픈스트리트맵)이고, `KAKAO_REST_KEY` Secret([카카오 디벨로퍼스](https://developers.kakao.com) REST API 키)을 넣으면 국내 장소에 더 정확한 카카오 로컬 검색을 씁니다. 시·도만 알 수 있는 행사는 지도에 찍지 않습니다.
+
     분류 체계를 바꾸면 `scripts/classify.mjs`의 `TAXONOMY`와 `VERSION`을 올립니다. 그러면 다음 수집 때 전체를 다시 분류합니다.
   - 티켓 사이트는 개편되면 해당 출처만 비고 나머지는 유지됩니다. 실패 내역은 `events.json`의 `sources`와 Actions 로그에 남습니다. 로컬에서 일부 출처만 돌려 보려면 `SOURCES=nol,melon node scripts/collect.mjs`처럼 실행합니다 (NOL은 `npm i playwright` 필요).
 - **API 키**: [공공데이터포털](https://www.data.go.kr)에서 **한국관광공사_국문 관광정보 서비스_GW**와 **한국문화정보원_공연전시정보조회서비스**를 활용신청하면 받는 **일반 인증키(Decoding)** 하나로 두 서비스가 동작합니다. 식사 장부 계산기와 같은 방식으로 `#key=<인증키>` 링크 또는 ⚙️ 설정에서 입력합니다. Secrets 등록이 가장 간단하고, 브라우저에 직접 넣는 방식은 보조 수단입니다.

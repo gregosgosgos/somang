@@ -161,6 +161,24 @@
   .dates input[type=date]:focus { outline: none; border-color: var(--accent); }
   @media (max-width: 720px) { .fgrid { grid-template-columns: 1fr; gap: 12px; } .filters { padding: 12px; } }
 
+  /* 지도 */
+  .map-wrap { margin-top: 28px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+  .map-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .map-head h3 { margin: 0; font-size: 15px; }
+  .map-head span { font-size: 12px; color: var(--sub); }
+  .map-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-left: auto; font-size: 11.5px; color: var(--sub); }
+  .map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  #map { height: 560px; background: var(--field); }
+  #map .loading { display: flex; height: 100%; align-items: center; justify-content: center; color: var(--sub); font-size: 13px; }
+  @media (max-width: 720px) { #map { height: 440px; } }
+  .maplibregl-popup-content { background: var(--card) !important; color: var(--ink); border-radius: 10px !important; padding: 10px 12px !important; box-shadow: 0 6px 24px rgba(0,0,0,.2) !important; max-width: 280px; }
+  .maplibregl-popup-tip { border-top-color: var(--card) !important; border-bottom-color: var(--card) !important; }
+  .mp-list { max-height: 260px; overflow: auto; display: grid; gap: 8px; }
+  .mp-item { cursor: pointer; font-size: 12.5px; line-height: 1.35; }
+  .mp-item b { display: block; font-size: 13px; }
+  .mp-item span { color: var(--sub); font-size: 11.5px; }
+  .mp-item:hover b { color: var(--accent); }
+
   /* 상태 표시 */
   .status { font-size: 13px; color: var(--sub); margin: 6px 2px 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .notice {
@@ -324,6 +342,14 @@
   <div class="grid" id="grid"></div>
   <div class="empty" id="empty" hidden>조건에 맞는 행사가 없습니다.</div>
   <div style="text-align:center;margin:18px 0"><button class="btn" id="more" hidden>더 보기</button></div>
+
+  <section class="map-wrap" id="mapWrap" aria-label="지도">
+    <div class="map-head">
+      <h3>지도</h3><span id="mapInfo">위의 조건에 맞는 행사를 지도에 표시합니다</span>
+      <div class="map-legend" id="mapLegend"></div>
+    </div>
+    <div id="map"><div class="loading">지도를 불러오는 중…</div></div>
+  </section>
 
   <details class="settings">
     <summary>⚙️ 설정 (API 키)</summary>
@@ -544,18 +570,16 @@ function buildChipsOnce() {
     </div>`).join('');
 }
 // 각 칩의 건수(다른 조건 안에서 센 것)와 선택 상태를 갱신
-function syncChips() {
-  for (const g of GROUPS) {
-    const pool = filtered([g.key, ...(g.ignoreWith || [])]);
+function syncChips(counts) {
+  GROUPS.forEach((g, gi) => {
     const box = document.querySelector(`.fgroup[data-group="${g.key}"]`);
-    for (const chip of box.querySelectorAll('.chip')) {
-      const v = chip.dataset.value;
-      const n = pool.reduce((c, it) => c + (g.test(it, v) ? 1 : 0), 0);
-      chip.lastElementChild.textContent = n;
+    box.querySelectorAll('.chip').forEach((chip, b) => {
+      const n = counts[gi][b], t = String(n), small = chip.lastElementChild;
+      if (small.textContent !== t) small.textContent = t; // 바뀐 칸만 건드린다
       chip.classList.toggle('zero', n === 0);
-      chip.setAttribute('aria-pressed', !!state.sel[g.key]?.has(v));
-    }
-  }
+      chip.setAttribute('aria-pressed', !!state.sel[g.key]?.has(g.values[b][0]));
+    });
+  });
   const from = document.getElementById('from'), to = document.getElementById('to');
   if (from.value !== state.from) from.value = state.from;
   if (to.value !== state.to) to.value = state.to;
@@ -828,29 +852,79 @@ const GROUP_BY_KEY = Object.fromEntries(GROUPS.map(g => [g.key, g]));
 const PAGE = 120; // 한 번에 그리는 카드 수 (1,000건이 넘어 한꺼번에 그리면 느리다)
 let shown = PAGE;
 
-// ignore: 건수를 셀 때 빼고 볼 조건 묶음의 key 목록
-function filtered(ignore = []) {
-  const q = state.q.trim().toLowerCase();
-  const from = state.from.replace(/-/g, ''), to = state.to.replace(/-/g, '');
-  const useDates = (from || to) && !ignore.includes('when');
-  const list = ALL.filter(it => {
-    for (const g of GROUPS) {
-      const set = state.sel[g.key];
-      if (!set || !set.size || ignore.includes(g.key)) continue;
-      let ok = false; for (const v of set) if (g.test(it, v)) { ok = true; break; }
-      if (!ok) return false;
+// ===== 빠른 필터 =====
+// 항목마다 '조건 묶음별로 어떤 칩에 해당하는지'를 비트로 한 번만 계산해 둔다 (데이터를 불러올 때).
+// 칩을 누르면 목록 전체를 한 번만 훑으며 결과 목록과 모든 칩의 건수를 함께 센다.
+// (예전에는 묶음마다 목록을 다시 걸러 15,000건에서 1초 넘게 걸렸다)
+let IDX = null;
+const GI = Object.fromEntries(GROUPS.map((g, i) => [g.key, i]));
+const FAV_BIT = GROUPS[GI.kind].values.findIndex(([v]) => v === 'fav');
+function buildIndex() {
+  const n = ALL.length;
+  const W = GROUPS.map(g => Math.ceil(g.values.length / 32)); // 칩이 32개를 넘어도 되도록 묶음마다 낱말 수
+  const masks = GROUPS.map((g, gi) => {
+    const w = W[gi], m = new Uint32Array(n * w);
+    for (let i = 0; i < n; i++) {
+      const it = ALL[i];
+      for (let b = 0; b < g.values.length; b++) {
+        const v = g.values[b][0];
+        if (v !== 'fav' && g.test(it, v)) m[i * w + (b >> 5)] |= 1 << (b & 31);
+      }
     }
-    if (useDates && !(it.start <= (to || '9') && endOf(it) >= (from || '0'))) return false;
-    if (q && !searchText(it).includes(q)) return false;
-    return true;
+    return m;
   });
+  IDX = { all: ALL, n, W, masks, day: D.t };
+}
+function compute() {
+  if (!IDX || IDX.all !== ALL || IDX.n !== ALL.length || IDX.day !== D.t) buildIndex();
+  const { W, masks } = IDX, G = GROUPS.length, n = ALL.length;
+  const sel = GROUPS.map((g, gi) => {
+    const set = state.sel[g.key]; if (!set || !set.size) return null;
+    const s = new Uint32Array(W[gi]);
+    for (const v of set) { const b = g.values.findIndex(([x]) => x === v); if (b >= 0 && b !== (gi === GI.kind ? FAV_BIT : -1)) s[b >> 5] |= 1 << (b & 31); }
+    return s;
+  });
+  const favSel = !!state.sel.kind?.has('fav');
+  if (favSel && !sel[GI.kind]) sel[GI.kind] = new Uint32Array(W[GI.kind]); // 즐겨찾기만 고른 경우
+  const q = state.q.trim().toLowerCase();
+  const from = state.from.replace(/-/g, '') || '0', to = state.to.replace(/-/g, '') || '9', useDates = !!(state.from || state.to);
+  // 묶음 g 의 칩 건수는 g (와 g.ignoreWith) 를 뺀 나머지 조건을 모두 통과한 항목에서 센다
+  const ignoreBits = GROUPS.map((g, gi) => (g.ignoreWith || []).reduce((m, k) => m | (1 << GI[k]), 1 << gi));
+  const counts = GROUPS.map(g => new Uint32Array(g.values.length));
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const it = ALL[i];
+    if (q && !searchText(it).includes(q)) continue;
+    const fav = FAVS.size && FAVS.has(it.id);
+    let fail = 0;
+    for (let gi = 0; gi < G; gi++) {
+      let pass;
+      if (gi === GI.when && useDates) pass = it.start <= to && endOf(it) >= from;
+      else {
+        const s = sel[gi]; if (!s) continue;
+        pass = false;
+        const w = W[gi], m = masks[gi], base = i * w;
+        for (let k = 0; k < w; k++) if (m[base + k] & s[k]) { pass = true; break; }
+        if (!pass && gi === GI.kind && favSel && fav) pass = true;
+      }
+      if (!pass) fail |= 1 << gi;
+    }
+    if (!fail) out.push(it);
+    for (let gi = 0; gi < G; gi++) {
+      if (fail & ~ignoreBits[gi]) continue;
+      const w = W[gi], m = masks[gi], base = i * w, c = counts[gi];
+      for (let k = 0; k < w; k++) { let x = m[base + k]; while (x) { const low = x & -x; c[k * 32 + 31 - Math.clz32(low)]++; x ^= low; } }
+      if (gi === GI.kind && fav) c[FAV_BIT]++;
+    }
+  }
   const cmp = {
     start: (a, b) => (a.start || '').localeCompare(b.start || '') || a.title.localeCompare(b.title),
     end: (a, b) => (a.end || '9').localeCompare(b.end || '9') || a.title.localeCompare(b.title),
     title: (a, b) => a.title.localeCompare(b.title, 'ko'),
   }[state.sort];
-  return list.sort(cmp);
+  return { list: out.sort(cmp), counts };
 }
+const filtered = () => compute().list;
 
 // 검색 대상 문자열: 제목·장소·설명·주제에 AI 가 붙인 한줄소개·대상·분위기까지
 function searchText(it) {
@@ -890,8 +964,10 @@ function render() {
     } else { it.kind = kindOf(it); it.tags = tagsOf(it); it.sub = subOf(it); }
   }
   calcDates();
-  syncChips(); // 조건을 바꾸면 다른 칩의 건수도 그 범위 안에서 다시 센다
-  const all = filtered();
+  const { list: all, counts } = compute();
+  syncChips(counts); // 조건을 바꾸면 다른 칩의 건수도 그 범위 안에서 다시 센다
+  syncMap(all);
+  if (ALL.length) watchMap();
   renderActiveBar(all.length);
   const list = all.slice(0, shown);
   const grid = document.getElementById('grid');
@@ -916,6 +992,100 @@ function render() {
 }
 
 // ===== 상세 모달 =====
+// ===== 지도 =====
+// WebGL 지도(MapLibre)에 걸러진 행사를 묶음(클러스터)으로 찍는다. 수만 개도 부드럽게 그리도록
+// 점을 DOM 마커가 아닌 GeoJSON 레이어로 그리고, 묶음 계산은 지도 라이브러리의 워커가 한다.
+// 라이브러리(약 800KB)는 지도 근처까지 내려왔을 때만 불러와 첫 화면 속도에 영향이 없다.
+const MAPLIBRE = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl';
+const KOREA = [[124.6, 33.0], [131.0, 38.7]];
+let MAP = null, mapReady = false, mapLoading = false, mapList = [];
+const ITEM_BY_ID = new Map();
+const darkMode = () => matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light';
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function loadMap() {
+  if (mapLoading) return; mapLoading = true;
+  const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = MAPLIBRE + '.css'; document.head.appendChild(css);
+  const js = document.createElement('script'); js.src = MAPLIBRE + '.js'; js.onload = initMap;
+  js.onerror = () => { document.getElementById('map').innerHTML = '<div class="loading">지도를 불러오지 못했습니다</div>'; };
+  document.head.appendChild(js);
+}
+function initMap() {
+  const el = document.getElementById('map'); el.innerHTML = '';
+  MAP = new maplibregl.Map({
+    container: el, style: `https://tiles.openfreemap.org/styles/${darkMode() ? 'dark' : 'positron'}`,
+    bounds: KOREA, fitBoundsOptions: { padding: 16 }, maxBounds: [[118, 30], [138, 42]],
+    cooperativeGestures: true, // 페이지를 내리다 지도가 확대되지 않도록 (Ctrl/두 손가락으로 확대)
+    attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false,
+  });
+  MAP.touchZoomRotate.disableRotation();
+  MAP.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  MAP.on('load', () => {
+    // 지명은 한글로 (스타일 기본값은 '영문 한글' 병기)
+    for (const l of MAP.getStyle().layers) if (l.type === 'symbol' && l.layout && l.layout['text-field']) MAP.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:ko'], ['get', 'name']]);
+    const colors = ['match', ['get', 'k']]; const legend = [];
+    for (const k of Object.keys(KIND_LABEL)) { const c = cssVar('--' + k) || '#888'; colors.push(k, c); legend.push(`<span><i style="background:${c}"></i>${KIND_LABEL[k]}</span>`); }
+    colors.push('#888');
+    document.getElementById('mapLegend').innerHTML = legend.join('');
+    const accent = cssVar('--accent') || '#16756a', ring = darkMode() ? '#1d1a17' : '#ffffff';
+    MAP.addSource('ev', { type: 'geojson', data: toGeoJSON(mapList), cluster: true, clusterRadius: 46, clusterMaxZoom: 13 });
+    MAP.addLayer({ id: 'clusters', type: 'circle', source: 'ev', filter: ['has', 'point_count'], paint: {
+      'circle-color': accent, 'circle-opacity': .85, 'circle-stroke-color': ring, 'circle-stroke-width': 2,
+      'circle-radius': ['step', ['get', 'point_count'], 13, 10, 16, 50, 20, 200, 25, 1000, 31] } });
+    MAP.addLayer({ id: 'cluster-count', type: 'symbol', source: 'ev', filter: ['has', 'point_count'],
+      layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-allow-overlap': true },
+      paint: { 'text-color': '#ffffff' } });
+    MAP.addLayer({ id: 'points', type: 'circle', source: 'ev', filter: ['!', ['has', 'point_count']], paint: {
+      'circle-color': colors, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 5, 14, 8],
+      'circle-stroke-color': ring, 'circle-stroke-width': 1.5 } });
+    MAP.on('click', 'clusters', async e => {
+      const f = e.features[0];
+      const z = await MAP.getSource('ev').getClusterExpansionZoom(f.properties.cluster_id);
+      MAP.easeTo({ center: f.geometry.coordinates, zoom: Math.min(z, 16) });
+    });
+    // 같은 자리에 겹친 행사(같은 공연장 등)는 한 팝업에 목록으로
+    MAP.on('click', 'points', e => {
+      const ids = [...new Set(MAP.queryRenderedFeatures(e.point, { layers: ['points'] }).map(f => f.properties.id))].slice(0, 30);
+      const items = ids.map(id => ITEM_BY_ID.get(id)).filter(Boolean);
+      if (!items.length) return;
+      const html = `<div class="mp-list">${items.map(it => `<div class="mp-item" data-id="${esc(it.id)}"><b>${esc(it.title)}</b><span>${KIND_LABEL[it.kind] || ''} · ${fmtDate(it.start)} ~ ${fmtDate(it.end)}${it.geoLv === 'area' ? ' · 대략 위치' : ''}</span><br><span>${esc(shortPlace(it.place))}</span></div>`).join('')}</div>`;
+      const pop = new maplibregl.Popup({ offset: 10, maxWidth: '300px' }).setLngLat(e.features[0].geometry.coordinates).setHTML(html).addTo(MAP);
+      pop.getElement().addEventListener('click', ev => { const d = ev.target.closest('.mp-item'); if (d) { const it = ITEM_BY_ID.get(d.dataset.id); if (it) openDetail(it); } });
+    });
+    for (const l of ['clusters', 'points']) {
+      MAP.on('mouseenter', l, () => { MAP.getCanvas().style.cursor = 'pointer'; });
+      MAP.on('mouseleave', l, () => { MAP.getCanvas().style.cursor = ''; });
+    }
+    mapReady = true;
+  });
+}
+function toGeoJSON(list) {
+  const features = [];
+  for (const it of list) {
+    if (!it.geo) continue;
+    features.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [it.geo[1], it.geo[0]] }, properties: { id: it.id, k: it.kind } });
+  }
+  return { type: 'FeatureCollection', features };
+}
+// 필터가 바뀔 때마다 호출. 연달아 바뀌면 한 프레임에 한 번만 지도에 넘긴다.
+let mapRaf = 0;
+function syncMap(list) {
+  mapList = list;
+  if (!ITEM_BY_ID.size || ITEM_BY_ID.size !== ALL.length) { ITEM_BY_ID.clear(); for (const it of ALL) ITEM_BY_ID.set(it.id, it); }
+  const onMap = list.reduce((n, it) => n + (it.geo ? 1 : 0), 0);
+  document.getElementById('mapInfo').textContent = `${onMap.toLocaleString()}건 표시${list.length > onMap ? ` · 위치를 모르는 ${(list.length - onMap).toLocaleString()}건 제외` : ''}`;
+  if (!mapReady) return;
+  cancelAnimationFrame(mapRaf);
+  mapRaf = requestAnimationFrame(() => MAP.getSource('ev').setData(toGeoJSON(mapList)));
+}
+// 목록이 처음 그려진 뒤부터 지켜보다가 지도 근처(800px 앞)까지 내려오면 라이브러리를 불러온다
+// (목록이 그려지기 전에는 페이지가 짧아 지도가 바로 보이는 것으로 잘못 판단하므로)
+let mapWatch = false;
+function watchMap() {
+  if (mapWatch) return; mapWatch = true;
+  requestAnimationFrame(() => new IntersectionObserver((entries, obs) => { if (entries.some(e => e.isIntersecting)) { loadMap(); obs.disconnect(); } }, { rootMargin: '800px' })
+    .observe(document.getElementById('mapWrap')));
+}
+
 const dlg = document.getElementById('dlg');
 // AI 가 붙인 부가 정보 (대상·연령·분위기·비용·키워드)
 function renderFacets(it) {
