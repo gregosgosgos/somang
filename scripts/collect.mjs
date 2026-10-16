@@ -462,7 +462,7 @@ async function popply() {
 function normTitle(t) {
   return (t || '')
     .replace(/［[^］]*］|\[[^\]]*\]|\([^)]*\)|《[^》]*》|〈[^〉]*〉/g, ' ')
-    .replace(/20\d\d년?|제?\s*\d+\s*(회|주년|차|위|일권)|시즌\s*\d+|얼리버드|단독판매|티켓|입장권|굿즈|전용|상품|특별패키지|패키지|할인|\d+%|\b(in|at)\b/gi, ' ')
+    .replace(/20\d\d년?|제?\s*\d+\s*(회|주년|차|위|일권)|시즌\s*\d+|슈퍼\s*얼리버드|얼리버드|단독판매|티켓|입장권|굿즈|전용|상품|특별패키지|패키지|할인|\d+%|\b(in|at)\b/gi, ' ')
     .replace(/[^0-9a-z가-힣\u2160-\u217f]/gi, '')
     .toLowerCase();
 }
@@ -500,7 +500,7 @@ function dedupe(items) {
 //   '브람스' (NOL) = '[서울] 뮤지컬 브람스' (문화정보원)
 //   '《마틴 파 : We Are Martin Parr》' = '[서울시립 사진미술관] 마틴 파 : We Are Martin Parr'
 // 핵심 이름은 꺾쇠 안의 이름을 살리고, 앞머리 꼬리표·장르 낱말·연도·회차를 뗀 것이다.
-const CORE_DROP = /뮤지컬|연극|음악극|콘서트|전시회?|특별전|기획전|초대전|개인전|공연|오페라|발레|창극|리사이틀|내한|단독판매|단독|앵콜|이머시브|케이팝|정기공연|전국투어|투어|기념|10주년|\d+주년/g;
+const CORE_DROP = /특별전시|기획전시|뮤직드라마|뮤지컬|연극|음악극|콘서트|전시회?|특별전|기획전|초대전|개인전|공연|오페라|발레|창극|리사이틀|내한|단독판매|단독|앵콜|이머시브|케이팝|정기공연|전국투어|투어|기념|10주년|\d+주년/g;
 function coreName(t) {
   let s = (t || '').replace(/&amp;/g, '&').replace(/,\s*\d+위$/, '');
   const inner = s.match(/[〈<《「『]([^〉>》」』]{2,})[〉>》」』]/);
@@ -510,7 +510,7 @@ function coreName(t) {
 }
 // 본행사와 딸린 프로그램(연계 행사, 관객과의 대화, 모집 공고, 부가 서비스)은 이름이 같아도 다른 항목이다
 const SIDE = /연계|관객과의|대화|모집|워크숍|워크샵|클래스|강연|특강|체험|자막|예약 서비스|팸투어|부스/;
-const TITLE_AD = /단독판매|좌석우위|\d+위$|할인|얼리버드/;
+const TITLE_AD = /단독판매|좌석우위|\d+위$|할인|얼리버드|안내$|신청/;
 const placeKey = p => (p || '').replace(/^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\S*\s*/, '').replace(/[^0-9a-z가-힣]/gi, '').slice(0, 8);
 function mergeSameEvent(items) {
   const byCore = new Map(), out = [];
@@ -526,6 +526,11 @@ function mergeSameEvent(items) {
       // 같은 출처끼리는 장소까지 같아야 (지점·회차가 다른 상품을 합치지 않도록)
       (it.src !== o.src || !it.place || !o.place || placeKey(it.place) === placeKey(o.place)));
     if (!hit) { list.push(it); byCore.set(bare, list); out.push(it); continue; }
+    combine(hit, it);
+  }
+  return mergeLoose(out);
+}
+function combine(hit, it) {
     const [base, other] = richness(it) > richness(hit) ? [it, hit] : [hit, it];
     const also = [...new Set([...(hit.also || []), ...(it.also || []), base.src === other.src ? null : other.src].filter(Boolean))];
     Object.assign(hit, { ...base,
@@ -538,6 +543,50 @@ function mergeSameEvent(items) {
       start: [base.start, other.start].filter(Boolean).sort()[0], end: [base.end, other.end].filter(Boolean).sort().pop(),
       ...(also.length ? { also } : {}),
     });
+}
+
+// 마지막으로, 출처마다 제목을 다르게 붙인 같은 행사를 느슨하게 합친다 (서로 다른 출처끼리만)
+//   '타임슬립 코믹연극 <영시기>' = '타임슬립 코믹극 영시기'          ← 꺾쇠 속 이름이 다른 쪽 제목에 들어 있음
+//   '[서울시] 뮤지컬 [디어 에반 핸슨]'처럼 맨 앞이 아닌 [ ] 도 작품 이름으로 본다
+//   '천안시충남국악관현악단 / 2026 대한민국국악관현악축제' = '2026 대한민국국악관현악축제 천안시충남국악관현악단'
+//   '망원동 브라더스' = '[대학로] 뮤직드라마 망원동 브라더스'      ← 같은 날 시작하고 한쪽 제목이 다른 쪽에 통째로 들어 있음
+const decode = t => (t || '').replace(/&amp;/g, '&').replace(/&([a-z])(grave|acute|circ|uml|tilde);/gi, '$1')
+  .replace(/&(lt|gt|quot|#39|nbsp);/g, ' ').normalize('NFKC').normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC');
+const looseCore = s => s.replace(/\([^)]*\)/g, ' ').replace(/20\d\d(?:년|\s|$)|제?\s*\d+\s*(?:회|차|기)\b/g, ' ')
+  .replace(CORE_DROP, ' ').replace(/[^0-9a-z가-힣\u2160-\u217f]/gi, '').toLowerCase();
+const REGION_ONLY = /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|수원|성남|고양|용인|창원|대학로)$/;
+function looseKeys(it) {
+  const t = decode(it.title).replace(/^(\s*(\[[^\]]*\]|［[^］]*］))+/, ' '); // 맨 앞 [기관]·[지역] 꼬리표는 뗀다
+  const m = t.match(/[〈<《「『]([^〉>》」』]{2,})[〉>》」』]/) || t.match(/\S\s*\[([^\]]{2,})\]/);
+  const segs = t.split(/\s*[\/｜|]\s*|\s+[-–:]\s+/).map(looseCore).filter(s => s.length >= 2 && !REGION_ONLY.test(s));
+  return { full: looseCore(t.replace(/[〈<《「『〉>》」』\[\]]/g, ' ')), inner: m ? looseCore(m[1]) : '', segs };
+}
+function looseSame(a, b, ka, kb) {
+  if (a.src === b.src || !sameArea(a, b) || SIDE.test(a.title) !== SIDE.test(b.title)) return false;
+  if (!((a.start || '0') <= (b.end || b.start || '9') && (b.start || '0') <= (a.end || a.start || '9'))) return false;
+  // 둘 다 작품 이름이 있는데 서로 다르면 (축제 안의 다른 공연) 다른 행사
+  if (ka.inner && kb.inner && !ka.inner.includes(kb.inner) && !kb.inner.includes(ka.inner)) return false;
+  // 한쪽에만 작품 이름이 있으면 그 이름이 다른 쪽 제목에 들어 있어야 한다 (축제 전체 ↔ 그 안의 한 공연을 합치지 않도록)
+  if (ka.inner && !kb.inner && !kb.full.includes(ka.inner)) return false;
+  if (kb.inner && !ka.inner && !ka.full.includes(kb.inner)) return false;
+  // 작품 이름이 다른 쪽 제목에 들어 있으면 같은 행사. 시작일이 다르면 종류도 같고 한글 이름일 때만 ('NCT'·'dot' 같은 영문 조각이 우연히 겹치지 않도록)
+  const nameIn = (k, full) => k.inner.length >= 3 && full.includes(k.inner) && (a.start === b.start || (a.kind === b.kind && /[가-힣]/.test(k.inner)));
+  if (nameIn(ka, kb.full) || nameIn(kb, ka.full)) return true;
+  if (a.start !== b.start) return false;
+  const inside = (k, full) => k.segs.length && k.segs.join('').length >= 4 && k.segs.every(s => full.includes(s));
+  return inside(ka, kb.full) || inside(kb, ka.full);
+}
+function mergeLoose(items) {
+  const out = [], byArea = new Map();
+  for (const it of items) {
+    const k = looseKeys(it);
+    if (k.full.length < 2) { out.push(it); continue; }
+    const pool = [...(byArea.get(it.area || 0) || []), ...(it.area ? byArea.get(0) || [] : [...byArea.values()].flat())];
+    const hit = pool.find(o => looseSame(o.it, it, o.k, k));
+    if (hit) { combine(hit.it, it); continue; }
+    const list = byArea.get(it.area || 0) || [];
+    list.push({ it, k }); byArea.set(it.area || 0, list);
+    out.push(it);
   }
   return out;
 }
