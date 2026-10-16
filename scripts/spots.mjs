@@ -1,5 +1,5 @@
 // 데이트 코스용 주변 장소 (카페·식당·술집·산책 명소)
-// 데이트에 어울리는 행사 주변을 약 500m 격자로 나눠, 격자마다 반경 900m 안의 장소를 모은다.
+// 데이트에 어울리는 행사 주변을 약 550m 격자로 나눠, 격자마다 반경 900m 안의 장소를 모은다.
 // 결과는 date/data/spots.json 하나에 격자별로 쌓아 두고, 30일 지난 격자만 다시 찾는다.
 //
 //   KAKAO_REST_KEY=... node scripts/spots.mjs   # 카카오 로컬 카테고리 검색 (국내 장소에 가장 정확, 인기순)
@@ -34,6 +34,11 @@ function dateWorthy(it) {
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+function dist(a, b) { // 미터
+  const R = 6371000, toR = Math.PI / 180, dLat = (b[0] - a[0]) * toR, dLng = (b[1] - a[1]) * toR;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
 const r5 = n => +(+n).toFixed(5);
 
 // ---------- 카카오 ----------
@@ -60,16 +65,18 @@ async function fromKakao(lat, lng) {
 const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 let opIdx = 0;
 const CUISINE = { korean: '한식', japanese: '일식', chinese: '중식', italian: '이탈리안', pizza: '피자', burger: '버거', chicken: '치킨', coffee_shop: '커피', bakery: '베이커리', dessert: '디저트', french: '프랑스음식', thai: '태국음식', vietnamese: '베트남음식', indian: '인도음식', mexican: '멕시칸', seafood: '해산물', sushi: '초밥', ramen: '라멘', noodle: '면요리', steak_house: '스테이크', barbecue: '고기구이', asian: '아시안', western: '양식', cafe: '카페' };
-async function fromOsm(lat, lng) {
-  const q = `[out:json][timeout:25];(` +
-    `nwr(around:${RADIUS},${lat},${lng})[amenity~"^(cafe|restaurant|bar|pub)$"][name];` +
-    `nwr(around:${RADIUS},${lat},${lng})[leisure~"^(park|garden)$"][name];` +
-    `nwr(around:${RADIUS},${lat},${lng})[tourism~"^(viewpoint|attraction)$"][name];` +
-    `);out center tags 300;`;
+// 오픈스트리트맵은 구역마다 따로 묻지 않고 약 4~5km 사각형을 한 번에 받아 구역별로 나눈다 (공용 서버라 요청 수를 줄여야 빠르다)
+async function fromOsm([s, w, n, e]) {
+  const bb = `${s},${w},${n},${e}`;
+  const q = `[out:json][timeout:90];(` +
+    `nwr(${bb})[amenity~"^(cafe|restaurant|bar|pub)$"][name];` +
+    `nwr(${bb})[leisure~"^(park|garden)$"][name];` +
+    `nwr(${bb})[tourism~"^(viewpoint|attraction)$"][name];` +
+    `);out center tags;`;
   for (let tries = 0; tries < OVERPASS.length * 2; tries++) {
     const url = OVERPASS[opIdx % OVERPASS.length];
     try {
-      const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, signal: AbortSignal.timeout(40000) });
+      const res = await fetch(url, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' }, signal: AbortSignal.timeout(120000) });
       if (!res.ok) throw new Error(String(res.status));
       const els = (await res.json()).elements || [];
       return els.map(e => {
@@ -118,14 +125,42 @@ async function main() {
 
   const t0 = Date.now();
   let done = 0, failed = 0, streak = 0, stopped = '';
-  for (const k of todo) {
+  if (!KAKAO) {
+    // 가까운 구역끼리 약 4.4km × 4.5km 묶음으로
+    const tiles = new Map();
+    for (const k of todo) {
+      const [lat, lng] = cellCenter(k), tk = `${Math.floor(lat / 0.04)}_${Math.floor(lng / 0.05)}`;
+      if (!tiles.has(tk)) tiles.set(tk, []);
+      tiles.get(tk).push(k);
+    }
+    const pad = RADIUS / 111000 * 1.3;
+    for (const keys of [...tiles.values()].sort((a, b) => b.length - a.length)) {
+      if (Date.now() - t0 > BUDGET_MS) { stopped = '시간 초과'; break; }
+      const pts = keys.map(cellCenter);
+      const box = [Math.min(...pts.map(p => p[0])) - pad, Math.min(...pts.map(p => p[1])) - pad, Math.max(...pts.map(p => p[0])) + pad, Math.max(...pts.map(p => p[1])) + pad].map(v => +v.toFixed(4));
+      try {
+        const all = await fromOsm(box);
+        for (const k of keys) {
+          const c = cellCenter(k);
+          const near = all.map(s => [s, dist(c, [s[2], s[3]])]).filter(x => x[1] <= RADIUS).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+          db.cells[k] = { t: today, src, s: trim(near) };
+          done++;
+        }
+        streak = 0;
+        await sleep(2000); // 공용 서버라 천천히
+      } catch (e) {
+        if (++streak >= 5) { stopped = e.message; break; }
+        failed += keys.length;
+      }
+      await save(db, src);
+    }
+  }
+  for (const k of KAKAO ? todo : []) {
     if (Date.now() - t0 > BUDGET_MS) { stopped = '시간 초과'; break; }
     const [lat, lng] = cellCenter(k);
     try {
-      const s = trim(KAKAO ? await fromKakao(lat, lng) : await fromOsm(lat, lng));
-      db.cells[k] = { t: today, src, s };
+      db.cells[k] = { t: today, src, s: trim(await fromKakao(lat, lng)) };
       done++; streak = 0;
-      if (!KAKAO) await sleep(1500); // Overpass 는 공용 서버라 천천히
     } catch (e) {
       // 키 오류·한도 초과는 바로 멈추고, 서버가 잠깐 안 되는 건 그 격자만 건너뛴다 (연속 8번이면 멈춤)
       if (e.stop || ++streak >= 8) { stopped = e.message; break; }
