@@ -4,405 +4,572 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>데이트 코스</title>
-<meta name="description" content="날짜·지역·분위기만 고르면 그날 열리는 전시·공연·축제를 중심으로 근처 카페·식당·산책 코스를 짜 줍니다">
-<meta name="theme-color" content="#c2416b">
+<meta name="description" content="날짜와 지역을 고르면 그날 열리는 전시·공연·축제를 중심으로 근처 카페·식당·산책 코스를 짭니다">
+<meta name="theme-color" content="#F6F5F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121011" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="데이트 코스">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
+  /* 한 손으로 쓰는 앱 한 열: 날짜 띠 → 조건 → 코스 타임라인 → 지도 → 다른 행사 → 보관함, 아래 고정 버튼 */
   :root {
-    --bg: #fbf7f6;
-    --card: #ffffff;
-    --ink: #2a2223;
-    --sub: #8a7d7e;
-    --line: #eee2e1;
-    --field: #f6eeed;
-    --accent: #c2416b;
-    --accent-ink: #ffffff;
-    --accent-soft: #fbe8ee;
-    --accent-line: #f0c6d3;
-    --event: #7c3f9e;  --event-soft: #f0e6f7;
-    --cafe: #9a5b2e;   --cafe-soft: #f8ebe0;
-    --food: #c0492f;   --food-soft: #fbe6e0;
-    --bar: #6a3a7a;    --bar-soft: #f1e5f5;
-    --walk: #2f7d4f;   --walk-soft: #e2f3e8;
-    --warn-ink: #93540b; --warn-soft: #fdf3e2;
-    --shadow: 0 1px 3px rgba(70, 40, 45, .08);
+    --bg: #F6F5F5;
+    --surface: #FFFFFF;
+    --ink: #1B1718;
+    --ink-2: #5F5759;
+    --ink-3: #998F91;
+    --line: #EAE5E5;
+    --fill: #F0ECEC;
+    --accent: #E0334C;
+    --accent-ink: #FFFFFF;
+    --accent-weak: #FDECEF;
+    --sat: #2F6BD8;
+    --sun: #E0334C;
+    --t-event: #6A4BDB;
+    --t-cafe: #A2650E;
+    --t-food: #D25516;
+    --t-bar: #963AAE;
+    --t-walk: #26804A;
+    --note-bg: #FFF5E3;
+    --note-ink: #835600;
+    --scrim: rgba(20, 16, 17, .42);
+    --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --r-card: 16px;
+    --r-ctl: 12px;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #1c1718; --card: #262021; --ink: #efe6e7; --sub: #a8999b; --line: #3b3133; --field: #322a2c;
-      --accent: #f08aa8; --accent-ink: #2a1219; --accent-soft: #3a2229; --accent-line: #5a3340;
-      --event: #c293de; --event-soft: #30243a; --cafe: #e0a57a; --cafe-soft: #3a2b20; --food: #ef8f78; --food-soft: #3a231e;
-      --bar: #cf9ee0; --bar-soft: #33233a; --walk: #7fd0a0; --walk-soft: #1d3326;
-      --warn-ink: #e5a95a; --warn-soft: #362b1a; --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+      --bg: #121011; --surface: #1C1819; --ink: #F3EEEF; --ink-2: #BAB0B2; --ink-3: #82787A; --line: #2D2729; --fill: #272223;
+      --accent: #FF5C74; --accent-ink: #1E0B10; --accent-weak: #3A1D24; --sat: #78A2F2; --sun: #FF5C74;
+      --t-event: #A893FF; --t-cafe: #E2A65A; --t-food: #F28B5B; --t-bar: #D08BE6; --t-walk: #6BCB8E;
+      --note-bg: #33270F; --note-ink: #F0C066; --scrim: rgba(0, 0, 0, .6);
+      color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #1c1718; --card: #262021; --ink: #efe6e7; --sub: #a8999b; --line: #3b3133; --field: #322a2c;
-    --accent: #f08aa8; --accent-ink: #2a1219; --accent-soft: #3a2229; --accent-line: #5a3340;
-    --event: #c293de; --event-soft: #30243a; --cafe: #e0a57a; --cafe-soft: #3a2b20; --food: #ef8f78; --food-soft: #3a231e;
-    --bar: #cf9ee0; --bar-soft: #33233a; --walk: #7fd0a0; --walk-soft: #1d3326;
-    --warn-ink: #e5a95a; --warn-soft: #362b1a; --shadow: 0 1px 3px rgba(0, 0, 0, .35);
+    --bg: #121011; --surface: #1C1819; --ink: #F3EEEF; --ink-2: #BAB0B2; --ink-3: #82787A; --line: #2D2729; --fill: #272223;
+    --accent: #FF5C74; --accent-ink: #1E0B10; --accent-weak: #3A1D24; --sat: #78A2F2; --sun: #FF5C74;
+    --t-event: #A893FF; --t-cafe: #E2A65A; --t-food: #F28B5B; --t-bar: #D08BE6; --t-walk: #6BCB8E;
+    --note-bg: #33270F; --note-ink: #F0C066; --scrim: rgba(0, 0, 0, .6);
+    color-scheme: dark;
   }
+
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    font-size: 15px; line-height: 1.5;
+    margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font);
+    font-size: 15px; line-height: 1.5; letter-spacing: -0.01em; -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
-  a { color: var(--accent); }
-  button { font: inherit; color: inherit; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 18px 16px calc(60px + env(safe-area-inset-bottom)); }
-  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 12px; margin-bottom: 14px; }
-  h1 { font-family: "Gowun Batang", serif; font-size: 26px; margin: 0; letter-spacing: -.01em; }
-  .lead { color: var(--sub); margin: 2px 0 0; font-size: 13.5px; }
-  .toplink { font-size: 13px; white-space: nowrap; text-decoration: none; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+  svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .num { font-variant-numeric: tabular-nums; }
 
-  /* 조건 */
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: var(--shadow); }
-  .row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; align-items: start; padding: 7px 0; }
-  .row + .row { border-top: 1px dashed var(--line); }
-  .row > b { font-size: 12.5px; color: var(--sub); font-weight: 500; padding-top: 5px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+
+  /* 상단 바 */
+  .appbar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  }
+  .appbar .wrap { display: flex; align-items: center; justify-content: space-between; height: 52px; }
+  .brand { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; display: flex; align-items: center; gap: 7px; }
+  .brand i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  .toplink { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 2px; padding: 6px 0 6px 8px; }
+  .toplink svg.i { width: 15px; height: 15px; }
+
+  /* 날짜 띠 */
+  .days { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 4px; padding: 4px 4px 10px; margin-inline: -4px; scrollbar-width: none; }
+  .days::-webkit-scrollbar { display: none; }
+  .day {
+    flex: 0 0 auto; width: 50px; padding: 8px 0 7px; border-radius: 14px; scroll-snap-align: start;
+    display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ink-2);
+    transition: background .15s, color .15s;
+  }
+  .day .dw { font-size: 12px; font-weight: 500; }
+  .day .dn { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+  .day .dx { font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 1px; height: 16px; }
+  .day .dx svg.i { width: 13px; height: 13px; stroke-width: 2; }
+  .day.sat .dw { color: var(--sat); }
+  .day.sun .dw { color: var(--sun); }
+  .day:hover { background: var(--fill); }
+  .day[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+  .day[aria-selected="true"] .dn, .day[aria-selected="true"] .dw, .day[aria-selected="true"] .dx { color: var(--bg); }
+  .day.pick { justify-content: center; color: var(--ink-2); border: 1px dashed var(--line); }
+  .day.pick svg.i { width: 20px; height: 20px; }
+
+  /* 조건 줄 */
+  .ctrl-row { display: flex; gap: 8px; align-items: stretch; }
+  .select {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 42px; padding: 0 12px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-ctl); font-weight: 600; font-size: 15px;
+  }
+  .select span { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .select svg.i:first-child { color: var(--accent); }
+  .select svg.i:last-child { color: var(--ink-3); }
+  .seg { display: flex; background: var(--fill); border-radius: var(--r-ctl); padding: 3px; flex: none; }
+  .seg button { display: flex; align-items: center; gap: 4px; padding: 0 12px; border-radius: 9px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+  .seg button[aria-checked="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
+  .seg svg.i { width: 16px; height: 16px; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px 2px; margin-inline: -16px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
   .chip {
-    border: 1px solid var(--line); background: var(--field); border-radius: 999px;
-    padding: 4px 11px; font-size: 13px; cursor: pointer; line-height: 1.4;
+    flex: 0 0 auto; height: 34px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+    font-size: 13.5px; font-weight: 500; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
   }
-  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 500; }
-  .chip:focus-visible, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .chip input[type="date"] { border: 0; background: transparent; font: inherit; color: inherit; padding: 0; width: 118px; }
-  .go {
-    width: 100%; margin-top: 10px; padding: 12px; border: 0; border-radius: 12px;
-    background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 16px; cursor: pointer;
+  .chip svg.i { width: 15px; height: 15px; }
+  .chip[aria-pressed="true"] { background: var(--accent-weak); border-color: transparent; color: var(--accent); font-weight: 600; }
+  .chip-sep { flex: 0 0 1px; background: var(--line); margin: 7px 2px; }
+  .banner {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px; border-radius: var(--r-ctl);
+    background: var(--note-bg); color: var(--note-ink); font-size: 13.5px;
   }
-  .go:disabled { opacity: .6; cursor: progress; }
+  .banner b { font-weight: 600; }
+  .banner button { margin-left: auto; font-weight: 700; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
 
   /* 코스 */
-  .course { margin-top: 18px; }
-  .course-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
-  .course-head h2 { font-family: "Gowun Batang", serif; font-size: 21px; margin: 0; line-height: 1.3; }
-  .course-head .meta { color: var(--sub); font-size: 13px; margin-top: 2px; }
-  .actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-  .btn {
-    border: 1px solid var(--line); background: var(--card); border-radius: 10px;
-    padding: 6px 10px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  .course { margin-top: 22px; }
+  .eyebrow { font-size: 13px; color: var(--ink-2); font-weight: 500; margin: 0; }
+  .c-title { font-size: 22px; font-weight: 800; line-height: 1.3; letter-spacing: -0.03em; margin: 2px 0 10px; text-wrap: balance; word-break: keep-all; overflow-wrap: anywhere; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-2); }
+  .facts > span { display: inline-flex; align-items: center; gap: 4px; }
+  .facts svg.i { width: 15px; height: 15px; color: var(--ink-3); }
+  .facts select {
+    appearance: none; -webkit-appearance: none; border: 0; background: var(--fill); color: var(--ink); font: inherit; font-weight: 700;
+    border-radius: 7px; padding: 2px 8px; font-variant-numeric: tabular-nums; cursor: pointer;
   }
-  .btn.primary { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 500; }
-  .timeline { list-style: none; margin: 0; padding: 0; }
-  .stop { display: grid; grid-template-columns: 48px 1fr; gap: 10px; }
-  .stop .time { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; padding-top: 12px; text-align: right; }
-  .scard {
-    background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
-    display: grid; grid-template-columns: 1fr auto; box-shadow: var(--shadow);
+  .toolbar { display: grid; grid-template-columns: repeat(5, 1fr); margin: 14px 0 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+  .toolbar button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0 9px; font-size: 12px; color: var(--ink-2); }
+  .toolbar button + button { border-left: 1px solid var(--line); }
+  .toolbar button svg.i { width: 20px; height: 20px; color: var(--ink); }
+  .toolbar button[aria-pressed="true"], .toolbar button[aria-pressed="true"] svg.i { color: var(--accent); }
+  .note { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border-radius: var(--r-ctl); background: var(--note-bg); color: var(--note-ink); font-size: 13px; margin-top: 8px; }
+  .note svg.i { width: 16px; height: 16px; margin-top: 2px; }
+
+  .timeline { list-style: none; margin: 16px 0 0; padding: 0; }
+  .stop { display: grid; grid-template-columns: 46px 1fr; column-gap: 10px; }
+  .stop .when { padding-top: 14px; text-align: right; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stop .when small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-3); }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px;
+    display: grid; grid-template-columns: 64px 1fr; gap: 12px; min-width: 0;
   }
-  .scard.has-img { grid-template-columns: 92px 1fr auto; }
-  .scard img { width: 92px; height: 100%; min-height: 92px; object-fit: cover; display: block; background: var(--field); }
-  .sbody { padding: 10px 12px; min-width: 0; }
-  .sbody .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; margin-right: 4px; }
-  .badge.event { background: var(--event-soft); color: var(--event); }
-  .badge.cafe { background: var(--cafe-soft); color: var(--cafe); }
-  .badge.food { background: var(--food-soft); color: var(--food); }
-  .badge.bar { background: var(--bar-soft); color: var(--bar); }
-  .badge.walk { background: var(--walk-soft); color: var(--walk); }
-  .sbody .name { font-weight: 700; margin-top: 3px; line-height: 1.35; }
-  .sbody .desc { color: var(--sub); font-size: 12.5px; margin-top: 2px; line-height: 1.45; }
-  .sbody .links { display: flex; gap: 10px; margin-top: 5px; font-size: 12.5px; flex-wrap: wrap; }
-  .swap { border: 0; border-left: 1px solid var(--line); background: transparent; padding: 0 12px; cursor: pointer; color: var(--sub); font-size: 12px; }
-  .swap:hover { color: var(--accent); background: var(--accent-soft); }
-  .swap span { display: block; font-size: 22px; line-height: 1.1; font-weight: 700; }
-  .move { margin: 0 0 0 58px; padding: 6px 0 6px 14px; border-left: 2px dashed var(--line); color: var(--sub); font-size: 12.5px; }
-  .note { background: var(--warn-soft); color: var(--warn-ink); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin: 10px 0; }
-  #cmap { height: 300px; border-radius: 14px; border: 1px solid var(--line); margin-top: 14px; background: var(--field); overflow: hidden; }
+  .thumb { width: 64px; height: 64px; border-radius: 12px; overflow: hidden; background: var(--fill); display: grid; place-items: center; position: relative; }
+  .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb svg.i { width: 26px; height: 26px; stroke-width: 1.6; }
+  .thumb:not(:has(img)) { background: color-mix(in srgb, currentColor 9%, var(--surface)); }
+  .thumb.event { color: var(--t-event); } .thumb.cafe { color: var(--t-cafe); } .thumb.food { color: var(--t-food); } .thumb.bar { color: var(--t-bar); } .thumb.walk { color: var(--t-walk); }
+  .cbody { min-width: 0; }
+  .kind { font-size: 12px; font-weight: 700; display: flex; gap: 6px; align-items: center; }
+  .kind em { font-style: normal; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kind.event { color: var(--t-event); } .kind.cafe { color: var(--t-cafe); } .kind.food { color: var(--t-food); } .kind.bar { color: var(--t-bar); } .kind.walk { color: var(--t-walk); }
+  .cname { font-size: 15.5px; font-weight: 700; line-height: 1.35; margin-top: 2px; word-break: keep-all; overflow-wrap: anywhere; }
+  .cdesc { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .cplace { font-size: 12px; color: var(--ink-3); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clink { display: inline-flex; align-items: center; gap: 1px; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .clink svg.i { width: 14px; height: 14px; }
+  .cact { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; margin-top: -2px; }
+  .mini {
+    height: 32px; padding: 0 10px; border-radius: 9px; background: var(--fill); font-size: 13px; font-weight: 600; color: var(--ink);
+    display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+  }
+  .mini svg.i { width: 15px; height: 15px; }
+  .mini small { font-weight: 500; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .mini.ghost { background: transparent; color: var(--ink-2); }
+  .mini.danger { color: var(--accent); background: transparent; }
+  .push { margin-left: auto; }
+  .leg { display: grid; grid-template-columns: 46px 1fr; column-gap: 10px; }
+  .leg > div:last-child {
+    margin-left: 22px; border-left: 2px dotted var(--line); padding: 9px 0 9px 16px; font-size: 12.5px; color: var(--ink-2);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .leg svg.i { width: 15px; height: 15px; color: var(--ink-3); }
+  .leg a { margin-left: auto; color: var(--ink-2); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+  .leg a svg.i { width: 14px; height: 14px; }
+  .addrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 0 56px; }
+  .addrow > span { font-size: 13px; color: var(--ink-3); margin-right: 2px; }
+  .addrow .chip { height: 32px; }
+  #cmap { height: 260px; border-radius: var(--r-card); border: 1px solid var(--line); margin-top: 18px; background: var(--fill); overflow: hidden; }
   .pin {
-    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink);
-    display: grid; place-items: center; font-weight: 700; font-size: 13px; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+    width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 700;
+    display: grid; place-items: center; box-shadow: 0 0 0 3px var(--surface), 0 2px 6px rgba(0, 0, 0, .25);
   }
+  .pin.first { background: var(--accent); color: var(--accent-ink); }
 
-  /* 다른 후보 · 저장 */
-  h3 { font-size: 15px; margin: 26px 0 8px; }
-  .picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-  .pick { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; text-align: left; padding: 0; display: flex; flex-direction: column; }
-  .pick:hover { border-color: var(--accent-line); }
-  .pick img, .pick .noimg { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--field); }
-  .pick .noimg { display: grid; place-items: center; font-size: 28px; }
-  .pick div.t { padding: 7px 9px 9px; font-size: 13px; font-weight: 500; line-height: 1.35; }
-  .pick small { display: block; color: var(--sub); font-weight: 400; font-size: 11.5px; margin-top: 2px; }
-  .saved { list-style: none; padding: 0; margin: 0; }
-  .saved li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-  .saved a { text-decoration: none; color: var(--ink); }
-  .saved small { color: var(--sub); }
-  .empty { color: var(--sub); text-align: center; padding: 30px 10px; }
-  .skel { height: 92px; border-radius: 14px; background: linear-gradient(90deg, var(--field), var(--card), var(--field)); background-size: 200% 100%; animation: sk 1.2s infinite; margin-bottom: 10px; }
-  @keyframes sk { to { background-position: -200% 0; } }
-  footer { color: var(--sub); font-size: 12px; margin-top: 30px; line-height: 1.6; }
-  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 13px; z-index: 50; }
+  /* 섹션 */
+  .sec { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; margin: 36px 0 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .sec small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+  .hscroll { display: grid; grid-auto-flow: column; grid-auto-columns: 148px; gap: 10px; overflow-x: auto; margin-inline: -16px; padding: 0 16px 4px; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
+  .hscroll::-webkit-scrollbar { display: none; }
+  .pick { text-align: left; scroll-snap-align: start; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .pick .ph { aspect-ratio: 4 / 5; width: 100%; max-width: 100%; border-radius: 14px; overflow: hidden; background: var(--fill); display: grid; place-items: center; color: var(--ink-3); position: relative; }
+  .pick .ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+  .pick:hover .ph img { transform: scale(1.03); }
+  .pick .ph svg.i { width: 28px; height: 28px; }
+  .pick b { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pick small { font-size: 12px; color: var(--ink-3); margin-top: -4px; }
 
-  /* 테마 바로가기 */
-  .themes { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scrollbar-width: none; }
-  .themes::-webkit-scrollbar { display: none; }
-  .theme {
-    flex: 0 0 auto; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 8px 12px;
-    cursor: pointer; text-align: left; box-shadow: var(--shadow); min-width: 104px;
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+  .panel + .panel { margin-top: 10px; }
+  .dday { padding: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .dday > svg.i { width: 24px; height: 24px; color: var(--accent); }
+  .dday .big { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .dday .txt { flex: 1; min-width: 160px; font-size: 13.5px; color: var(--ink-2); }
+  .dday .txt b { color: var(--ink); font-weight: 700; }
+  .dday input[type="date"] { height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--fill); color: var(--ink); font: inherit; padding: 0 10px; }
+  .btn {
+    height: 38px; padding: 0 14px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
+    background: var(--fill); color: var(--ink);
   }
-  .theme b { display: block; font-size: 14px; }
-  .theme small { color: var(--sub); font-size: 11.5px; }
-  .theme:hover { border-color: var(--accent-line); }
-  .gorow { display: flex; gap: 8px; margin-top: 10px; }
-  .gorow .go { margin-top: 0; }
-  .dice { flex: 0 0 auto; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); border-radius: 12px; padding: 0 16px; font-size: 15px; font-weight: 700; cursor: pointer; }
-  .weather { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--sub); margin-top: 8px; }
-  .weather .w { background: var(--field); border-radius: 999px; padding: 3px 10px; color: var(--ink); }
-  .weather button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
-  /* 코스 편집 */
-  .tools { display: flex; flex-direction: column; border-left: 1px solid var(--line); min-width: 48px; }
-  .tools button { flex: 1; border: 0; background: transparent; color: var(--sub); cursor: pointer; padding: 0 10px; font-size: 12px; min-height: 30px; }
-  .tools button + button { border-top: 1px solid var(--line); }
-  .tools button:hover { color: var(--accent); background: var(--accent-soft); }
-  .tools button.swap-b { font-size: 12px; line-height: 1.2; }
-  .tools button.swap-b { flex: 1.6; padding: 4px 6px; }
-  .tools button.swap-b span { display: block; font-size: 18px; font-weight: 700; line-height: 1.1; }
-  .scard.has-img { grid-template-columns: 92px 1fr auto; }
-  .summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
-  .summary span { background: var(--field); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; }
-  .starttime { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 2px 6px; font: inherit; font-size: 13px; }
-  .move a { margin-left: 6px; font-size: 12px; }
-  .addrow { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 0 58px; }
-  .addrow span { color: var(--sub); font-size: 12.5px; align-self: center; }
-  /* 기념일 · 기록 */
-  .dday { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: 14px; }
-  .dday b { color: var(--accent); font-size: 18px; }
-  .dday input { border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 13px; }
-  .saved .memo { display: block; color: var(--sub); font-size: 12.5px; }
-  .saved .stars { color: var(--accent); letter-spacing: 1px; }
-  dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 18px; width: min(92vw, 380px); }
-  dialog::backdrop { background: rgba(0, 0, 0, .35); }
-  dialog h4 { margin: 0 0 10px; font-size: 16px; }
-  .starpick button { border: 0; background: none; font-size: 28px; cursor: pointer; color: var(--line); padding: 0 2px; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.text { background: transparent; color: var(--ink-3); padding: 0 6px; font-weight: 500; font-size: 13px; }
+  .saved { list-style: none; margin: 0; padding: 0; }
+  .saved li { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 14px; }
+  .saved li + li { border-top: 1px solid var(--line); }
+  .saved .s-main { flex: 1; min-width: 0; text-align: left; }
+  .saved .s-main b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .saved .s-main small { display: block; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .saved .btn { height: 34px; padding: 0 12px; font-size: 13px; }
+  .stars { color: var(--accent); letter-spacing: 1px; }
+  .iconbtn { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-3); flex: none; }
+  .iconbtn:hover { background: var(--fill); color: var(--ink); }
+  .empty { padding: 28px 16px; text-align: center; color: var(--ink-2); font-size: 14px; }
+  .empty b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
+  footer { margin: 40px 0 8px; font-size: 12px; color: var(--ink-3); line-height: 1.65; }
+  footer a { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* 아래 고정 버튼 */
+  .cta {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    background: linear-gradient(to top, var(--bg) 72%, color-mix(in srgb, var(--bg) 0%, transparent));
+  }
+  .cta .inner { max-width: 608px; margin: 0 auto; display: flex; gap: 8px; }
+  .go {
+    flex: 1; height: 54px; border-radius: 14px; background: var(--accent); color: var(--accent-ink); font-size: 17px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; gap: 8px; transition: transform .1s, opacity .2s;
+  }
+  .go svg.i { width: 20px; height: 20px; }
+  .go:active { transform: scale(.985); }
+  .go:disabled { opacity: .55; cursor: progress; }
+  .dice { width: 54px; height: 54px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; }
+  .dice svg.i { width: 24px; height: 24px; }
+  .dice:disabled { opacity: .55; }
+
+  /* 아래에서 올라오는 시트 */
+  dialog.sheet {
+    border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 640px; max-height: 86vh;
+    background: var(--surface); color: var(--ink); border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  dialog.sheet::backdrop { background: var(--scrim); }
+  dialog.sheet[open] { animation: up .22s cubic-bezier(.2, .8, .2, 1); }
+  @keyframes up { from { transform: translateY(24px); opacity: .6; } }
+  .sheet .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--line); margin: 8px auto 4px; }
+  .sheet header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 4px 20px; }
+  .sheet h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.03em; }
+  .sheet .body { padding: 8px 20px 20px; }
+  .regions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .regions button { height: 44px; border-radius: 12px; background: var(--fill); font-size: 14.5px; font-weight: 600; }
+  .regions button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .regions .wide { grid-column: span 2; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .starpick { display: flex; gap: 4px; margin: 8px 0 10px; }
+  .starpick button { width: 40px; height: 40px; color: var(--line); display: grid; place-items: center; }
   .starpick button.on { color: var(--accent); }
-  dialog textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: inherit; padding: 8px; margin-top: 8px; }
-  dialog .row2 { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .starpick svg { width: 32px; height: 32px; fill: currentColor; stroke: none; }
+  .sheet textarea { width: 100%; min-height: 96px; border: 1px solid var(--line); border-radius: 12px; background: var(--fill); color: var(--ink); font: inherit; font-size: 15px; padding: 10px 12px; resize: vertical; }
+  .sheet .row2 { display: flex; gap: 8px; margin-top: 12px; }
+  .sheet .row2 .btn { flex: 1; height: 48px; font-size: 15px; }
 
-  @media (max-width: 520px) {
-    h1 { font-size: 23px; }
-    .addrow { margin-left: 48px; }
-    .row { grid-template-columns: 1fr; gap: 4px; }
-    .row > b { padding-top: 0; }
-    .course-head { flex-direction: column; }
-    .actions { justify-content: flex-start; }
-    .stop { grid-template-columns: 40px 1fr; gap: 8px; }
-    .move { margin-left: 48px; }
-    .scard.has-img { grid-template-columns: 76px 1fr auto; }
-    .scard img { width: 76px; min-height: 76px; }
-    .tools button { padding: 0 8px; }
+  .toast {
+    position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 40;
+    background: var(--ink); color: var(--bg); padding: 10px 14px; border-radius: 12px; font-size: 14px; display: flex; gap: 12px; align-items: center;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, .2); max-width: calc(100vw - 32px); width: max-content;
+  }
+  .toast button { color: var(--bg); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  .skel { border-radius: var(--r-card); background: var(--fill); height: 92px; margin-top: 10px; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+  @media (min-width: 560px) {
+    .c-title { font-size: 26px; }
+    .card { grid-template-columns: 84px 1fr; }
+    .thumb { width: 84px; height: 84px; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>💑 데이트 코스</h1>
-      <p class="lead">조건만 고르면 그날 열리는 행사를 중심으로 코스를 짜 드려요</p>
-    </div>
-    <a class="toplink" href="../festivals/">전체 행사 보기 →</a>
-  </header>
+<header class="appbar">
+  <div class="wrap">
+    <a class="brand" href="./"><i></i>데이트 코스</a>
+    <a class="toplink" href="../festivals/">전체 행사<svg class="i" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></a>
+  </div>
+</header>
 
-  <div class="themes" id="themes" aria-label="테마로 바로 짜기"></div>
-
-  <section class="panel" aria-label="조건">
-    <div class="row"><b>언제</b><div class="chips" id="when"></div></div>
-    <div class="row"><b>어디서</b><div class="chips" id="where"></div></div>
-    <div class="row"><b>시간대</b><div class="chips" id="slot"></div></div>
-    <div class="row"><b>분위기</b><div class="chips" id="mood"></div></div>
-    <div class="row"><b>예산·날씨</b><div class="chips" id="opts"></div></div>
-    <div class="weather" id="wx" hidden></div>
-    <div class="gorow">
-      <button class="go" id="go" disabled>행사 정보를 불러오는 중…</button>
-      <button class="dice" id="dice" disabled title="아무거나 골라 주기" aria-label="아무거나">🎲</button>
+<main class="wrap">
+  <section aria-label="조건">
+    <div class="days" id="days" role="listbox" aria-label="날짜"></div>
+    <input type="date" id="datePick" class="sr-only" tabindex="-1" aria-hidden="true">
+    <div class="ctrl-row">
+      <button class="select" id="regionBtn" aria-haspopup="dialog"></button>
+      <div class="seg" role="radiogroup" aria-label="시간대" id="slotSeg"></div>
     </div>
+    <div class="chips" id="filters" aria-label="분위기와 조건"></div>
+    <div class="banner" id="wxBanner" hidden></div>
   </section>
 
   <section class="course" id="course" aria-live="polite"></section>
 
   <section id="picksWrap" hidden>
-    <h3>이 조건에 맞는 다른 행사로 짜기</h3>
-    <div class="picks" id="picks"></div>
+    <h2 class="sec">같은 날 다른 행사 <small>누르면 코스가 바뀌어요</small></h2>
+    <div class="hscroll" id="picks"></div>
   </section>
 
-  <section id="savedWrap" hidden>
-    <h3>저장한 코스 · 다녀온 기록</h3>
-    <ul class="saved" id="saved"></ul>
+  <section>
+    <h2 class="sec">보관함</h2>
+    <div class="panel dday" id="dday"></div>
+    <div class="panel" id="savedBox" hidden><ul class="saved" id="saved"></ul></div>
   </section>
-
-  <h3>우리 기념일</h3>
-  <div class="dday" id="dday"></div>
-
-  <dialog id="review">
-    <h4 id="rvTitle">다녀온 데이트 기록</h4>
-    <div class="starpick" id="rvStars"></div>
-    <textarea id="rvMemo" placeholder="어땠는지 한 줄 남겨 두세요 (이 기기에만 저장돼요)"></textarea>
-    <div class="row2"><button class="btn" id="rvCancel">닫기</button><button class="btn primary" id="rvSave">저장</button></div>
-  </dialog>
 
   <footer>
-    행사는 <a href="../festivals/">전시·축제 모아보기</a>와 같은 공공데이터·예매처 정보이고, 주변 장소는 <span id="spotSrc">카카오 로컬 / 오픈스트리트맵</span> 자료입니다.
-    운영 시간·예약 여부는 방문 전에 꼭 확인하세요. 홈 화면에 추가하면 앱처럼 쓸 수 있어요.
+    행사 정보는 한국관광공사·한국문화정보원 공공데이터와 각 예매처, 주변 장소는 <span id="spotSrc">오픈스트리트맵</span>, 날씨는 Open-Meteo 자료입니다.
+    운영 시간과 예약 여부는 방문 전에 확인하세요. 저장한 코스와 기록은 이 기기에만 남습니다.
+    <a href="../festivals/">전시·축제 전체 보기</a>
   </footer>
+</main>
+
+<div class="cta">
+  <div class="inner">
+    <button class="dice" id="dice" disabled aria-label="아무 코스나 고르기" title="아무 코스나"></button>
+    <button class="go" id="go" disabled>불러오는 중</button>
+  </div>
 </div>
 
+<dialog class="sheet" id="regionSheet" aria-labelledby="rsTitle">
+  <div class="grab"></div>
+  <header><h3 id="rsTitle">지역</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
+  <div class="body"><div class="regions" id="regions"></div></div>
+</dialog>
+
+<dialog class="sheet" id="review" aria-labelledby="rvTitle">
+  <div class="grab"></div>
+  <header><h3 id="rvTitle">다녀온 기록</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
+  <div class="body">
+    <p class="eyebrow" id="rvSub"></p>
+    <div class="starpick" id="rvStars"></div>
+    <textarea id="rvMemo" placeholder="좋았던 점, 다음에 바꿀 점"></textarea>
+    <div class="row2"><button class="btn" data-close>취소</button><button class="btn primary" id="rvSave">저장</button></div>
+  </div>
+</dialog>
+
 <script>
+// ===== 아이콘 (선 굵기·끝처리를 통일한 24px 격자) =====
+const ICONS = {
+  pin: '<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  right: '<path d="m9 6 6 6-6 6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  cloud: '<path d="M7 19a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 12 3.5 3.5 0 0 1 18 19z"/>',
+  partly: '<path d="M10 2.5v1.5M4.3 4.8l1 1M2.5 10.5H4M15.7 4.8l-1 1"/><path d="M6.6 12.4A4 4 0 1 1 13.8 8"/><path d="M9 20.5a3.5 3.5 0 1 1 .7-6.9A5 5 0 0 1 19 15a3 3 0 0 1-1 5.5z"/>',
+  rain: '<path d="M7 15.5a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 8.5 3.5 3.5 0 0 1 18 15.5z"/><path d="m8 18.5-1 2.5M12 18.5l-1 2.5M16 18.5l-1 2.5"/>',
+  snow: '<path d="M7 15.5a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 8.5 3.5 3.5 0 0 1 18 15.5z"/><path d="M8 19h.01M12 19h.01M16 19h.01M10 21.5h.01M14 21.5h.01"/>',
+  fog: '<path d="M4 8h16M3 12h18M5 16h14M8 20h8"/>',
+  storm: '<path d="M7 15.5a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 8.5 3.5 3.5 0 0 1 18 15.5"/><path d="m12.5 13-2.5 4h4l-2.5 4"/>',
+  umbrella: '<path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M12 12v6.5a2 2 0 0 1-4 0"/>',
+  coins: '<circle cx="9" cy="9" r="6"/><path d="M15.6 9.6A6 6 0 1 1 9.6 15.6"/>',
+  route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/>',
+  walk: '<circle cx="13" cy="4" r="1.8"/><path d="m9 20 2.5-6 2.5 2v4M7 11.5l3-3.5h3.5l1.5 4 2.5 1.5M11.5 14l1-5"/>',
+  bus: '<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M8 20.5l.8-3.5M16 20.5l-.8-3.5M8.5 14h.01M15.5 14h.01"/>',
+  shuffle: '<path d="M3 7h3.5c2 0 3.2 1 4.3 2.8l2.4 4.4C14.3 16 15.5 17 17.5 17H21M3 17h3.5c1.4 0 2.5-.5 3.4-1.5M14.1 8.5C15 7.5 16.1 7 17.5 7H21M18 4l3 3-3 3M18 14l3 3-3 3"/>',
+  share: '<path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v6.5A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V12"/>',
+  bookmark: '<path d="M6.5 3.5h11v17l-5.5-4-5.5 4z"/>',
+  bookmarked: '<path d="M6.5 3.5h11v17l-5.5-4-5.5 4z" fill="currentColor"/>',
+  calplus: '<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 12.5v5M9.5 15h5"/>',
+  cal: '<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+  refresh: '<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 3.5V8h4.5M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20.5V16h-4.5"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  sunset: '<path d="M3 18h18M6 18a6 6 0 0 1 12 0M12 3v6M9 6l3 3 3-3M4.2 11.2l1.4 1.4M19.8 11.2l-1.4 1.4M7 21h10"/>',
+  ticket: '<path d="M3 7.5h18V10a2 2 0 0 0 0 4v2.5H3V14a2 2 0 0 0 0-4z"/><path d="M14.5 7.5v9" stroke-dasharray="1.5 2"/>',
+  coffee: '<path d="M4.5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M15.5 10H17a2.5 2.5 0 0 1 0 5h-1.5M8 3.5V6M12 3.5V6"/>',
+  food: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 12v9M17.5 21V3c-2.2 1-3.5 3.6-3.5 7.2 0 1.6 1 2.5 3.5 2.5"/>',
+  wine: '<path d="M8 3h8l-.4 5.6a3.6 3.6 0 0 1-7.2 0z"/><path d="M12 12.4V21M8.5 21h7"/>',
+  tree: '<path d="M12 21v-5"/><path d="M12 3c3 0 5 2.4 5 5.2 2 .8 3 2.4 3 4.1C20 14.6 18 16 15.6 16H8.4C6 16 4 14.6 4 12.3c0-1.7 1-3.3 3-4.1C7 5.4 9 3 12 3z"/>',
+  map: '<path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4zM9 4v14M15 6v14"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  heart: '<path d="M12 20s-7.4-4.5-9.1-9.3C1.7 7.3 3.9 4 7.3 4c2 0 3.5 1 4.7 2.7C13.2 5 14.7 4 16.7 4c3.4 0 5.6 3.3 4.4 6.7C19.4 15.5 12 20 12 20z"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5h6V7"/>',
+  star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
+  dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/>',
+};
+const ic = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+
 // ===== 기본값 =====
 const AREA_NAMES = { 1:'서울', 2:'인천', 3:'대전', 4:'대구', 5:'광주', 6:'부산', 7:'울산', 8:'세종',
   31:'경기', 32:'강원', 33:'충북', 34:'충남', 35:'경북', 36:'경남', 37:'전북', 38:'전남', 39:'제주' };
-const MOODS = ['로맨틱', '감성·예술', '힐링·여유', '활기찬·신나는', '트렌디·핫플', '전통·고즈넉'];
-const TYPE_LABEL = { event: '행사', cafe: '카페', food: '식사', bar: '한잔', walk: '산책' };
-const KIND_LABEL = { fest: '축제', expo: '전시', fair: '박람회', show: '공연', popup: '팝업', edu: '체험', sport: '스포츠' };
-const KIND_ICON = { fest: '🎉', expo: '🖼️', fair: '🏢', show: '🎭', popup: '🛍️', edu: '🧑‍🏫', sport: '🏟️' };
+const AREA_ORDER = [1, 31, 2, 6, 4, 5, 3, 7, 8, 32, 33, 34, 35, 36, 37, 38, 39];
+// [AI 분류의 분위기 값, 화면에 보이는 이름]
+const MOODS = [['로맨틱', '로맨틱'], ['감성·예술', '전시·감성'], ['트렌디·핫플', '핫플'], ['활기찬·신나는', '신나게'], ['힐링·여유', '여유롭게'], ['전통·고즈넉', '고즈넉하게']];
+const TYPE = { event: ['행사', 'ticket'], cafe: ['카페', 'coffee'], food: ['식사', 'food'], bar: ['한잔', 'wine'], walk: ['산책', 'tree'] };
+const KIND_LABEL = { fest: '축제', expo: '전시', fair: '박람회', show: '공연', popup: '팝업', edu: '클래스·체험', sport: '스포츠' };
 const GRID = 0.005;
 const CHAIN = /스타벅스|이디야|투썸|메가(MGC)?커피|메가커피|컴포즈|빽다방|할리스|파스쿠찌|커피빈|폴바셋|엔제리너스|매머드|더벤티|맥도날드|버거킹|롯데리아|KFC|맘스터치|김밥천국|김밥|본죽|파리바게뜨|뚜레쥬르|서브웨이|도미노|피자헛|교촌|BBQ|bhc|이삭토스트|공차|배스킨|던킨|편의점|GS25|CU |세븐일레븐|역전할머니|백채김치찌개|홍콩반점/i;
 const DATE_FOOD = /이탈리|파스타|양식|스테이크|비스트로|다이닝|와인|일식|오마카세|스시|초밥|브런치|레스토랑|프렌치|프랑스|피자|타파스|트라토리아|오스테리아|퓨전|태국|베트남|멕시칸|라멘|덮밥|이자카야|화덕/;
 const PLAIN_FOOD = /국밥|해장|분식|기사식당|순대|감자탕|뼈|설렁탕|백반|구내식당|중국집|짜장|치킨|족발|보쌈|곱창|김치찌개/;
 const DUR = { '1시간 이내': 60, '2~3시간': 120, '반나절': 180, '하루 이상': 240 };
-// 테마 바로가기: 누르면 조건을 맞추고 바로 코스를 짠다
-const THEMES = [
-  { icon: '💕', name: '첫 데이트', desc: '대화하기 좋은 전시·카페', set: { slot: 'day', moods: ['감성·예술', '힐링·여유'], free: false, indoor: false } },
-  { icon: '🌧', name: '비 오는 날', desc: '실내로만', set: { moods: [], indoor: true } },
-  { icon: '🌃', name: '야경·저녁', desc: '저녁 먹고 공연·한잔', set: { slot: 'night', moods: ['로맨틱'], indoor: false } },
-  { icon: '💸', name: '가성비', desc: '무료 행사 위주', set: { free: true, moods: [] } },
-  { icon: '🎢', name: '신나게', desc: '축제·공연·스포츠', set: { moods: ['활기찬·신나는'], indoor: false } },
-  { icon: '🔥', name: '요즘 핫플', desc: '팝업·트렌디', set: { moods: ['트렌디·핫플'] } },
-  { icon: '🍂', name: '고즈넉하게', desc: '전통·산책', set: { slot: 'day', moods: ['전통·고즈넉', '힐링·여유'], indoor: false } },
-];
-// 2인 기준 대략적인 비용 (원). 행사는 AI 가 매긴 1인 요금 구간의 가운데 값
+// 2인 기준 대략적인 비용 (원). 행사는 1인 요금 구간의 가운데 값 × 2
 const COST = { cafe: 14000, food: 60000, bar: 50000, walk: 0 };
 const EV_COST = { '무료': 0, '1만원 이하': 8000, '1~3만원': 20000, '3만원 이상': 50000 };
 // 지역 날씨를 볼 대표 좌표 (시청·도청 근처)
 const AREA_CENTER = { 1: [37.5665, 126.978], 2: [37.4563, 126.7052], 3: [36.3504, 127.3845], 4: [35.8714, 128.6014], 5: [35.1595, 126.8526],
   6: [35.1796, 129.0756], 7: [35.5384, 129.3114], 8: [36.48, 127.289], 31: [37.2636, 127.0286], 32: [37.8813, 127.7298], 33: [36.6424, 127.489],
   34: [36.6588, 126.6728], 35: [36.019, 129.3435], 36: [35.2279, 128.6811], 37: [35.8242, 127.148], 38: [34.8161, 126.4629], 39: [33.4996, 126.5312] };
-const WMO = c => c === 0 ? ['☀️', '맑음'] : c <= 2 ? ['🌤', '구름 조금'] : c === 3 ? ['☁️', '흐림'] : c <= 48 ? ['🌫', '안개']
-  : c <= 57 ? ['🌦', '이슬비'] : c <= 67 ? ['🌧', '비'] : c <= 77 ? ['🌨', '눈'] : c <= 82 ? ['🌧', '소나기'] : c <= 86 ? ['🌨', '눈'] : ['⛈', '뇌우'];
-const wxCache = new Map();
-async function weather(p, date) {
-  const k = `${p[0].toFixed(1)},${p[1].toFixed(1)},${date}`;
-  if (wxCache.has(k)) return wxCache.get(k);
-  const d = isoOf(date);
-  const pr = fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0]}&longitude=${p[1]}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset&timezone=Asia%2FSeoul&start_date=${d}&end_date=${d}`)
-    .then(r => r.ok ? r.json() : null).then(j => {
-      const x = j?.daily; if (!x?.time?.length) return null;
-      return { code: x.weather_code[0], hi: Math.round(x.temperature_2m_max[0]), lo: Math.round(x.temperature_2m_min[0]), rain: x.precipitation_probability_max[0] ?? 0, sunset: (x.sunset[0] || '').slice(11, 16) };
-    }).catch(() => null); // 16일 넘게 남은 날짜나 연결 실패는 조용히 넘긴다
-  wxCache.set(k, pr);
-  pr.then(w => { if (!w) wxCache.delete(k); }); // 실패는 기억하지 않고 다음에 다시
-  return pr;
-}
-const wxText = w => { const [i, t] = WMO(w.code); return `${i} ${t} · ${w.lo}~${w.hi}° · 비 ${w.rain}%`; };
-const won = n => n >= 10000 ? `${Math.round(n / 1000) / 10}만원` : `${n.toLocaleString()}원`;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ymd = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 const isoOf = s => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 const fromIso = s => s.replace(/-/g, '');
-const dateLabel = s => { const d = new Date(isoOf(s) + 'T00:00'); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`; };
+const dateOf = s => new Date(isoOf(s) + 'T00:00');
+const DOW = '일월화수목금토';
+// 제목 앞의 [대학로]·[서울] 같은 꼬리표는 화면에서 뗀다 (장소 줄에 이미 나옴)
+const showTitle = t => String(t || '').replace(/^(\s*[\[［][^\]］]{1,14}[\]］])+\s*/, '') || t;
+const dateLabel = s => { const d = dateOf(s); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`; };
 const hhmm = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const won = n => n >= 10000 ? `${Math.round(n / 1000) / 10}만원` : n ? `${n.toLocaleString()}원` : '0원';
 function dist(a, b) { // 미터
   const R = 6371000, toR = Math.PI / 180, dLat = (b[0] - a[0]) * toR, dLng = (b[1] - a[1]) * toR;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * toR) * Math.cos(b[0] * toR) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+let toastTimer = null;
+function toast(msg, action) {
+  document.querySelector('.toast')?.remove(); clearTimeout(toastTimer);
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status');
+  t.innerHTML = `<span>${esc(msg)}</span>`;
+  if (action) { const b = document.createElement('button'); b.textContent = action[0]; b.onclick = () => { action[1](); t.remove(); }; t.appendChild(b); }
+  document.body.appendChild(t); toastTimer = setTimeout(() => t.remove(), action ? 4500 : 2200);
+}
 const store = {
   get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
 // ===== 상태 =====
-const today = new Date();
-function nextDow(dow) { const d = new Date(today); d.setDate(d.getDate() + ((dow - d.getDay() + 7) % 7)); return d; }
-const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-const WHEN = [['오늘', ymd(today)], ['내일', ymd(tomorrow)], ['이번 토요일', ymd(nextDow(6))], ['이번 일요일', ymd(nextDow(0))]];
-const saved = store.get('date.prefs', {});
+const today = new Date(); today.setHours(0, 0, 0, 0);
+const TODAY = ymd(today);
+const DAYS = Array.from({ length: 14 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() + i); return ymd(d); });
+const prefs = store.get('date.prefs', {});
+// 처음 열면 월~목은 이번 토요일, 금~일은 오늘
+const defaultDate = () => { const dow = today.getDay(); return dow >= 1 && dow <= 4 ? DAYS[6 - dow] : TODAY; };
 const state = {
-  date: WHEN.find(w => w[1] === saved.date)?.[1] || (today.getDay() >= 1 && today.getDay() <= 4 ? WHEN[2][1] : WHEN[0][1]),
-  areas: new Set(saved.areas || []), near: null,
-  slot: saved.slot || 'day', moods: new Set(saved.moods || []),
+  date: prefs.date && prefs.date >= TODAY ? prefs.date : defaultDate(),
+  areas: new Set((prefs.areas || [1]).slice(0, 1)), near: null,
+  slot: prefs.slot || 'day', moods: new Set(prefs.moods || []),
   free: false, indoor: false, seed: 0,
 };
-const wxPoint = () => state.near || (state.areas.size === 1 ? AREA_CENTER[[...state.areas][0]] : AREA_CENTER[1]);
 let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null;
+const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], slot: state.slot, moods: [...state.moods] });
 
-// ===== 조건 칩 =====
-function chip(label, pressed, onClick, extra = '') {
-  const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.innerHTML = label + extra;
-  b.setAttribute('aria-pressed', pressed); b.onclick = onClick; return b;
+// ===== 날씨 (Open-Meteo, 지역마다 16일치를 한 번에) =====
+const WMO = c => c === 0 ? ['sun', '맑음'] : c <= 2 ? ['partly', '구름 조금'] : c === 3 ? ['cloud', '흐림'] : c <= 48 ? ['fog', '안개']
+  : c <= 67 ? ['rain', '비'] : c <= 77 ? ['snow', '눈'] : c <= 82 ? ['rain', '소나기'] : c <= 86 ? ['snow', '눈'] : ['storm', '뇌우'];
+const fcCache = new Map();
+function forecast(p) {
+  const k = `${p[0].toFixed(1)},${p[1].toFixed(1)}`;
+  if (fcCache.has(k)) return fcCache.get(k);
+  const pr = fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0]}&longitude=${p[1]}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset&timezone=Asia%2FSeoul&forecast_days=16`)
+    .then(r => r.ok ? r.json() : null).then(j => {
+      const x = j?.daily; if (!x?.time) return null;
+      const m = {};
+      x.time.forEach((t, i) => m[fromIso(t)] = { code: x.weather_code[i], hi: Math.round(x.temperature_2m_max[i]), lo: Math.round(x.temperature_2m_min[i]), rain: x.precipitation_probability_max[i] ?? 0, sunset: (x.sunset[i] || '').slice(11, 16) });
+      return m;
+    }).catch(() => null);
+  fcCache.set(k, pr);
+  pr.then(m => { if (!m) fcCache.delete(k); }); // 실패는 기억하지 않고 다음에 다시
+  return pr;
 }
-function drawChips() {
-  const when = $('#when'); when.innerHTML = '';
-  for (const [l, v] of WHEN) when.appendChild(chip(l, state.date === v, () => { state.date = v; drawChips(); }));
-  const custom = !WHEN.some(w => w[1] === state.date);
-  const c = chip('', custom, () => {}, `<input type="date" aria-label="날짜 고르기" value="${isoOf(state.date)}" min="${isoOf(ymd(today))}">`);
-  c.querySelector('input').onchange = e => { if (e.target.value) { state.date = fromIso(e.target.value); drawChips(); } };
-  when.appendChild(c);
+const wxPoint = () => state.near || (state.areas.size ? AREA_CENTER[[...state.areas][0]] : AREA_CENTER[1]);
+const areaName = () => state.near ? '내 위치' : state.areas.size ? AREA_NAMES[[...state.areas][0]] : '전국';
 
-  const where = $('#where'); where.innerHTML = '';
-  where.appendChild(chip('📍 내 근처', !!state.near, () => {
-    if (state.near) { state.near = null; drawChips(); return; }
-    if (!navigator.geolocation) return toast('이 브라우저는 위치를 알 수 없어요');
-    navigator.geolocation.getCurrentPosition(p => { state.near = [p.coords.latitude, p.coords.longitude]; state.areas.clear(); drawChips(); },
-      () => toast('위치 권한이 없어 지역을 직접 골라 주세요'), { timeout: 10000, maximumAge: 600000 });
-  }));
-  where.appendChild(chip('전국', !state.near && !state.areas.size, () => { state.near = null; state.areas.clear(); drawChips(); }));
-  for (const [code, name] of Object.entries(AREA_NAMES)) where.appendChild(chip(name, state.areas.has(+code), () => {
-    state.near = null; state.areas.has(+code) ? state.areas.delete(+code) : state.areas.add(+code); drawChips();
-  }));
-
-  const slot = $('#slot'); slot.innerHTML = '';
-  slot.appendChild(chip('☀️ 낮 코스 (13시~)', state.slot === 'day', () => { state.slot = 'day'; drawChips(); }));
-  slot.appendChild(chip('🌙 저녁 코스 (17시 반~)', state.slot === 'night', () => { state.slot = 'night'; drawChips(); }));
-
-  const mood = $('#mood'); mood.innerHTML = '';
-  for (const m of MOODS) mood.appendChild(chip(m, state.moods.has(m), () => { state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); drawChips(); }));
-
-  const opts = $('#opts'); opts.innerHTML = '';
-  opts.appendChild(chip('💸 무료 행사만', state.free, () => { state.free = !state.free; drawChips(); }));
-  opts.appendChild(chip('☔ 실내만', state.indoor, () => { state.indoor = !state.indoor; drawChips(); }));
-  store.set('date.prefs', { date: state.date, areas: [...state.areas], slot: state.slot, moods: [...state.moods] });
-  drawWxHint();
+// ===== 조건 그리기 =====
+function drawDays(wx) {
+  const list = DAYS.includes(state.date) ? DAYS : [...DAYS, state.date];
+  $('#days').innerHTML = list.map((d, i) => {
+    const dt = dateOf(d), dow = dt.getDay(), w = wx?.[d];
+    const top = d === TODAY ? '오늘' : d === DAYS[1] ? '내일' : DOW[dow];
+    return `<button class="day ${dow === 6 ? 'sat' : dow === 0 ? 'sun' : ''}" role="option" data-date="${d}" aria-selected="${d === state.date}" aria-label="${dateLabel(d)}${w ? `, ${WMO(w.code)[1]} 최고 ${w.hi}도` : ''}">
+      <span class="dw">${top}</span><span class="dn num">${i >= DAYS.length ? `${dt.getMonth() + 1}/` : ''}${dt.getDate()}</span>
+      <span class="dx num">${w ? ic(WMO(w.code)[0]) + w.hi + '°' : ''}</span></button>`;
+  }).join('') + `<button class="day pick" id="dayPick" aria-label="다른 날짜 고르기">${ic('cal')}</button>`;
+  $('#days').querySelectorAll('[data-date]').forEach(b => b.onclick = () => { state.date = b.dataset.date; drawControls(); });
+  $('#dayPick').onclick = () => { const p = $('#datePick'); p.min = isoOf(TODAY); p.value = isoOf(state.date); try { p.showPicker(); } catch { p.click(); } };
+  if (!wx) forecast(wxPoint()).then(m => m && drawDays(m));
 }
-// 고른 날짜·지역의 날씨를 미리 보여 주고, 비가 오면 실내만 켜기를 권한다
-let wxSeq = 0;
-async function drawWxHint() {
-  const seq = ++wxSeq, el = $('#wx');
-  const w = await weather(wxPoint(), state.date);
-  if (seq !== wxSeq) return;
-  if (!w) { el.hidden = true; return; }
-  const where = state.near ? '내 근처' : state.areas.size === 1 ? AREA_NAMES[[...state.areas][0]] : '서울';
+function drawControls() {
+  drawDays(null);
+  $('#regionBtn').innerHTML = `${ic(state.near ? 'locate' : 'pin')}<span>${areaName()}</span>${ic('down')}`;
+  $('#slotSeg').innerHTML = [['day', '낮', 'sun'], ['night', '저녁', 'moon']].map(([v, l, i]) =>
+    `<button role="radio" aria-checked="${state.slot === v}" data-slot="${v}">${ic(i)}${l}</button>`).join('');
+  $('#slotSeg').querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { state.slot = b.dataset.slot; drawControls(); });
+  $('#filters').innerHTML = MOODS.map(([v, l]) => `<button class="chip" data-mood="${v}" aria-pressed="${state.moods.has(v)}">${l}</button>`).join('') +
+    `<span class="chip-sep"></span><button class="chip" id="fFree" aria-pressed="${state.free}">${ic('coins')}무료만</button>` +
+    `<button class="chip" id="fIndoor" aria-pressed="${state.indoor}">${ic('umbrella')}실내만</button>`;
+  $('#filters').querySelectorAll('[data-mood]').forEach(b => b.onclick = () => { const m = b.dataset.mood; state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); drawControls(); });
+  $('#fFree').onclick = () => { state.free = !state.free; drawControls(); };
+  $('#fIndoor').onclick = () => { state.indoor = !state.indoor; drawControls(); };
+  savePrefs(); drawBanner();
+}
+// 고른 날 비 소식이 있으면 실내만 보기를 권한다
+let bannerSeq = 0;
+async function drawBanner() {
+  const seq = ++bannerSeq, el = $('#wxBanner');
+  const w = (await forecast(wxPoint()))?.[state.date];
+  if (seq !== bannerSeq) return;
+  if (!w || w.rain < 60 || state.indoor) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = `<span>${where} 날씨</span><span class="w">${wxText(w)}</span><span>🌇 일몰 ${w.sunset}</span>` +
-    (w.rain >= 60 && !state.indoor ? '<button type="button" id="wxIndoor">비 소식이 있어요 · 실내만 보기</button>' : '');
-  $('#wxIndoor')?.addEventListener('click', () => { state.indoor = true; drawChips(); });
+  el.innerHTML = `${ic('umbrella')}<span><b>${areaName()} 비 예보 ${w.rain}%</b> · ${w.lo}~${w.hi}°</span><button type="button" id="wxIndoor">실내 코스로</button>`;
+  $('#wxIndoor').onclick = () => { state.indoor = true; drawControls(); if (ALL.length) makeCourse(); };
 }
-function drawThemes() {
-  $('#themes').innerHTML = THEMES.map((t, i) => `<button class="theme" data-theme="${i}"><b>${t.icon} ${t.name}</b><small>${t.desc}</small></button>`).join('');
-  $('#themes').querySelectorAll('[data-theme]').forEach(b => b.onclick = () => {
-    const s = THEMES[+b.dataset.theme].set;
-    if (s.slot) state.slot = s.slot;
-    if (s.moods) state.moods = new Set(s.moods);
-    if ('free' in s) state.free = s.free;
-    if ('indoor' in s) state.indoor = s.indoor;
-    drawChips(); if (ALL.length) { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+// 지역 시트
+function openRegions() {
+  const cur = state.near ? 'near' : state.areas.size ? String([...state.areas][0]) : 'all';
+  $('#regions').innerHTML = `<button class="wide" data-r="near" aria-pressed="${cur === 'near'}">${ic('locate')}내 위치 주변</button>
+    <button class="wide" data-r="all" aria-pressed="${cur === 'all'}">전국</button>` +
+    AREA_ORDER.map(c => `<button data-r="${c}" aria-pressed="${cur === String(c)}">${AREA_NAMES[c]}</button>`).join('');
+  $('#regions').querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+    const r = b.dataset.r;
+    if (r === 'near') {
+      if (!navigator.geolocation) return toast('이 브라우저에서는 위치를 쓸 수 없어요');
+      b.textContent = '위치 확인 중';
+      navigator.geolocation.getCurrentPosition(p => { state.near = [p.coords.latitude, p.coords.longitude]; state.areas.clear(); $('#regionSheet').close(); drawControls(); },
+        () => { $('#regionSheet').close(); toast('위치 권한이 없어요. 지역을 골라 주세요'); }, { timeout: 10000, maximumAge: 600000 });
+      return;
+    }
+    state.near = null; state.areas = r === 'all' ? new Set() : new Set([+r]);
+    $('#regionSheet').close(); drawControls();
   });
+  $('#regionSheet').showModal();
 }
 
 // ===== 데이터 =====
 async function load() {
-  drawThemes(); drawDday(); drawChips();
+  drawControls();
   $('#course').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
   const [ev, sp] = await Promise.all([
     fetch('../festivals/data/events.json').then(r => r.json()),
@@ -412,13 +579,12 @@ async function load() {
   for (const it of ALL) BY_ID.set(it.id, it);
   SPOTS = sp;
   $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
-  $('#go').disabled = false; $('#go').textContent = '코스 짜기';
+  $('#go').disabled = false; $('#go').innerHTML = `${ic('refresh')}이 조건으로 코스 만들기`;
   $('#dice').disabled = false;
-  // 공유 링크로 들어왔으면 그 코스를 그대로 보여 준다
+  // 공유 링크로 들어왔으면 그 코스, 아니면 지금 조건으로 바로 하나 보여 준다
   const shared = readShare();
-  if (shared) { COURSE = shared; drawCourse(); drawPicks(); }
-  else { $('#course').innerHTML = ''; }
-  drawSaved();
+  if (shared) { COURSE = shared; drawCourse(); drawPicks(); } else makeCourse();
+  drawSaved(); drawDday();
 }
 
 // ===== 후보 행사 =====
@@ -504,8 +670,8 @@ function info(ref) {
   if (ref.e) {
     const it = BY_ID.get(ref.e); if (!it) return null;
     const a = it.ai || {};
-    return { type: 'event', it, name: it.title, geo: it.geo, img: it.img,
-      desc: a.blurb || it.summary || '', sub: `${KIND_LABEL[it.kind] || ''}${a.cost && a.cost !== '미상' ? ' · ' + a.cost : ''}`,
+    return { type: 'event', it, name: showTitle(it.title), geo: it.geo, img: it.img,
+      desc: a.blurb || it.summary || '', sub: [KIND_LABEL[it.kind], a.cost && a.cost !== '미상' ? a.cost : ''].filter(Boolean).join(' · '),
       place: it.place, dur: it.kind === 'show' || it.kind === 'sport' ? 150 : DUR[a.stay] || 90,
       link: it.homepage || `https://search.naver.com/search.naver?query=${encodeURIComponent(it.title)}` };
   }
@@ -513,108 +679,120 @@ function info(ref) {
   return { type, name, geo: [lat, lng], sub, desc: '', dur: { cafe: 60, food: 90, bar: 90, walk: 45 }[type] || 60,
     link: kid ? `https://place.map.kakao.com/${kid}` : `https://map.naver.com/p/search/${encodeURIComponent(name)}?c=${lng},${lat},17,0,0,0,dh` };
 }
-function moveText(a, b) {
+function legOf(a, b) {
   const m = dist(a, b);
-  if (m < 1500) return [`🚶 걸어서 ${Math.max(1, Math.round(m * 1.25 / 70))}분 · ${m < 1000 ? Math.round(m / 10) * 10 + 'm' : (m / 1000).toFixed(1) + 'km'}`, Math.round(m * 1.25 / 70)];
+  if (m < 1500) { const t = Math.max(1, Math.round(m * 1.25 / 70)); return { icon: 'walk', text: `도보 ${t}분 · ${m < 1000 ? Math.round(m / 10) * 10 + 'm' : (m / 1000).toFixed(1) + 'km'}`, mins: t }; }
   const t = Math.round(10 + m / 400);
-  return [`🚇 대중교통·택시 약 ${t}분 · ${(m / 1000).toFixed(1)}km`, t];
+  return { icon: 'bus', text: `대중교통·택시 약 ${t}분 · ${(m / 1000).toFixed(1)}km`, mins: t };
 }
 
-// ===== 그리기 =====
+// ===== 코스 그리기 =====
+// 시작 시간 목록은 09:00~21:00 30분 단위, 공유받은 코스가 그 밖의 시간이면 그 시간도 넣는다
+const STARTS_EXTRA = t0 => (t0 < 540 || t0 > 1260 || t0 % 30) ? [t0] : [];
 function drawCourse() {
   const box = $('#course');
   if (!COURSE) { box.innerHTML = ''; return; }
   const stops = COURSE.stops.map((s, idx) => ({ ...s, idx, x: info(s.alts[s.i] || s.ref) })).filter(s => s.x);
-  if (!stops.length) { box.innerHTML = '<div class="empty">코스가 비었어요. 다시 짜 주세요.</div>'; return; }
+  if (!stops.length) { box.innerHTML = '<div class="empty"><b>코스가 비었어요</b>아래 버튼으로 다시 만들어 주세요.</div>'; return; }
   const t0 = COURSE.start ?? (COURSE.slot === 'day' ? 780 : 1050);
   let t = t0, walkM = 0, html = '', cost = 0, costUnknown = false;
   const times = [];
   stops.forEach((s, n) => {
+    const x = s.x;
     if (n) {
-      const a = stops[n - 1].x, [txt, mins] = moveText(a.geo, s.x.geo);
-      walkM += dist(a.geo, s.x.geo);
-      t += mins; t = Math.ceil(t / 10) * 10;
+      const a = stops[n - 1].x, leg = legOf(a.geo, x.geo);
+      walkM += dist(a.geo, x.geo);
+      t += leg.mins; t = Math.ceil(t / 10) * 10;
       // 낮 코스의 식사는 저녁 시간에 맞춘다
-      if (COURSE.slot === 'day' && s.x.type === 'food' && t0 < 17 * 60) t = Math.max(t, 17 * 60 + 30);
-      const route = `https://map.kakao.com/link/from/${encodeURIComponent(a.name)},${a.geo[0]},${a.geo[1]}/to/${encodeURIComponent(s.x.name)},${s.x.geo[0]},${s.x.geo[1]}`;
-      html += `<li class="move">${txt}<a href="${route}" target="_blank" rel="noopener">길찾기</a></li>`;
+      if (COURSE.slot === 'day' && x.type === 'food' && t0 < 17 * 60) t = Math.max(t, 17 * 60 + 30);
+      const route = `https://map.kakao.com/link/from/${encodeURIComponent(a.name)},${a.geo[0]},${a.geo[1]}/to/${encodeURIComponent(x.name)},${x.geo[0]},${x.geo[1]}`;
+      html += `<li class="leg"><div></div><div>${ic(leg.icon)}<span>${leg.text}</span><a href="${route}" target="_blank" rel="noopener">길찾기${ic('right')}</a></div></li>`;
     }
-    const x = s.x, alts = s.alts.length;
     if (x.type === 'event') { const c = EV_COST[x.it.ai?.cost]; if (c == null) costUnknown = true; else cost += c * 2; }
     else cost += COST[x.type] || 0;
     times.push([t, t + x.dur, x]);
-    html += `<li class="stop"><div class="time">${hhmm(t)}</div>
-      <div class="scard ${x.img ? 'has-img' : ''}">
-        ${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-img');this.remove()">` : ''}
-        <div class="sbody">
-          <span class="badge ${x.type}">${n + 1}. ${TYPE_LABEL[x.type]}</span>${x.sub ? `<span class="badge" style="color:var(--sub)">${esc(x.sub)}</span>` : ''}
-          <div class="name">${esc(x.name)}</div>
-          ${x.desc ? `<div class="desc">${esc(x.desc)}</div>` : ''}
-          <div class="links"><a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '자세히' : '지도·리뷰'}</a>
-            ${x.place ? `<span style="color:var(--sub)">📍 ${esc(x.place)}</span>` : ''}</div>
+    const [label, icon] = TYPE[x.type];
+    const alts = s.alts.length;
+    html += `<li class="stop"><div class="when">${hhmm(t)}<small>${x.dur >= 60 ? Math.round(x.dur / 30) / 2 + '시간' : x.dur + '분'}</small></div>
+      <article class="card">
+        <div class="thumb ${x.type}">${ic(icon)}${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
+        <div class="cbody">
+          <div class="kind ${x.type}">${label}${x.sub ? `<em>${esc(x.sub)}</em>` : ''}</div>
+          <div class="cname">${esc(x.name)}</div>
+          ${x.desc ? `<div class="cdesc">${esc(x.desc)}</div>` : ''}
+          ${x.place ? `<div class="cplace">${esc(x.place)}</div>` : ''}
+          ${alts > 1 || COURSE.editing ? '' : `<a class="clink" href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세 정보' : '지도·리뷰'}${ic('right')}</a>`}
         </div>
-        <div class="tools">
-          ${alts > 1 ? `<button class="swap-b" data-swap="${s.idx}" title="다른 곳으로"><span>↻</span>${s.i + 1}/${alts}</button>` : ''}
-          ${n ? `<button data-up="${s.idx}" title="앞으로" aria-label="앞으로">▲</button>` : ''}
-          ${stops.length > 1 ? `<button data-del="${s.idx}" title="빼기" aria-label="빼기">✕</button>` : ''}
-        </div>
-      </div></li>`;
+        ${alts > 1 || COURSE.editing ? `<div class="cact">
+          ${alts > 1 ? `<button class="mini" data-swap="${s.idx}">${ic('refresh')}다른 곳 <small>${s.i + 1}/${alts}</small></button>` : ''}
+          <a class="mini ghost" href="${esc(x.link)}" target="_blank" rel="noopener">${ic(x.type === 'event' ? 'info' : 'map')}${x.type === 'event' ? '상세 정보' : '지도·리뷰'}</a>
+          ${COURSE.editing ? `${n ? `<button class="mini ghost push" data-up="${s.idx}" aria-label="한 칸 앞으로">${ic('up')}</button>` : '<span class="push"></span>'}
+            ${stops.length > 1 ? `<button class="mini danger" data-del="${s.idx}">${ic('x')}빼기</button>` : ''}` : ''}
+        </div>` : ''}
+      </article></li>`;
     t += x.dur;
   });
   const main = stops.find(s => s.type === 'event');
   const hours = Math.round((t - t0) / 60 * 2) / 2;
+  const notes = [];
+  if (COURSE.noSpots) notes.push('이 주변 카페·식당 정보는 아직 모으는 중이에요. 행사 위주로 보여 드려요.');
+  if (main?.x.it.kind === 'show') notes.push('공연 시작 시간은 예매처에서 확인하고 시작 시간을 맞춰 주세요.');
+  if (main && COURSE.slot === 'night' && ['expo', 'popup'].includes(main.x.it.kind)) notes.push('전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.');
+  const saved = store.get('date.saved', []).some(c => c.hash === shareHash());
   box.innerHTML = `
-    <div class="course-head">
-      <div><h2>${dateLabel(COURSE.date)} ${COURSE.slot === 'day' ? '낮' : '저녁'} 코스</h2>
-        <div class="meta">${stops.length}곳 · 약 ${hours}시간 · 이동 ${(walkM / 1000).toFixed(1)}km ·
-          <label>시작 <input class="starttime" type="time" id="startAt" value="${hhmm(t0)}" step="600"></label></div></div>
-      <div class="actions">
-        <button class="btn primary" id="again">🔀 다른 코스</button>
-        <button class="btn" id="share">🔗 공유</button>
-        <button class="btn" id="save">☆ 저장</button>
-        <button class="btn" id="ics">📅 캘린더</button>
-      </div>
+    <p class="eyebrow">${dateLabel(COURSE.date)} · ${COURSE.slot === 'day' ? '낮' : '저녁'} 코스</p>
+    <h1 class="c-title">${esc(main?.x.name || stops[0].x.name)}</h1>
+    <div class="facts" id="facts">
+      <span>${ic('clock')}<select id="startAt" aria-label="시작 시간">${Array.from({ length: 25 }, (_, i) => 540 + i * 30).concat(STARTS_EXTRA(t0)).sort((a, b) => a - b)
+        .map(m => `<option value="${m}" ${m === t0 ? 'selected' : ''}>${hhmm(m)}</option>`).join('')}</select> 시작</span>
+      <span class="num">${ic('route')}${stops.length}곳 · ${hours}시간 · ${(walkM / 1000).toFixed(1)}km</span>
+      <span class="num">${ic('coins')}2인 약 ${won(cost)}${costUnknown ? '+' : ''}</span>
     </div>
-    <div class="summary">
-      <span>💰 2인 예상 ${won(cost)}${costUnknown ? '+ (행사 요금 미상)' : ''}</span>
-      <span id="cwx">날씨 확인 중…</span>
+    <div class="toolbar" role="toolbar" aria-label="코스 도구">
+      <button id="again">${ic('shuffle')}다른 코스</button>
+      <button id="editBtn" aria-pressed="${!!COURSE.editing}">${ic('edit')}${COURSE.editing ? '편집 완료' : '편집'}</button>
+      <button id="share">${ic('share')}공유</button>
+      <button id="save" aria-pressed="${saved}">${ic(saved ? 'bookmarked' : 'bookmark')}${saved ? '저장됨' : '저장'}</button>
+      <button id="ics">${ic('calplus')}캘린더</button>
     </div>
-    ${COURSE.noSpots ? '<div class="note">이 주변 카페·식당 정보는 아직 모으는 중이에요. 행사 위주로 보여 드려요.</div>' : ''}
-    ${main && main.x.it.kind === 'show' ? '<div class="note">공연 시작 시간은 예매처에서 확인하고 시작 시간을 맞춰 주세요.</div>' : ''}
-    ${main && COURSE.slot === 'night' && ['expo', 'popup'].includes(main.x.it.kind) ? '<div class="note">전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.</div>' : ''}
+    ${notes.map(n => `<div class="note">${ic('info')}<span>${n}</span></div>`).join('')}
     <ol class="timeline">${html}</ol>
-    <div class="addrow" id="addrow"><span>＋ 넣기</span>
-      ${['cafe', 'food', 'bar', 'walk'].map(k => `<button class="chip" data-add="${k}">${TYPE_LABEL[k]}</button>`).join('')}</div>
+    ${COURSE.editing ? `<div class="addrow"><span>추가</span>${['cafe', 'food', 'bar', 'walk'].map(k => `<button class="chip" data-add="${k}">${ic(TYPE[k][1])}${TYPE[k][0]}</button>`).join('')}</div>` : ''}
     <div id="cmap" aria-label="코스 지도"></div>`;
   const redraw = () => { drawCourse(); writeShare(); };
   box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const st = COURSE.stops[+b.dataset.swap]; st.i = (st.i + 1) % st.alts.length; redraw(); });
   box.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [COURSE.stops[i - 1], COURSE.stops[i]] = [COURSE.stops[i], COURSE.stops[i - 1]]; redraw(); } });
-  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { COURSE.stops.splice(+b.dataset.del, 1); redraw(); });
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.del, removed = COURSE.stops.splice(i, 1)[0]; redraw();
+    toast('코스에서 뺐어요', ['되돌리기', () => { COURSE.stops.splice(i, 0, removed); redraw(); }]);
+  });
   box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
     // 마지막 장소 근처에서 같은 종류를 찾아 끝에 붙인다 (이미 코스에 있는 곳은 빼고)
     const last = stops[stops.length - 1].x, type = b.dataset.add;
     const used = new Set(stops.map(s => s.x.name));
     const list = rankSpots(spotsNear(last.geo, 1500).filter(s => !used.has(s.name)), type, last.geo).map(spRef);
-    if (!list.length) return toast(`근처에 ${TYPE_LABEL[type]} 정보가 없어요`);
+    if (!list.length) return toast(`근처에 ${TYPE[type][0]} 정보가 없어요`);
     COURSE.stops.push(asStop(type, list[0], list)); redraw();
   });
-  $('#startAt').onchange = e => { const [hh, mm] = e.target.value.split(':').map(Number); if (!isNaN(hh)) { COURSE.start = hh * 60 + (mm || 0); redraw(); } };
+  $('#startAt').onchange = e => { COURSE.start = +e.target.value; redraw(); };
   $('#again').onclick = () => { state.seed++; makeCourse(); };
+  $('#editBtn').onclick = () => { COURSE.editing = !COURSE.editing; drawCourse(); };
   $('#share').onclick = share;
   $('#save').onclick = () => {
-    const list = store.get('date.saved', []);
-    const title = `${dateLabel(COURSE.date)} · ${main?.x.name || stops[0].x.name}`;
-    list.unshift({ title, hash: shareHash(), at: Date.now(), date: COURSE.date }); store.set('date.saved', list.slice(0, 50));
-    drawSaved(); toast('저장했어요');
+    const list = store.get('date.saved', []), hash = shareHash(), at = list.findIndex(c => c.hash === hash);
+    if (at >= 0) { list.splice(at, 1); store.set('date.saved', list); drawSaved(); drawCourse(); toast('보관함에서 뺐어요'); return; }
+    list.unshift({ title: main?.x.name || stops[0].x.name, hash, at: Date.now(), date: COURSE.date, slot: COURSE.slot, n: stops.length });
+    store.set('date.saved', list.slice(0, 50)); drawSaved(); drawCourse(); toast('보관함에 저장했어요');
   };
   $('#ics').onclick = () => downloadIcs(times);
-  // 코스 첫 장소 기준 날씨와 일몰
-  weather(stops[0].x.geo, COURSE.date).then(w => {
-    const el = $('#cwx'); if (!el) return;
-    if (!w) { el.textContent = '🌤 날씨는 16일 이내만 볼 수 있어요'; return; }
-    const sunsetM = +w.sunset.slice(0, 2) * 60 + +w.sunset.slice(3, 5);
-    const during = times.find(([a, b]) => a <= sunsetM && sunsetM < b);
-    el.textContent = `${wxText(w)} · 🌇 일몰 ${w.sunset}${during ? ` (${during[2].name.slice(0, 12)}에 있을 때)` : ''}`;
+  // 첫 장소 기준 날씨와 일몰 (해 질 때 어디 있는지)
+  forecast(stops[0].x.geo).then(m => {
+    const el = $('#facts'), w = m?.[COURSE.date]; if (!el || !w) return;
+    const sm = +w.sunset.slice(0, 2) * 60 + +w.sunset.slice(3, 5);
+    const during = times.find(([a, b]) => a <= sm && sm < b);
+    const nm = during ? during[2].name : '';
+    el.insertAdjacentHTML('beforeend', `<span class="num">${ic(WMO(w.code)[0])}${WMO(w.code)[1]} ${w.lo}~${w.hi}° · 비 ${w.rain}%</span>` +
+      `<span class="num">${ic('sunset')}일몰 ${w.sunset}${nm ? ` · ${esc(nm.length > 10 ? nm.slice(0, 10) + '…' : nm)}에서` : ''}</span>`);
   });
   drawMap(stops.map(s => s.x));
 }
@@ -622,91 +800,101 @@ function drawCourse() {
 // 캘린더 파일(.ics): 장소마다 일정 하나씩
 function downloadIcs(times) {
   const d = COURSE.date, pad = n => String(n).padStart(2, '0');
-  const at = m => { const day = new Date(isoOf(d) + 'T00:00'); day.setMinutes(m); return `${day.getFullYear()}${pad(day.getMonth() + 1)}${pad(day.getDate())}T${pad(day.getHours())}${pad(day.getMinutes())}00`; };
-  const escI = s => String(s).replace(/[\;,]/g, c => '\\' + c).replace(/\n/g, '\\n');
+  const at = m => { const day = dateOf(d); day.setMinutes(m); return `${day.getFullYear()}${pad(day.getMonth() + 1)}${pad(day.getDate())}T${pad(day.getHours())}${pad(day.getMinutes())}00`; };
+  const escI = s => String(s).replace(/[\\;,]/g, c => '\\' + c).replace(/\n/g, '\\n');
   const ev = times.map(([a, b, x], n) => [
     'BEGIN:VEVENT', `UID:${d}-${n}-${Date.now()}@somang-date`, `DTSTAMP:${at(0)}`,
     `DTSTART;TZID=Asia/Seoul:${at(a)}`, `DTEND;TZID=Asia/Seoul:${at(b)}`,
-    `SUMMARY:${escI(`${TYPE_LABEL[x.type]} · ${x.name}`)}`, `LOCATION:${escI(x.place || x.name)}`, `GEO:${x.geo[0]};${x.geo[1]}`,
+    `SUMMARY:${escI(`${TYPE[x.type][0]} · ${x.name}`)}`, `LOCATION:${escI(x.place || x.name)}`, `GEO:${x.geo[0]};${x.geo[1]}`,
     `DESCRIPTION:${escI(x.link)}`, 'END:VEVENT'].join('\r\n'));
   const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//somang//date//KO', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
-  a.download = `date-course-${d}.ics`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  a.download = `date-course-${d}.ics`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('캘린더 파일을 받았어요. 열면 일정에 들어가요');
 }
 
 function drawPicks() {
-  const list = candidates().slice(0, 9);
-  const mainId = COURSE?.stops.find(s => s.type === 'event' && s.alts.length === 1)?.ref.e;
-  const items = list.filter(it => it.id !== mainId).slice(0, 8);
+  const mainId = COURSE?.stops.find(s => s.type === 'event')?.ref.e;
+  const items = candidates().filter(it => it.id !== mainId).slice(0, 10);
   $('#picksWrap').hidden = !items.length;
   $('#picks').innerHTML = items.map(it => `<button class="pick" data-pick="${esc(it.id)}">
-    ${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=noimg>${KIND_ICON[it.kind] || '✨'}</div>'">` : `<div class="noimg">${KIND_ICON[it.kind] || '✨'}</div>`}
-    <div class="t">${esc(it.title)}<small>${esc(AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${hasSpots(it.geo) ? '' : ' · 주변 정보 준비 중'}</small></div></button>`).join('');
+    <div class="ph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
+    <b>${esc(showTitle(it.title))}</b><small>${esc(AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}</small></button>`).join('');
   $('#picks').querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
     COURSE = buildCourse(BY_ID.get(b.dataset.pick)); writeShare(); drawCourse(); drawPicks();
     $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
 
+// ===== 보관함: 저장한 코스와 다녀온 기록 =====
 function drawSaved() {
   const list = store.get('date.saved', []);
-  $('#savedWrap').hidden = !list.length;
-  const todayY = ymd(today);
+  $('#savedBox').hidden = !list.length;
   $('#saved').innerHTML = list.map((c, n) => {
-    const past = c.date && c.date < todayY;
-    return `<li><div><a href="#${esc(c.hash)}" data-open="${n}">${esc(c.title)}</a>
-      ${c.stars ? `<span class="stars">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</span>` : ''}
-      ${c.memo ? `<span class="memo">${esc(c.memo)}</span>` : ''}</div>
-      <div style="display:flex;gap:6px"><button class="btn" data-rv="${n}">${c.stars ? '기록 고치기' : past ? '✍️ 다녀왔어요' : '✍️ 기록'}</button>
-      <button class="btn" data-del="${n}" aria-label="삭제">삭제</button></div></li>`;
+    const past = c.date && c.date < TODAY;
+    const sub = c.stars ? `<span class="stars">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</span>${c.memo ? ' · ' + esc(c.memo) : ''}`
+      : `${c.date ? dateLabel(c.date) : ''}${c.slot ? (c.slot === 'day' ? ' · 낮' : ' · 저녁') : ''}${c.n ? ` · ${c.n}곳` : ''}`;
+    return `<li><button class="s-main" data-open="${n}"><b>${esc(c.title)}</b><small>${sub}</small></button>
+      <button class="btn ${past && !c.stars ? 'primary' : ''}" data-rv="${n}">${c.stars ? '기록 보기' : '기록하기'}</button>
+      <button class="iconbtn" data-del="${n}" aria-label="삭제">${ic('trash')}</button></li>`;
   }).join('');
-  $('#saved').querySelectorAll('[data-open]').forEach(a => a.onclick = e => {
-    e.preventDefault(); location.hash = list[+a.dataset.open].hash; COURSE = readShare(); drawCourse(); drawPicks();
+  $('#saved').querySelectorAll('[data-open]').forEach(a => a.onclick = () => {
+    location.hash = list[+a.dataset.open].hash; COURSE = readShare(); drawCourse(); drawPicks();
     $('#course').scrollIntoView({ behavior: 'smooth' });
   });
-  $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('이 코스를 지울까요?')) { list.splice(+b.dataset.del, 1); store.set('date.saved', list); drawSaved(); } });
+  $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.del, removed = list.splice(i, 1)[0]; store.set('date.saved', list); drawSaved(); if (COURSE) drawCourse();
+    toast('삭제했어요', ['되돌리기', () => { list.splice(i, 0, removed); store.set('date.saved', list); drawSaved(); if (COURSE) drawCourse(); }]);
+  });
   $('#saved').querySelectorAll('[data-rv]').forEach(b => b.onclick = () => openReview(+b.dataset.rv));
 }
-// 다녀온 데이트에 별점·메모 남기기 (이 기기에만)
 function openReview(n) {
   const list = store.get('date.saved', []), c = list[n]; if (!c) return;
   const dlg = $('#review'); let stars = c.stars || 0;
-  $('#rvTitle').textContent = c.title;
-  const paint = () => { $('#rvStars').innerHTML = [1, 2, 3, 4, 5].map(i => `<button type="button" class="${i <= stars ? 'on' : ''}" data-s="${i}" aria-label="${i}점">★</button>`).join('');
-    $('#rvStars').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { stars = +b.dataset.s; paint(); }); };
+  $('#rvSub').textContent = `${c.date ? dateLabel(c.date) + ' · ' : ''}${c.title}`;
+  const paint = () => {
+    $('#rvStars').innerHTML = [1, 2, 3, 4, 5].map(i => `<button type="button" class="${i <= stars ? 'on' : ''}" data-s="${i}" aria-label="${i}점"><svg viewBox="0 0 24 24">${ICONS.star}</svg></button>`).join('');
+    $('#rvStars').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { stars = +b.dataset.s; paint(); });
+  };
   paint(); $('#rvMemo').value = c.memo || '';
-  $('#rvCancel').onclick = () => dlg.close();
-  $('#rvSave').onclick = () => { c.stars = stars; c.memo = $('#rvMemo').value.trim(); list[n] = c; store.set('date.saved', list); dlg.close(); drawSaved(); toast('기록했어요'); };
-  dlg.showModal ? dlg.showModal() : dlg.setAttribute('open', '');
+  $('#rvSave').onclick = () => { c.stars = stars; c.memo = $('#rvMemo').value.trim(); list[n] = c; store.set('date.saved', list); dlg.close(); drawSaved(); toast('기록을 남겼어요'); };
+  dlg.showModal();
 }
 
-// 기념일 D-day: 처음 만난 날을 넣으면 오늘이 며칠째인지, 다가오는 100일 단위·주년 기념일을 알려 주고 그날 코스를 짤 수 있게
+// 기념일: 처음 만난 날 → D+일, 다음 100일 단위·주년 기념일, 그날 코스 만들기
 function drawDday() {
   const el = $('#dday'), start = store.get('date.since', '');
   if (!start) {
-    el.innerHTML = `<span>처음 만난 날</span><input type="date" id="since" max="${isoOf(ymd(today))}"><span style="color:var(--sub)">을 넣으면 D+며칠·다가오는 기념일을 알려 드려요</span>`;
-  } else {
-    const s = new Date(start + 'T00:00'), t = new Date(isoOf(ymd(today)) + 'T00:00');
-    const days = Math.round((t - s) / 864e5) + 1; // 사귄 날을 1일로
-    const next = [];
-    for (let k = Math.ceil((days + 1) / 100) * 100; next.length < 1; k += 100) next.push([`${k}일`, new Date(s.getTime() + (k - 1) * 864e5)]);
-    for (let y = 1; y < 60; y++) { const d = new Date(s); d.setFullYear(s.getFullYear() + y); if (d >= t) { next.push([`${y}주년`, d]); break; } }
-    next.sort((a, b) => a[1] - b[1]);
-    const [label, when] = next[0], left = Math.round((when - t) / 864e5);
-    el.innerHTML = `<span>우리 <b>D+${days}</b></span><span>다음 기념일 <b style="font-size:15px">${label}</b> · ${when.getMonth() + 1}월 ${when.getDate()}일 (${left ? left + '일 남음' : '오늘!'})</span>
-      <button class="btn primary" id="ddayGo">그날 코스 짜기</button><button class="btn" id="ddayReset">날짜 바꾸기</button>`;
-    $('#ddayGo').onclick = () => { state.date = ymd(when); drawChips(); if (ALL.length) { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth' }); } };
-    $('#ddayReset').onclick = () => { store.set('date.since', ''); drawDday(); };
+    el.innerHTML = `${ic('heart')}<div class="txt"><b>처음 만난 날</b>을 넣으면 D-day와 다가오는 기념일을 알려 드려요</div>
+      <input type="date" id="since" max="${isoOf(TODAY)}" aria-label="처음 만난 날">`;
+    $('#since').onchange = e => { if (e.target.value) { store.set('date.since', e.target.value); drawDday(); } };
+    return;
   }
-  $('#since')?.addEventListener('change', e => { if (e.target.value) { store.set('date.since', e.target.value); drawDday(); } });
+  const s = new Date(start + 'T00:00');
+  const days = Math.round((today - s) / 864e5) + 1; // 만난 날을 1일로
+  const k = Math.ceil((days + 1) / 100) * 100;
+  const cands = [[`${k}일`, new Date(s.getTime() + (k - 1) * 864e5)]];
+  for (let y = 1; y < 80; y++) { const d = new Date(s); d.setFullYear(s.getFullYear() + y); if (d >= today) { cands.push([`${y}주년`, d]); break; } }
+  cands.sort((a, b) => a[1] - b[1]);
+  const [label, when] = cands[0], left = Math.round((when - today) / 864e5);
+  el.innerHTML = `<div class="big">D+${days}</div>
+    <div class="txt"><b>${label}</b> · ${when.getMonth() + 1}월 ${when.getDate()}일 ${DOW[when.getDay()]}요일<br>${left ? `${left}일 남았어요` : '오늘이에요'}</div>
+    <button class="btn primary" id="ddayGo">그날 코스</button><button class="btn text" id="ddayEdit">날짜 수정</button>`;
+  $('#ddayGo').onclick = () => {
+    state.date = ymd(when); drawControls(); state.seed = 0; makeCourse();
+    $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (left > 15) toast('날씨는 16일 안쪽만 보여요');
+  };
+  $('#ddayEdit').onclick = () => { store.set('date.since', ''); drawDday(); };
 }
 
 function makeCourse() {
   const list = candidates();
   if (!list.length) {
-    COURSE = null;
-    $('#course').innerHTML = '<div class="empty">이 조건으로 열리는 행사가 없어요.<br>지역을 넓히거나 분위기·예산 조건을 빼 보세요.</div>';
+    COURSE = null; history.replaceState(null, '', location.pathname);
+    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 맞는 행사가 없어요</b>지역을 전국으로 넓히거나 분위기·무료·실내 조건을 빼 보세요.</div>`;
     $('#picksWrap').hidden = true; return;
   }
   // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 행사
@@ -731,15 +919,17 @@ function readShare() {
 async function share() {
   writeShare();
   const url = location.href;
-  const title = `${dateLabel(COURSE.date)} 데이트 코스`;
-  if (navigator.share) { try { await navigator.share({ title, url }); return; } catch {} }
-  try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요'); } catch { prompt('이 주소를 복사해 보내세요', url); }
+  const main = COURSE.stops.map(s => info(s.alts[s.i] || s.ref)).find(x => x?.type === 'event');
+  const title = `${dateLabel(COURSE.date)} 데이트 코스${main ? ` · ${main.name}` : ''}`;
+  if (navigator.share) { try { await navigator.share({ title, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요'); } catch { toast('주소창의 링크를 복사해 보내 주세요'); }
 }
 
-// ===== 지도 (코스를 처음 보여 줄 때만 불러온다) =====
+// ===== 지도 (코스를 처음 보여 줄 때 불러온다) =====
 const MAPLIBRE = 'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl';
 let mapLib = null, MAP = null, markers = [];
 const darkMode = () => document.documentElement.dataset.theme === 'dark' || (matchMedia('(prefers-color-scheme: dark)').matches && document.documentElement.dataset.theme !== 'light');
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function loadLib() {
   if (mapLib) return mapLib;
   return mapLib = new Promise((res, rej) => {
@@ -755,19 +945,18 @@ async function drawMap(points) {
   const line = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
   const fit = () => {
     const b = new maplibregl.LngLatBounds(coords[0], coords[0]); coords.forEach(c => b.extend(c));
-    MAP.resize();
-    MAP.fitBounds(b, { padding: { top: 50, right: 50, bottom: 70, left: 50 }, maxZoom: 16, duration: 0 });
+    MAP.resize(); MAP.fitBounds(b, { padding: { top: 48, right: 48, bottom: 56, left: 48 }, maxZoom: 16, duration: 0 });
   };
   const paint = () => {
     markers.forEach(m => m.remove()); markers = [];
     points.forEach((p, n) => {
-      const d = document.createElement('div'); d.className = 'pin'; d.textContent = n + 1; d.title = p.name;
+      const d = document.createElement('div'); d.className = 'pin' + (n ? '' : ' first'); d.textContent = n + 1; d.title = p.name;
       markers.push(new maplibregl.Marker({ element: d }).setLngLat([p.geo[1], p.geo[0]]).addTo(MAP));
     });
     if (MAP.getSource('route')) MAP.getSource('route').setData(line);
     else {
       MAP.addSource('route', { type: 'geojson', data: line });
-      MAP.addLayer({ id: 'route', type: 'line', source: 'route', paint: { 'line-color': getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(), 'line-width': 3, 'line-dasharray': [2, 1.5] } });
+      MAP.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': cssVar('--ink'), 'line-width': 2.5, 'line-dasharray': [1, 2] } });
     }
     fit();
   };
@@ -778,18 +967,22 @@ async function drawMap(points) {
     MAP.on('load', () => {
       for (const l of MAP.getStyle().layers) if (l.type === 'symbol' && l.layout && l.layout['text-field']) MAP.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:ko'], ['get', 'name']]);
       paint();
-      // 좁은 화면에서 출처 표기가 핀을 가리지 않도록 접어 둔다
       el.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
     });
   } else paint();
 }
 
+// ===== 연결 =====
+$('#dice').innerHTML = ic('dice');
+document.querySelectorAll('[data-close]').forEach(b => { if (!b.textContent.trim()) b.innerHTML = ic('x'); b.onclick = () => b.closest('dialog').close(); });
+document.querySelectorAll('dialog.sheet').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); })); // 바깥을 누르면 닫기
+$('#regionBtn').onclick = openRegions;
+$('#datePick').onchange = e => { if (e.target.value) { state.date = fromIso(e.target.value); drawControls(); } };
 $('#go').onclick = () => { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-// 🎲 아무거나: 조건은 그대로 두고 위쪽 후보 중에서 무작위로
 $('#dice').onclick = () => { state.seed = Math.floor(Math.random() * 40); makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-load().catch(e => { $('#course').innerHTML = `<div class="empty">행사 정보를 불러오지 못했어요 (${esc(e.message)})</div>`; });
+load().catch(e => { $('#course').innerHTML = `<div class="empty"><b>행사 정보를 불러오지 못했어요</b>잠시 뒤 새로고침해 주세요. (${esc(e.message)})</div>`; });
 
-// 홈 화면에 추가해 앱처럼 쓰도록 (오프라인에서도 마지막 데이터로 열림)
+// 홈 화면에 추가해 앱처럼 쓰도록 (오프라인이면 마지막 데이터로 열림)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
