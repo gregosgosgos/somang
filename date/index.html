@@ -159,7 +159,14 @@
   .timeline { list-style: none; margin: 16px 0 0; padding: 0; }
   .stop { display: grid; grid-template-columns: 46px 1fr; column-gap: 10px; }
   .stop .when { padding-top: 14px; text-align: right; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .stop .when small { display: block; font-size: 11px; font-weight: 500; color: var(--ink-3); }
+  .stop .when small { display: block; font-size: 11px; font-weight: 600; color: var(--accent); min-height: 14px; }
+  /* 시간 글자 위에 투명한 선택 상자를 덮어, 누르면 바로 시간 목록이 열리게 */
+  .tsel, .dsel { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+  .tsel span { border-bottom: 1px dashed var(--ink-3); line-height: 1.25; }
+  .tsel.pinned span { color: var(--accent); border-bottom-color: var(--accent); }
+  .tsel select, .dsel select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+  .cwarn { grid-column: 1 / -1; display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; color: var(--note-ink); background: var(--note-bg); border-radius: 9px; padding: 7px 9px; margin-top: -4px; }
+  .cwarn svg.i { width: 15px; height: 15px; margin-top: 1px; }
   .card {
     background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px;
     display: grid; grid-template-columns: 64px 1fr; gap: 12px; min-width: 0;
@@ -179,7 +186,7 @@
   .cplace { font-size: 12px; color: var(--ink-3); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .clink { display: inline-flex; align-items: center; gap: 1px; margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .clink svg.i { width: 14px; height: 14px; }
-  .cact { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; margin-top: -2px; }
+  .cact { grid-column: 1 / -1; display: flex; gap: 4px; flex-wrap: nowrap; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; margin-top: -2px; }
   .mini {
     height: 32px; padding: 0 10px; border-radius: 9px; background: var(--fill); font-size: 13px; font-weight: 600; color: var(--ink);
     display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
@@ -188,6 +195,11 @@
   .mini small { font-weight: 500; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
   .mini.ghost { background: transparent; color: var(--ink-2); }
   .mini.danger { color: var(--accent); background: transparent; }
+  .mini.ghost { padding: 0 8px; }
+  .mini.sq { width: 32px; padding: 0; justify-content: center; flex: none; }
+  .cact .mini:not(.sq) { flex: none; }
+  .mini:disabled { opacity: .3; cursor: default; }
+  .cact .mini.ghost svg.i { width: 17px; height: 17px; }
   .push { margin-left: auto; }
   .leg { display: grid; grid-template-columns: 46px 1fr; column-gap: 10px; }
   .leg > div:last-child {
@@ -195,9 +207,19 @@
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   }
   .leg svg.i { width: 15px; height: 15px; color: var(--ink-3); }
-  .leg a { margin-left: auto; color: var(--ink-2); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
-  .leg a svg.i { width: 14px; height: 14px; }
-  .addrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 0 56px; }
+  .leg .gap { font-weight: 600; color: var(--t-walk); }
+  .leg .ins {
+    margin-left: auto; height: 28px; padding: 0 10px 0 7px; border-radius: 999px; border: 1px dashed var(--ink-3); color: var(--ink-2);
+    font-size: 12.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 2px;
+  }
+  .leg .ins:hover { border-style: solid; color: var(--accent); border-color: var(--accent); }
+  .leg .ins svg.i { width: 14px; height: 14px; stroke-width: 2.2; }
+  .leg a { color: var(--ink-2); font-weight: 600; display: inline-flex; align-items: center; gap: 2px; }
+  .leg a svg.i { width: 15px; height: 15px; }
+  .leg .route { width: 30px; height: 28px; justify-content: center; border-radius: 8px; }
+  .leg .route .lbl { display: none; }
+  @media (min-width: 440px) { .leg .route { width: auto; padding: 0 4px; } .leg .route .lbl { display: inline; } }
+  .addrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 12px 0 0 56px; padding-top: 10px; border-top: 1px dashed var(--line); }
   .addrow > span { font-size: 13px; color: var(--ink-3); margin-right: 2px; }
   .addrow .chip { height: 32px; }
   #cmap { height: 260px; border-radius: var(--r-card); border: 1px solid var(--line); margin-top: 18px; background: var(--fill); overflow: hidden; }
@@ -243,6 +265,8 @@
   .finish .row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
   .finish .btn { height: 46px; }
   /* 장소 고르기 시트 */
+  .sw-tabs { padding: 4px 20px 6px; margin: 0; border-bottom: 1px solid var(--line); }
+  .swlist .none { padding: 24px 0; color: var(--ink-2); font-size: 14px; text-align: center; border: 0; display: block; }
   .swlist { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; }
   .swlist li { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
   .swlist li:last-child { border-bottom: 0; }
@@ -423,7 +447,8 @@
 
 <dialog class="sheet" id="swapSheet" aria-labelledby="swTitle">
   <div class="grab"></div>
-  <header><h3 id="swTitle">다른 곳 고르기</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
+  <header><h3 id="swTitle">일정 고르기</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
+  <div class="chips sw-tabs" id="swTabs" role="tablist" aria-label="일정 종류"></div>
   <div class="body"><ul class="swlist" id="swList"></ul></div>
 </dialog>
 
@@ -476,6 +501,7 @@ const ICONS = {
   food: '<path d="M6 3v7a2 2 0 0 0 4 0V3M8 12v9M17.5 21V3c-2.2 1-3.5 3.6-3.5 7.2 0 1.6 1 2.5 3.5 2.5"/>',
   wine: '<path d="M8 3h8l-.4 5.6a3.6 3.6 0 0 1-7.2 0z"/><path d="M12 12.4V21M8.5 21h7"/>',
   tree: '<path d="M12 21v-5"/><path d="M12 3c3 0 5 2.4 5 5.2 2 .8 3 2.4 3 4.1C20 14.6 18 16 15.6 16H8.4C6 16 4 14.6 4 12.3c0-1.7 1-3.3 3-4.1C7 5.4 9 3 12 3z"/>',
+  nav: '<path d="m3.5 10.5 17-7-7 17-2-8z"/>',
   map: '<path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6 9 4zM9 4v14M15 6v14"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   heart: '<path d="M12 20s-7.4-4.5-9.1-9.3C1.7 7.3 3.9 4 7.3 4c2 0 3.5 1 4.7 2.7C13.2 5 14.7 4 16.7 4c3.4 0 5.6 3.3 4.4 6.7C19.4 15.5 12 20 12 20z"/>',
@@ -548,10 +574,10 @@ const state = {
   date: prefs.date && prefs.date >= TODAY ? prefs.date : defaultDate(),
   areas: new Set((prefs.areas || [1]).slice(0, 1)), subs: new Set(prefs.subs || []), near: null,
   slot: prefs.slot || 'day', moods: new Set(prefs.moods || []),
-  free: false, indoor: false, noEvent: !!prefs.noEvent, seed: 0,
+  free: false, indoor: false, seed: 0,
 };
-let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null, PLACES = [], PLACE_BY_ID = new Map();
-const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], subs: [...state.subs], slot: state.slot, moods: [...state.moods], noEvent: state.noEvent });
+let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null, PLACES = [], PLACE_BY_ID = new Map(), HOODS = [];
+const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], subs: [...state.subs], slot: state.slot, moods: [...state.moods] });
 
 // ===== 날씨 (Open-Meteo, 지역마다 16일치를 한 번에) =====
 const WMO = c => c === 0 ? ['sun', '맑음'] : c <= 2 ? ['partly', '구름 조금'] : c === 3 ? ['cloud', '흐림'] : c <= 48 ? ['fog', '안개']
@@ -635,12 +661,11 @@ function drawControls() {
     `<button role="radio" aria-checked="${state.slot === v}" data-slot="${v}">${ic(i)}${l}</button>`).join('');
   $('#slotSeg').querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { if (state.slot === b.dataset.slot) return; state.slot = b.dataset.slot; changed(); });
   const keep = $('#filters').scrollLeft;
-  $('#filters').innerHTML = `<button class="chip" id="fNoEvent" aria-pressed="${state.noEvent}">${ic('tree')}행사 없이</button><span class="chip-sep"></span>` + MOODS.map(([v, l]) => `<button class="chip" data-mood="${v}" aria-pressed="${state.moods.has(v)}">${l}</button>`).join('') +
+  $('#filters').innerHTML = MOODS.map(([v, l]) => `<button class="chip" data-mood="${v}" aria-pressed="${state.moods.has(v)}">${l}</button>`).join('') +
     `<span class="chip-sep"></span><button class="chip" id="fFree" aria-pressed="${state.free}">${ic('coins')}무료 행사만</button>` +
     `<button class="chip" id="fIndoor" aria-pressed="${state.indoor}">${ic('umbrella')}실내만</button>`;
   $('#filters').scrollLeft = keep;
   $('#filters').querySelectorAll('[data-mood]').forEach(b => b.onclick = () => { const m = b.dataset.mood; state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); changed(); });
-  $('#fNoEvent').onclick = () => { state.noEvent = !state.noEvent; changed(); };
   $('#fFree').onclick = () => { state.free = !state.free; changed(); };
   $('#fIndoor').onclick = () => { state.indoor = !state.indoor; changed(); };
   savePrefs(); drawBanner();
@@ -759,6 +784,7 @@ function hasSpots(p) { return !!SPOTS.cells?.[cellKey(p[0], p[1])]?.s?.length; }
 // ===== 데이트 동네 (행사 없이도 짤 수 있는 코스의 중심) =====
 // 1) hoods.json 의 이름난 데이트 동네  2) 행사 주변에서 모은 장소 가운데 산책할 곳·카페·식당이 고루 있는 곳
 function buildPlaces(hoods) {
+  HOODS = hoods;
   const cellArea = {};
   for (const it of ALL) { const k = cellKey(it.geo[0], it.geo[1]); cellArea[k] ||= { area: it.area, sg: it._sg }; }
   const nearestSub = (area, geo) => { let best = null, bd = 15000; for (const s of SUBS[area] || []) { const d = dist(geo, s.geo); if (d < bd) { bd = d; best = s.name; } } return best; };
@@ -798,9 +824,9 @@ function scoredPlaces() {
   }
   return out;
 }
-// 코스 후보: 행사와 데이트 동네를 한 줄로 세운다 ('행사 없이'면 동네만)
+// 코스 후보(출발점): 행사가 열리는 곳과 데이트 동네를 한 줄로 세운다
 function courseCands() {
-  const ev = state.noEvent ? [] : scoredEvents().map(x => ({ kind: 'event', it: x.it, s: x.s, id: x.it.id }));
+  const ev = scoredEvents().map(x => ({ kind: 'event', it: x.it, s: x.s, id: x.it.id }));
   const pl = scoredPlaces().sort((a, b) => b.s - a.s || (a.id < b.id ? -1 : 1));
   // 행사가 많은 날에도 동네 코스가 묻히지 않게 행사 두 개마다 동네 하나를 끼운다 (점수가 더 높으면 먼저)
   const out = [];
@@ -867,46 +893,53 @@ const asStop = (type, ref, alts) => ({ type, ref, alts, i: 0 });
 const evRef = it => ({ e: it.id });
 const spRef = s => ({ s: [s.name, s.type, s.geo[0], s.geo[1], s.sub, s.kid] });
 
-function buildCourse(main) {
-  const near = spotsNear(main.geo);
-  // 두 번째 행사는 짧게 들르기 좋은 전시·팝업·축제 위주 (공연·클래스는 시간이 길고 예약이 필요)
-  const others = candidates().filter(o => o.id !== main.id && !['show', 'edu', 'sport'].includes(o.kind) && dist(o.geo, main.geo) < 1500).slice(0, 6);
-  const cafe = rankSpots(near, 'cafe'), food = rankSpots(near, 'food'), bar = rankSpots(near, 'bar'), walk = rankSpots(near, 'walk');
-  const stops = [];
-  const add = (type, arr) => { if (arr.length) stops.push(asStop(type, arr[0], arr)); };
-  if (state.slot === 'day') {
-    stops.push(asStop('event', evRef(main), [evRef(main)]));
-    add('cafe', cafe.map(spRef));
-    if (walk.length) add('walk', walk.map(spRef)); else if (others.length) add('event', others.map(evRef));
-    add('food', food.map(spRef));
-  } else {
-    add('food', food.map(spRef));
-    stops.push(asStop('event', evRef(main), [evRef(main)]));
-    add(bar.length ? 'bar' : 'cafe', (bar.length ? bar : cafe).map(spRef));
+// ===== 코스 짜기 =====
+// 코스는 '어디서'(출발점 근처) 일정 몇 개를 잇는 것. 행사도 카페·식사·한잔·산책과 같은 일정 하나라서
+// 넣고 빼고 바꾸고 옮길 수 있다. 출발점이 행사면 그 행사를 먼저 넣고, 동네면 행사 없이 시작한다.
+const STOP_TYPES = ['event', 'cafe', 'food', 'bar', 'walk'];
+// 어떤 위치 근처에서 고를 수 있는 일정 후보 (행사는 고른 날 열리는 것만)
+function choicesNear(type, geo, exclude = new Set(), firstId = null) {
+  if (type === 'event') {
+    const list = scoredEvents().map(x => ({ x, d: dist(geo, x.it.geo) })).filter(o => o.d <= 3000 || o.x.it.id === firstId)
+      .sort((a, b) => (b.x.it.id === firstId) - (a.x.it.id === firstId) || (b.x.s - b.d / 600) - (a.x.s - a.d / 600))
+      .map(o => o.x.it).filter(it => !exclude.has(showTitle(it.title)) || it.id === firstId);
+    return list.slice(0, 15).map(evRef);
   }
-  return { v: 1, date: state.date, slot: state.slot, start: state.slot === 'day' ? 13 * 60 : 17 * 60 + 30, stops, noSpots: !near.length };
+  return rankSpots(spotsNear(geo, 1500).filter(s => !exclude.has(s.name)), type, geo).map(spRef);
 }
-
-// 동네 코스: 낮엔 산책 → 카페 → 산책 → 저녁, 저녁엔 식사 → 산책(야경) → 한잔. 실내만이면 산책을 뺀다
-function buildPlaceCourse(p) {
-  const near = spotsNear(p.geo, 1200);
-  const cafe = rankSpots(near, 'cafe', p.geo), food = rankSpots(near, 'food', p.geo), bar = rankSpots(near, 'bar', p.geo), walk = rankSpots(near, 'walk', p.geo);
+function composeCourse(a) {
+  const C = t => choicesNear(t, a.geo, new Set(), t === 'event' ? a.event?.id : null);
+  const cafe = C('cafe'), food = C('food'), bar = C('bar'), walk = C('walk');
+  const evs = a.event ? C('event') : [];
   const stops = [];
   const add = (type, arr) => { if (arr.length) stops.push(asStop(type, arr[0], arr)); };
   const outdoor = !state.indoor;
   if (state.slot === 'day') {
-    if (outdoor) add('walk', walk.map(spRef));
-    add('cafe', cafe.map(spRef));
-    if (outdoor && walk.length > 1) add('walk', walk.slice(1).map(spRef));
-    else if (!outdoor && bar.length) add('bar', bar.map(spRef));
-    add('food', food.map(spRef));
+    if (evs.length) add('event', evs); else if (outdoor) add('walk', walk);
+    add('cafe', cafe);
+    if (outdoor) add('walk', evs.length ? walk : walk.slice(1));
+    add('food', food);
   } else {
-    add('food', food.map(spRef));
-    if (outdoor) add('walk', walk.map(spRef));
-    add(bar.length ? 'bar' : 'cafe', (bar.length ? bar : cafe).map(spRef));
+    add('food', food);
+    if (evs.length) add('event', evs); else if (outdoor) add('walk', walk);
+    add(bar.length ? 'bar' : 'cafe', bar.length ? bar : cafe);
   }
-  return { v: 1, date: state.date, slot: state.slot, start: state.slot === 'day' ? 13 * 60 : 17 * 60 + 30, stops, noSpots: false,
-    title: p.named ? `${p.name} 데이트` : `${p.name} 근처 데이트`, place: p.id };
+  return { v: 2, date: state.date, slot: state.slot, start: state.slot === 'day' ? 13 * 60 : 17 * 60 + 30, stops, noSpots: !spotsNear(a.geo, 1200).length };
+}
+// 코스 이름은 일정들의 가운데 위치로 정한다 (가까운 데이트 동네 → 구·시·군). 행사를 빼도 이름이 어긋나지 않게
+function placeTitle(geo) {
+  let best = null, bd = 1500;
+  for (const hd of HOODS) { const d = dist(geo, hd.geo); if (d < bd) { bd = d; best = hd.name; } }
+  if (best) return best;
+  let sg = null, sd = 12000;
+  for (const a in SUBS) for (const s of SUBS[a]) { const d = dist(geo, s.geo); if (d < sd) { sd = d; sg = s.name; } }
+  return sg || '';
+}
+function courseTitle(xs) {
+  if (!xs.length) return '데이트 코스';
+  const g = [xs.reduce((s, x) => s + x.geo[0], 0) / xs.length, xs.reduce((s, x) => s + x.geo[1], 0) / xs.length];
+  const t = placeTitle(g);
+  return t ? `${t} 데이트` : '데이트 코스';
 }
 
 // 정류장 정보 풀기
@@ -932,33 +965,42 @@ function legOf(a, b) {
 }
 
 // ===== 코스 그리기 =====
-// 시작 시간 목록은 09:00~21:00 30분 단위, 공유받은 코스가 그 밖의 시간이면 그 시간도 넣는다
-const STARTS_EXTRA = t0 => (t0 < 540 || t0 > 1260 || t0 % 30) ? [t0] : [];
+// 시간 고르기 목록: 07:00~23:30, 30분 단위 (다른 값이 이미 있으면 그 값도 넣는다)
+const TIMES = Array.from({ length: 34 }, (_, i) => 420 + i * 30);
+const timeOptions = (cur, auto) => (auto ? `<option value="">자동</option>` : '') +
+  [...new Set([...TIMES, ...(cur != null ? [cur] : [])])].sort((a, b) => a - b).map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${hhmm(m)}</option>`).join('');
+const DURS = [30, 45, 60, 90, 120, 150, 180, 240];
+const durLabel = m => m < 60 ? `${m}분` : m % 60 === 0 ? `${m / 60}시간` : m % 30 === 0 ? `${m / 60}시간` : `${Math.floor(m / 60)}시간 ${m % 60}분`;
 function drawCourse() {
   const box = $('#course');
   if (!COURSE) { box.innerHTML = ''; return; }
   const stops = COURSE.stops.map((s, idx) => ({ ...s, idx, x: info(s.alts[s.i] || s.ref) })).filter(s => s.x);
-  if (!stops.length) { box.innerHTML = '<div class="empty"><b>코스가 비었어요</b>아래 버튼으로 다시 만들어 주세요.</div>'; return; }
   const t0 = COURSE.start ?? (COURSE.slot === 'day' ? 780 : 1050);
   let t = t0, walkM = 0, html = '', cost = 0, costUnknown = false;
   const times = [];
+  const insertBtn = pos => `<button class="ins" data-ins="${pos}" aria-label="여기에 일정 넣기">${ic('plus')}넣기</button>`;
   stops.forEach((s, n) => {
-    const x = s.x;
+    const x = s.x, dur = s.dur || x.dur;
+    let warn = '';
     if (n) {
       const a = stops[n - 1].x, leg = legOf(a.geo, x.geo);
       walkM += dist(a.geo, x.geo);
       t += leg.mins; t = Math.ceil(t / 10) * 10;
-      // 낮 코스의 식사는 저녁 시간에 맞춘다
-      if (COURSE.slot === 'day' && x.type === 'food' && t0 < 17 * 60) t = Math.max(t, 17 * 60 + 30);
+      const arrive = t;
+      // 시간을 고정한 일정은 그 시간에, 낮 코스 식사는 저녁 시간(17:30)에 맞춘다
+      if (s.at != null) { if (s.at >= t) t = s.at; else warn = `고정한 ${hhmm(s.at)}보다 ${t - s.at}분 늦어요. 앞 일정을 줄이거나 빼 보세요`; }
+      else if (COURSE.slot === 'day' && x.type === 'food' && t0 < 17 * 60) t = Math.max(t, 17 * 60 + 30);
       const route = `https://map.kakao.com/link/from/${encodeURIComponent(a.name)},${a.geo[0]},${a.geo[1]}/to/${encodeURIComponent(x.name)},${x.geo[0]},${x.geo[1]}`;
-      html += `<li class="leg"><div></div><div>${ic(leg.icon)}<span>${leg.text}</span><a href="${route}" target="_blank" rel="noopener">길찾기${ic('right')}</a></div></li>`;
-    }
+      html += `<li class="leg"><div></div><div>${ic(leg.icon)}<span>${leg.text}${t > arrive ? ` · <b class="gap">${durLabel(t - arrive)} 여유</b>` : ''}</span>
+        ${insertBtn(s.idx)}<a class="route" href="${route}" target="_blank" rel="noopener" aria-label="카카오맵 길찾기" title="길찾기">${ic('nav')}<span class="lbl">길찾기</span></a></div></li>`;
+    } else if (s.at != null) t = s.at;
     if (x.type === 'event') { const c = EV_COST[x.it.ai?.cost]; if (c == null) costUnknown = true; else cost += c * 2; }
     else cost += COST[x.type] || 0;
-    times.push([t, t + x.dur, x]);
+    times.push([t, t + dur, x]);
     const [label, icon] = TYPE[x.type];
-    const alts = s.alts.length;
-    html += `<li class="stop"><div class="when">${hhmm(t)}<small>${x.dur >= 60 ? Math.round(x.dur / 30) / 2 + '시간' : x.dur + '분'}</small></div>
+    html += `<li class="stop"><div class="when">
+        <label class="tsel ${s.at != null ? 'pinned' : ''}"><span>${hhmm(t)}</span><select data-at="${s.idx}" aria-label="${esc(x.name)} 시작 시간">${timeOptions(s.at ?? null, true)}</select></label>
+        <small>${s.at != null ? '고정' : ''}</small></div>
       <article class="card">
         <div class="thumb ${x.type}">${ic(icon)}${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
         <div class="cbody">
@@ -966,48 +1008,49 @@ function drawCourse() {
           <div class="cname">${esc(x.name)}</div>
           ${x.desc ? `<div class="cdesc">${esc(x.desc)}</div>` : ''}
           ${x.place ? `<div class="cplace">${esc(x.place)}</div>` : ''}
-          ${alts > 1 || COURSE.editing ? '' : `<a class="clink" href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세 정보' : '지도·리뷰'}${ic('right')}</a>`}
         </div>
-        ${alts > 1 || COURSE.editing ? `<div class="cact">
-          ${alts > 1 ? `<button class="mini" data-swap="${s.idx}">${ic('refresh')}다른 곳 고르기 <small>${alts - 1}곳</small></button>` : ''}
-          <a class="mini ghost" href="${esc(x.link)}" target="_blank" rel="noopener">${ic(x.type === 'event' ? 'info' : 'map')}${x.type === 'event' ? '상세 정보' : '지도·리뷰'}</a>
-          ${COURSE.editing ? `${n ? `<button class="mini ghost push" data-up="${s.idx}" aria-label="한 칸 앞으로">${ic('up')}</button>` : '<span class="push"></span>'}
-            ${stops.length > 1 ? `<button class="mini danger" data-del="${s.idx}">${ic('x')}빼기</button>` : ''}` : ''}
-        </div>` : ''}
+        ${warn ? `<div class="cwarn">${ic('info')}${warn}</div>` : ''}
+        <div class="cact">
+          <button class="mini" data-swap="${s.idx}">${ic('refresh')}바꾸기</button>
+          <label class="mini dsel">${ic('clock')}<span>${durLabel(dur)}</span><select data-dur="${s.idx}" aria-label="머무는 시간">${[...new Set([...DURS, dur])].sort((a, b) => a - b).map(m => `<option value="${m}" ${m === dur ? 'selected' : ''}>${durLabel(m)}</option>`).join('')}</select></label>
+          <a class="mini ghost sq" href="${esc(x.link)}" target="_blank" rel="noopener" aria-label="${x.type === 'event' ? '상세 정보' : '지도·리뷰'}" title="${x.type === 'event' ? '상세 정보' : '지도·리뷰'}">${ic(x.type === 'event' ? 'info' : 'map')}</a>
+          <span class="push"></span>
+          <button class="mini ghost sq" data-mv="${s.idx}" data-dir="-1" aria-label="한 칸 위로" ${n ? '' : 'disabled'}>${ic('up')}</button>
+          <button class="mini ghost sq danger" data-del="${s.idx}" aria-label="빼기">${ic('x')}</button>
+        </div>
       </article></li>`;
-    t += x.dur;
+    t += dur;
   });
-  const main = stops.find(s => s.type === 'event');
-  const hours = Math.round((t - t0) / 60 * 2) / 2;
+  const evStop = stops.find(s => s.type === 'event');
+  const hours = stops.length ? Math.round((t - (times[0]?.[0] ?? t0)) / 60 * 2) / 2 : 0;
   const notes = [];
   if (COURSE.noSpots) notes.push('이 주변 카페·식당 정보는 아직 모으는 중이에요. 행사 위주로 보여 드려요.');
-  if (COURSE.noEventsHere) notes.push('고른 날 이 지역에 열리는 행사가 없어 동네 코스로 짰어요.');
-  if (main?.x.it.kind === 'show') notes.push('공연 시작 시간은 예매처에서 확인하고 시작 시간을 맞춰 주세요.');
-  if (main && COURSE.slot === 'night' && ['expo', 'popup'].includes(main.x.it.kind)) notes.push('전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.');
+  if (evStop?.x.it.kind === 'show' && evStop.at == null) notes.push('공연은 시작 시간이 정해져 있어요. 왼쪽 시간을 눌러 공연 시간에 고정하면 앞뒤 일정이 맞춰져요.');
+  if (evStop && COURSE.slot === 'night' && ['expo', 'popup'].includes(evStop.x.it.kind)) notes.push('전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.');
+  const title = courseTitle(stops.map(s => s.x));
+  COURSE.title = title;
   const saved = store.get('date.saved', []).some(c => c.hash === shareHash());
   box.innerHTML = `
     <p class="eyebrow">${dateLabel(COURSE.date)} · ${COURSE.slot === 'day' ? '낮' : '저녁'} 코스</p>
-    <h1 class="c-title">${esc(COURSE.title || main?.x.name || stops[0].x.name)}</h1>
+    <h1 class="c-title">${esc(title)}</h1>
     <div class="facts" id="facts">
-      <span>${ic('clock')}<select id="startAt" aria-label="시작 시간">${Array.from({ length: 25 }, (_, i) => 540 + i * 30).concat(STARTS_EXTRA(t0)).sort((a, b) => a - b)
-        .map(m => `<option value="${m}" ${m === t0 ? 'selected' : ''}>${hhmm(m)}</option>`).join('')}</select> 시작</span>
+      <span>${ic('clock')}<select id="startAt" aria-label="시작 시간">${timeOptions(times[0]?.[0] ?? t0, false)}</select> 시작</span>
       <span class="num">${ic('route')}${stops.length}곳 · ${hours}시간 · ${(walkM / 1000).toFixed(1)}km</span>
       <span class="num">${ic('coins')}2인 약 ${won(cost)}${costUnknown ? '+' : ''}</span>
     </div>
     <div class="toolbar" role="toolbar" aria-label="코스 도구">
-      <button id="editBtn" aria-pressed="${!!COURSE.editing}">${ic('edit')}${COURSE.editing ? '편집 완료' : '편집'}</button>
       <button id="share">${ic('share')}공유</button>
       <button id="save" aria-pressed="${saved}">${ic(saved ? 'bookmarked' : 'bookmark')}${saved ? '저장됨' : '저장'}</button>
       <button id="ics">${ic('calplus')}캘린더</button>
     </div>
-    ${store.get('date.tipDone', false) ? '' : `<div class="tip" id="tip">${ic('info')}<ol>
-      <li>위에서 <b>날짜·지역</b>을 바꾸면 코스가 바로 바뀌어요</li>
-      <li>마음에 안 드는 곳은 <b>다른 곳 고르기</b>로 바꿔요</li>
+    ${store.get('date.tipDone2', false) ? '' : `<div class="tip" id="tip">${ic('info')}<ol>
+      <li>일정 사이 <b>＋넣기</b>로 행사·카페·식사·한잔·산책을 넣고, <b>✕</b>로 빼요</li>
+      <li>왼쪽 <b>시간</b>을 눌러 그 일정 시작을 고정하고, <b>시계</b>로 머무는 시간을 바꿔요</li>
       <li>다 정했으면 맨 아래에서 <b>보내기</b></li></ol><button id="tipOk">알겠어요</button></div>`}
     ${notes.map(n => `<div class="note">${ic('info')}<span>${n}</span></div>`).join('')}
-    <ol class="timeline">${html}</ol>
-    ${COURSE.editing ? `<div class="addrow"><span>추가</span>${['cafe', 'food', 'bar', 'walk'].map(k => `<button class="chip" data-add="${k}">${ic(TYPE[k][1])}${TYPE[k][0]}</button>`).join('')}</div>` : ''}
-    <div id="cmap" aria-label="코스 지도"></div>
+    ${stops.length ? `<ol class="timeline">${html}</ol>` : '<div class="empty"><b>일정이 비었어요</b>아래에서 첫 일정을 넣어 보세요.</div>'}
+    <div class="addrow"><span>${stops.length ? '마지막에 넣기' : '일정 넣기'}</span>${STOP_TYPES.map(k => `<button class="chip" data-addend="${k}">${ic(TYPE[k][1])}${TYPE[k][0]}</button>`).join('')}</div>
+    ${stops.length ? '<div id="cmap" aria-label="코스 지도"></div>' : ''}
     <div class="finish">
       <b>이 코스로 정했다면</b>
       <p>링크를 보내면 상대도 같은 코스를 그대로 볼 수 있어요.</p>
@@ -1016,33 +1059,36 @@ function drawCourse() {
         <button class="btn" id="ics2">${ic('calplus')}캘린더</button></div>
     </div>`;
   const redraw = () => { drawCourse(); writeShare(); };
-  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => openSwap(+b.dataset.swap));
-  box.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [COURSE.stops[i - 1], COURSE.stops[i]] = [COURSE.stops[i], COURSE.stops[i - 1]]; redraw(); } });
+  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => openPicker({ swap: +b.dataset.swap }));
+  box.querySelectorAll('[data-ins]').forEach(b => b.onclick = () => openPicker({ insert: +b.dataset.ins }));
+  box.querySelectorAll('[data-addend]').forEach(b => b.onclick = () => openPicker({ insert: COURSE.stops.length, type: b.dataset.addend }));
+  box.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.mv, j = i + +b.dataset.dir; if (j < 0 || j >= COURSE.stops.length) return;
+    [COURSE.stops[i], COURSE.stops[j]] = [COURSE.stops[j], COURSE.stops[i]]; redraw();
+  });
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const i = +b.dataset.del, removed = COURSE.stops.splice(i, 1)[0]; redraw();
-    toast('코스에서 뺐어요', ['되돌리기', () => { COURSE.stops.splice(i, 0, removed); redraw(); }]);
+    toast(`${TYPE[removed.type][0]} 일정을 뺐어요`, ['되돌리기', () => { COURSE.stops.splice(i, 0, removed); redraw(); }]);
   });
-  box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
-    // 마지막 장소 근처에서 같은 종류를 찾아 끝에 붙인다 (이미 코스에 있는 곳은 빼고)
-    const last = stops[stops.length - 1].x, type = b.dataset.add;
-    const used = new Set(stops.map(s => s.x.name));
-    const list = rankSpots(spotsNear(last.geo, 1500).filter(s => !used.has(s.name)), type, last.geo).map(spRef);
-    if (!list.length) return toast(`근처에 ${TYPE[type][0]} 정보가 없어요`);
-    COURSE.stops.push(asStop(type, list[0], list)); redraw();
+  box.querySelectorAll('[data-at]').forEach(sel => sel.onchange = () => {
+    const st = COURSE.stops[+sel.dataset.at]; st.at = sel.value === '' ? undefined : +sel.value;
+    if (st.at != null && +sel.dataset.at === 0) COURSE.start = st.at;
+    redraw();
   });
-  $('#startAt').onchange = e => { COURSE.start = +e.target.value; redraw(); };
-  $('#editBtn').onclick = () => { COURSE.editing = !COURSE.editing; drawCourse(); };
+  box.querySelectorAll('[data-dur]').forEach(sel => sel.onchange = () => { COURSE.stops[+sel.dataset.dur].dur = +sel.value; redraw(); });
+  $('#startAt').onchange = e => { COURSE.start = +e.target.value; if (COURSE.stops[0]) COURSE.stops[0].at = undefined; redraw(); };
   $('#share').onclick = share;
   $('#save').onclick = () => {
     const list = store.get('date.saved', []), hash = shareHash(), at = list.findIndex(c => c.hash === hash);
     if (at >= 0) { list.splice(at, 1); store.set('date.saved', list); drawSaved(); drawCourse(); toast('보관함에서 뺐어요'); return; }
-    list.unshift({ title: COURSE.title || main?.x.name || stops[0].x.name, hash, at: Date.now(), date: COURSE.date, slot: COURSE.slot, n: stops.length });
+    list.unshift({ title, hash, at: Date.now(), date: COURSE.date, slot: COURSE.slot, n: stops.length });
     store.set('date.saved', list.slice(0, 50)); drawSaved(); drawCourse(); toast('보관함에 저장했어요');
   };
   $('#ics').onclick = $('#ics2').onclick = () => downloadIcs(times);
   $('#share2').onclick = share;
   $('#save2').onclick = () => $('#save').click();
-  $('#tipOk')?.addEventListener('click', () => { store.set('date.tipDone', true); $('#tip').remove(); });
+  $('#tipOk')?.addEventListener('click', () => { store.set('date.tipDone2', true); $('#tip').remove(); });
+  if (!stops.length) return;
   // 첫 장소 기준 날씨와 일몰 (해 질 때 어디 있는지)
   forecast(stops[0].x.geo).then(m => {
     const el = $('#facts'), w = m?.[COURSE.date]; if (!el || !w) return;
@@ -1084,40 +1130,65 @@ function drawRecs() {
     if (c.kind === 'event') {
       const it = c.it, left = daysLeft(it, state.date);
       return `<button class="rec" data-i="${i}" aria-current="${i === cur}"><div class="rph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
-        <div class="rtx"><small class="rk">${esc(KIND_LABEL[it.kind] || '행사')}${!isEvergreen(it) && left <= 7 ? ` · ${left ? left + '일 뒤 종료' : '오늘 종료'}` : ''}</small><b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')}</small></div></button>`;
+        <div class="rtx"><b>${esc(placeTitle(it.geo) || AREA_NAMES[it.area] || '')} 데이트</b><small class="rk">${esc(KIND_LABEL[it.kind] || '행사')} 포함${!isEvergreen(it) && left <= 7 ? ` · ${left ? left + '일 뒤 종료' : '오늘 종료'}` : ''}</small><small>${esc(showTitle(it.title))}</small></div></button>`;
     }
     const p = c.p;
     return `<button class="rec" data-i="${i}" aria-current="${i === cur}"><div class="rph place">${ic(p.named ? 'pin' : 'tree')}</div>
-      <div class="rtx"><small class="rk place">동네 코스</small><b>${esc(p.named ? p.name : p.name + ' 근처')}</b><small>${esc([p.sg || AREA_NAMES[p.area], MOODS.find(m => m[0] === p.moods[0])?.[1]].filter(Boolean).join(' · '))}</small></div></button>`;
+      <div class="rtx"><b>${esc(p.named ? p.name : placeTitle(p.geo) || p.name)} 데이트</b><small class="rk place">산책·카페·식사</small><small>${esc([p.named ? p.sg : p.name + ' 근처', MOODS.find(m => m[0] === p.moods[0])?.[1]].filter(Boolean).join(' · '))}</small></div></button>`;
   }).join('');
   $('#recList').querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
     const i = +b.dataset.i; if (i === cur) return;
     const prevSeed = state.seed; PREV = COURSE; state.seed = i; makeCourse(true);
     toast('코스를 바꿨어요', ['이전 코스', () => { state.seed = prevSeed; undoCourse(); }]);
   });
-  // 지금 코스 카드가 보이게 옆으로 맞춘다
   const curEl = $('#recList [aria-current="true"]');
   if (curEl) { const l = $('#recList'); l.scrollLeft = Math.max(0, curEl.offsetLeft - l.offsetLeft - 16 - (cur ? 40 : 0)); }
 }
 
-// 장소 고르기 시트: 같은 종류의 다른 곳을 거리·분류와 함께 보여 주고 골라 바꾼다
-function openSwap(idx) {
-  const st = COURSE.stops[idx]; if (!st) return;
-  const infos = COURSE.stops.map(s => info(s.alts[s.i] || s.ref));
-  const order = COURSE.stops.indexOf(st);
-  const from = infos[order - 1] || infos[order + 1]; // 바로 앞 장소 (첫 장소면 다음 장소) 기준 거리
-  $('#swTitle').textContent = `다른 ${TYPE[st.type][0]} 고르기`;
-  $('#swList').innerHTML = st.alts.map((ref, k) => {
-    const x = info(ref); if (!x) return '';
-    const leg = from ? legOf(from.geo, x.geo) : null;
-    const where = from ? `${from.name.length > 8 ? from.name.slice(0, 8) + '…' : from.name}에서 ${leg.text.split(' · ')[0]}` : '';
-    return `<li><button class="pickrow" data-k="${k}" aria-pressed="${k === st.i}"><span class="dot">${k === st.i ? ic('check') : ''}</span>
-      <span><b>${esc(x.name)}</b><small>${esc([x.sub, where].filter(Boolean).join(' · '))}</small></span></button>
-      <a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세' : '지도'}</a></li>`;
-  }).join('');
-  $('#swList').querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
-    st.i = +b.dataset.k; $('#swapSheet').close(); drawCourse(); writeShare();
-  });
+// 일정 고르기 시트: 바꾸기(swap) 또는 넣기(insert). 위 탭에서 종류를 고르고 아래 목록에서 장소를 고른다
+function openPicker({ swap, insert, type }) {
+  const stopsX = COURSE.stops.map(s => info(s.alts[s.i] || s.ref));
+  const isSwap = swap != null;
+  const cur = isSwap ? COURSE.stops[swap] : null;
+  let tab = type || (isSwap ? cur.type : 'cafe');
+  // 기준 위치: 바꾸기는 그 일정 자리, 넣기는 앞뒤 일정의 가운데
+  const prev = isSwap ? stopsX[swap - 1] : stopsX[insert - 1], next = isSwap ? stopsX[swap + 1] : stopsX[insert];
+  const here = isSwap ? stopsX[swap] : null;
+  const pts = [prev, next].filter(Boolean).map(x => x.geo);
+  const anchor = here?.geo || (pts.length ? [pts.reduce((s, g) => s + g[0], 0) / pts.length, pts.reduce((s, g) => s + g[1], 0) / pts.length] : wxPoint());
+  const used = new Set(stopsX.filter((x, k) => x && !(isSwap && k === swap)).map(x => x.name));
+  const from = prev || next;
+  const paint = () => {
+    $('#swTitle').textContent = isSwap ? '일정 바꾸기' : '일정 넣기';
+    $('#swTabs').innerHTML = STOP_TYPES.map(k => `<button class="chip" data-tab="${k}" aria-pressed="${k === tab}">${ic(TYPE[k][1])}${TYPE[k][0]}</button>`).join('');
+    $('#swTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; paint(); });
+    // 같은 종류로 바꿀 땐 처음 골라 둔 후보 목록, 아니면 기준 위치 근처에서 새로 찾는다
+    const refs = isSwap && tab === cur.type ? cur.alts : choicesNear(tab, anchor, used);
+    if (!refs.length) {
+      $('#swList').innerHTML = `<li class="none">${tab === 'event' ? `${dateLabel(COURSE.date)}에 이 근처(3km)에서 열리는 행사가 없어요.` : `이 근처 ${TYPE[tab][0]} 정보가 아직 없어요.`}</li>`;
+      return;
+    }
+    $('#swList').innerHTML = refs.map((ref, k) => {
+      const x = info(ref); if (!x) return '';
+      const on = isSwap && tab === cur.type && k === cur.i;
+      const leg = from ? legOf(from.geo, x.geo) : null;
+      const where = from ? `${from.name.length > 8 ? from.name.slice(0, 8) + '…' : from.name}에서 ${leg.text.split(' · ')[0]}` : '';
+      return `<li><button class="pickrow" data-k="${k}" aria-pressed="${on}"><span class="dot">${on ? ic('check') : ''}</span>
+        <span><b>${esc(x.name)}</b><small>${esc([x.sub, where].filter(Boolean).join(' · '))}</small></span></button>
+        <a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세' : '지도'}</a></li>`;
+    }).join('');
+    $('#swList').querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+      const k = +b.dataset.k;
+      if (isSwap && tab === cur.type) cur.i = k;
+      else {
+        const st = asStop(tab, refs[k], refs); st.i = k;
+        if (isSwap) { st.at = cur.at; COURSE.stops[swap] = st; } else COURSE.stops.splice(insert, 0, st);
+      }
+      $('#swapSheet').close(); drawCourse(); writeShare();
+      if (!isSwap) toast(`${TYPE[tab][0]} 일정을 넣었어요`);
+    });
+  };
+  paint();
   $('#swapSheet').showModal();
 }
 
@@ -1190,13 +1261,12 @@ function makeCourse(fresh) {
   CANDS = list.slice(0, CAND);
   if (!list.length) {
     COURSE = null; history.replaceState(null, '', location.pathname);
-    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 짤 수 있는 코스가 없어요</b>${state.noEvent ? '이 지역은 데이트 동네 정보를 아직 모으는 중이에요. 지역을 넓히거나 \'행사 없이\'를 꺼 보세요.' : '지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.'}</div>`;
+    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 짤 수 있는 코스가 없어요</b>지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.</div>`;
     $('#recs').hidden = true; drawNext(); return;
   }
   // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 후보
   const c = list[state.seed % CAND];
-  COURSE = c.kind === 'event' ? buildCourse(c.it) : buildPlaceCourse(c.p);
-  if (c.kind === 'place' && !state.noEvent && !list.some(x => x.kind === 'event')) COURSE.noEventsHere = true;
+  COURSE = c.kind === 'event' ? composeCourse({ geo: c.it.geo, event: c.it }) : composeCourse({ geo: c.p.geo });
   writeShare(); drawCourse(); drawRecs(); drawNext();
   if (fresh) { const c = $('#course'); c.classList.remove('fresh'); void c.offsetWidth; c.classList.add('fresh'); }
 }
@@ -1226,7 +1296,7 @@ $('#next').onclick = () => {
 
 // ===== 공유 (주소 # 뒤에 코스를 담는다) =====
 function shareHash() {
-  const data = { d: COURSE.date, sl: COURSE.slot, s0: COURSE.start, tt: COURSE.title, pl: COURSE.place, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i })), n: COURSE.noSpots ? 1 : 0 };
+  const data = { d: COURSE.date, sl: COURSE.slot, s0: COURSE.start, tt: COURSE.title, pl: COURSE.place, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i, ...(s.dur ? { d: s.dur } : {}), ...(s.at != null ? { at: s.at } : {}) })), n: COURSE.noSpots ? 1 : 0 };
   return 'c=' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 function writeShare() { history.replaceState(null, '', '#' + shareHash()); }
@@ -1234,7 +1304,7 @@ function readShare() {
   const m = location.hash.match(/c=([\w-]+)/); if (!m) return null;
   try {
     const d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
-    return { v: 1, date: d.d, slot: d.sl, start: d.s0, title: d.tt, place: d.pl, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0] })) };
+    return { v: 1, date: d.d, slot: d.sl, start: d.s0, title: d.tt, place: d.pl, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0], dur: s.d, at: s.at })) };
   } catch { return null; }
 }
 async function share() {
