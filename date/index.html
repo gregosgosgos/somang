@@ -217,6 +217,8 @@
   .pick .ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
   .pick:hover .ph img { transform: scale(1.03); }
   .pick .ph svg.i { width: 28px; height: 28px; }
+  .pick .ph.place { background: color-mix(in srgb, var(--t-walk) 10%, var(--surface)); color: var(--t-walk); display: flex; flex-direction: column; gap: 8px; padding: 12px; text-align: center; }
+  .pick .ph.place span { font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.3; word-break: keep-all; }
   .pick b { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .pick small { font-size: 12px; color: var(--ink-3); margin-top: -4px; }
 
@@ -345,7 +347,7 @@
   <section class="course" id="course" aria-live="polite"></section>
 
   <section id="picksWrap" hidden>
-    <h2 class="sec">같은 날 다른 행사 <small>누르면 코스가 바뀌어요</small></h2>
+    <h2 class="sec"><span id="picksTitle">같은 날 열리는 다른 행사</span> <small>누르면 코스가 바뀌어요</small></h2>
     <div class="hscroll" id="picks"></div>
   </section>
 
@@ -495,10 +497,10 @@ const state = {
   date: prefs.date && prefs.date >= TODAY ? prefs.date : defaultDate(),
   areas: new Set((prefs.areas || [1]).slice(0, 1)), subs: new Set(prefs.subs || []), near: null,
   slot: prefs.slot || 'day', moods: new Set(prefs.moods || []),
-  free: false, indoor: false, seed: 0,
+  free: false, indoor: false, noEvent: !!prefs.noEvent, seed: 0,
 };
-let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null;
-const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], subs: [...state.subs], slot: state.slot, moods: [...state.moods] });
+let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null, PLACES = [], PLACE_BY_ID = new Map();
+const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], subs: [...state.subs], slot: state.slot, moods: [...state.moods], noEvent: state.noEvent });
 
 // ===== 날씨 (Open-Meteo, 지역마다 16일치를 한 번에) =====
 const WMO = c => c === 0 ? ['sun', '맑음'] : c <= 2 ? ['partly', '구름 조금'] : c === 3 ? ['cloud', '흐림'] : c <= 48 ? ['fog', '안개']
@@ -582,11 +584,12 @@ function drawControls() {
     `<button role="radio" aria-checked="${state.slot === v}" data-slot="${v}">${ic(i)}${l}</button>`).join('');
   $('#slotSeg').querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { if (state.slot === b.dataset.slot) return; state.slot = b.dataset.slot; changed(); });
   const keep = $('#filters').scrollLeft;
-  $('#filters').innerHTML = MOODS.map(([v, l]) => `<button class="chip" data-mood="${v}" aria-pressed="${state.moods.has(v)}">${l}</button>`).join('') +
-    `<span class="chip-sep"></span><button class="chip" id="fFree" aria-pressed="${state.free}">${ic('coins')}무료만</button>` +
+  $('#filters').innerHTML = `<button class="chip" id="fNoEvent" aria-pressed="${state.noEvent}">${ic('tree')}행사 없이</button><span class="chip-sep"></span>` + MOODS.map(([v, l]) => `<button class="chip" data-mood="${v}" aria-pressed="${state.moods.has(v)}">${l}</button>`).join('') +
+    `<span class="chip-sep"></span><button class="chip" id="fFree" aria-pressed="${state.free}">${ic('coins')}무료 행사만</button>` +
     `<button class="chip" id="fIndoor" aria-pressed="${state.indoor}">${ic('umbrella')}실내만</button>`;
   $('#filters').scrollLeft = keep;
   $('#filters').querySelectorAll('[data-mood]').forEach(b => b.onclick = () => { const m = b.dataset.mood; state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); changed(); });
+  $('#fNoEvent').onclick = () => { state.noEvent = !state.noEvent; changed(); };
   $('#fFree').onclick = () => { state.free = !state.free; changed(); };
   $('#fIndoor').onclick = () => { state.indoor = !state.indoor; changed(); };
   savePrefs(); drawBanner();
@@ -614,7 +617,9 @@ function openRegions() {
   let tmpArea = state.near ? 'near' : areaOf() || 'all';
   let tmpSubs = new Set(state.subs);
   const isOpen = openOn(state.date);
-  const count = (area, subs) => ALL.reduce((n, it) => n + (isOpen(it) && (area === 'all' || it.area === area) && (!subs.size || subs.has(it._sg)) ? 1 : 0), 0);
+  // 고른 날 열리는 행사 + 데이트 동네 수
+  const count = (area, subs) => ALL.reduce((n, it) => n + (isOpen(it) && (area === 'all' || it.area === area) && (!subs.size || subs.has(it._sg)) ? 1 : 0), 0)
+    + PLACES.reduce((n, p) => n + ((area === 'all' || p.area === area) && (!subs.size || subs.has(p.sg)) ? 1 : 0), 0);
   const paint = () => {
     $('#rsL').innerHTML = [['near', `${ic('locate')}내 위치`], ['all', '전국'], ...AREA_ORDER.map(c => [c, AREA_NAMES[c]])]
       .map(([v, l]) => `<button role="tab" data-a="${v}" aria-selected="${String(tmpArea) === String(v)}">${l}</button>`).join('');
@@ -623,24 +628,24 @@ function openRegions() {
     });
     const r = $('#rsR'), foot = $('#rsApply');
     if (tmpArea === 'near') {
-      r.innerHTML = '<p>지금 있는 곳에서 25km 안에서 열리는 행사로 코스를 짜요.</p><p class="hint">위치 권한을 물어보면 허용해 주세요.</p>';
+      r.innerHTML = '<p>지금 있는 곳에서 25km 안의 행사와 데이트 동네로 코스를 짜요.</p><p class="hint">위치 권한을 물어보면 허용해 주세요.</p>';
       foot.textContent = '내 위치로 보기';
     } else if (tmpArea === 'all') {
-      r.innerHTML = '<p>전국에서 고른 날 열리는 행사로 코스를 짜요.</p>';
-      foot.textContent = `행사 ${count('all', new Set()).toLocaleString()}개 보기`;
+      r.innerHTML = '<p>전국의 행사와 데이트 동네로 코스를 짜요.</p>';
+      foot.textContent = '전국으로 보기';
     } else {
       const subs = SUBS[tmpArea] || [];
-      // 고른 날 행사가 없는 곳은 숨긴다 (이미 고른 곳은 남김)
+      // 고른 날 행사도 데이트 동네도 없는 곳은 숨긴다 (이미 고른 곳은 남김)
       r.innerHTML = `<button class="chip all" data-s="" aria-pressed="${!tmpSubs.size}">${AREA_NAMES[tmpArea]} 전체 <small>${count(tmpArea, new Set())}</small></button>` +
         subs.map(s => [s, count(tmpArea, new Set([s.name]))]).filter(([s, n]) => n || tmpSubs.has(s.name))
           .map(([s, n]) => `<button class="chip" data-s="${esc(s.name)}" aria-pressed="${tmpSubs.has(s.name)}">${esc(s.name)} <small>${n}</small></button>`).join('') +
-        (subs.length ? '<p class="hint" style="margin-top:4px">여러 곳을 함께 고를 수 있어요. 숫자는 고른 날 열리는 행사 수예요.</p>' : '');
+        (subs.length ? '<p class="hint" style="margin-top:4px">여러 곳을 함께 고를 수 있어요. 숫자는 고른 날 열리는 행사와 데이트 동네를 합한 수예요.</p>' : '');
       r.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
         const s = b.dataset.s;
         if (!s) tmpSubs.clear(); else tmpSubs.has(s) ? tmpSubs.delete(s) : tmpSubs.add(s);
         paint();
       });
-      foot.textContent = `행사 ${count(tmpArea, tmpSubs).toLocaleString()}개 보기`;
+      foot.textContent = tmpSubs.size ? `${[...tmpSubs].slice(0, 2).join('·')}${tmpSubs.size > 2 ? ` 외 ${tmpSubs.size - 2}곳` : ''}으로 보기` : `${AREA_NAMES[tmpArea]} 전체로 보기`;
     }
   };
   $('#rsApply').onclick = () => {
@@ -666,14 +671,16 @@ function openRegions() {
 async function load() {
   drawControls();
   $('#course').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
-  const [ev, sp] = await Promise.all([
+  const [ev, sp, hd] = await Promise.all([
     fetch('../festivals/data/events.json').then(r => r.json()),
     fetch('data/spots.json').then(r => r.ok ? r.json() : { cells: {} }).catch(() => ({ cells: {} })),
+    fetch('data/hoods.json').then(r => r.ok ? r.json() : { hoods: [] }).catch(() => ({ hoods: [] })),
   ]);
   ALL = (ev.items || []).filter(it => it.geo && (it.geoLv === 'src' || it.geoLv === 'place'));
   for (const it of ALL) BY_ID.set(it.id, it);
   assignSubs();
   SPOTS = sp;
+  buildPlaces(hd.hoods || []);
   $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
   drawControls(); // 세부 지역 이름이 정리된 뒤 다시
   // 공유 링크로 들어왔으면 그 코스, 아니면 지금 조건으로 바로 하나 보여 준다
@@ -698,7 +705,64 @@ function spotsNear(p, maxM = 1200) {
 }
 function hasSpots(p) { return !!SPOTS.cells?.[cellKey(p[0], p[1])]?.s?.length; }
 
-function candidates() {
+// ===== 데이트 동네 (행사 없이도 짤 수 있는 코스의 중심) =====
+// 1) hoods.json 의 이름난 데이트 동네  2) 행사 주변에서 모은 장소 가운데 산책할 곳·카페·식당이 고루 있는 곳
+function buildPlaces(hoods) {
+  const cellArea = {};
+  for (const it of ALL) { const k = cellKey(it.geo[0], it.geo[1]); cellArea[k] ||= { area: it.area, sg: it._sg }; }
+  const nearestSub = (area, geo) => { let best = null, bd = 15000; for (const s of SUBS[area] || []) { const d = dist(geo, s.geo); if (d < bd) { bd = d; best = s.name; } } return best; };
+  const enough = geo => { const n = spotsNear(geo, 1000), c = t => n.filter(s => s.type === t).length; return c('cafe') >= 2 && c('food') >= 2; };
+  PLACES = [];
+  const taken = new Set();
+  for (const h of hoods) {
+    if (!enough(h.geo)) continue; // 주변 장소를 아직 못 모은 동네는 다음 수집 뒤에
+    taken.add(cellKey(h.geo[0], h.geo[1]));
+    PLACES.push({ id: 'h:' + h.name, name: h.name, geo: h.geo, area: h.area, sg: nearestSub(h.area, h.geo), moods: h.moods || [], night: !!h.night, named: true });
+  }
+  const seenWalk = new Set();
+  for (const [k, c] of Object.entries(SPOTS.cells || {})) {
+    if (taken.has(k) || !cellArea[k]) continue;
+    const walk = c.s.find(s => s[1] === 'walk');
+    if (!walk || seenWalk.has(walk[0]) || c.s.filter(s => s[1] === 'cafe').length < 2 || c.s.filter(s => s[1] === 'food').length < 2) continue;
+    seenWalk.add(walk[0]);
+    const geo = [walk[2], walk[3]];
+    PLACES.push({ id: 'c:' + k, name: walk[0], geo, area: cellArea[k].area, sg: cellArea[k].sg || nearestSub(cellArea[k].area, geo), moods: [], night: false, named: false });
+  }
+  PLACE_BY_ID = new Map(PLACES.map(p => [p.id, p]));
+}
+function scoredPlaces() {
+  const out = [];
+  for (const p of PLACES) {
+    if (state.areas.size && !state.areas.has(p.area)) continue;
+    if (state.subs.size && !state.subs.has(p.sg)) continue;
+    let km = 0;
+    if (state.near) { km = dist(state.near, p.geo) / 1000; if (km > 25) continue; }
+    let s = p.named ? 8 : 3;
+    for (const m of state.moods) if (p.moods.includes(m)) s += 3;
+    if (state.moods.size && p.named && !p.moods.some(m => state.moods.has(m))) s -= 2;
+    if (state.slot === 'night' && p.night) s += 2;
+    if (state.indoor) s -= 4; // 실내만이면 행사(전시·공연)를 먼저
+    s -= km / 4;
+    out.push({ kind: 'place', p, s, id: p.id });
+  }
+  return out;
+}
+// 코스 후보: 행사와 데이트 동네를 한 줄로 세운다 ('행사 없이'면 동네만)
+function courseCands() {
+  const ev = state.noEvent ? [] : scoredEvents().map(x => ({ kind: 'event', it: x.it, s: x.s, id: x.it.id }));
+  const pl = scoredPlaces().sort((a, b) => b.s - a.s || (a.id < b.id ? -1 : 1));
+  // 행사가 많은 날에도 동네 코스가 묻히지 않게 행사 두 개마다 동네 하나를 끼운다 (점수가 더 높으면 먼저)
+  const out = [];
+  let e = 0, q = 0, run = 0;
+  while (e < ev.length || q < pl.length) {
+    const takePlace = q < pl.length && (e >= ev.length || run >= 2 || pl[q].s > ev[e].s);
+    if (takePlace) { out.push(pl[q++]); run = 0; } else { out.push(ev[e++]); run++; }
+  }
+  return out;
+}
+
+const candidates = () => scoredEvents().map(x => x.it);
+function scoredEvents() {
   const d = state.date;
   const list = [];
   for (const it of ALL) {
@@ -731,7 +795,7 @@ function candidates() {
     s -= km / 4;
     list.push({ it, s });
   }
-  return list.sort((a, b) => b.s - a.s || (a.it.id < b.it.id ? -1 : 1)).map(x => x.it);
+  return list.sort((a, b) => b.s - a.s || (a.it.id < b.it.id ? -1 : 1));
 }
 
 const EVERGREEN_SRC = new Set(['frip', 'sssd', 'welchon', 'foresttrip', 'templestay', 'knps']);
@@ -770,6 +834,28 @@ function buildCourse(main) {
     add(bar.length ? 'bar' : 'cafe', (bar.length ? bar : cafe).map(spRef));
   }
   return { v: 1, date: state.date, slot: state.slot, start: state.slot === 'day' ? 13 * 60 : 17 * 60 + 30, stops, noSpots: !near.length };
+}
+
+// 동네 코스: 낮엔 산책 → 카페 → 산책 → 저녁, 저녁엔 식사 → 산책(야경) → 한잔. 실내만이면 산책을 뺀다
+function buildPlaceCourse(p) {
+  const near = spotsNear(p.geo, 1200);
+  const cafe = rankSpots(near, 'cafe', p.geo), food = rankSpots(near, 'food', p.geo), bar = rankSpots(near, 'bar', p.geo), walk = rankSpots(near, 'walk', p.geo);
+  const stops = [];
+  const add = (type, arr) => { if (arr.length) stops.push(asStop(type, arr[0], arr)); };
+  const outdoor = !state.indoor;
+  if (state.slot === 'day') {
+    if (outdoor) add('walk', walk.map(spRef));
+    add('cafe', cafe.map(spRef));
+    if (outdoor && walk.length > 1) add('walk', walk.slice(1).map(spRef));
+    else if (!outdoor && bar.length) add('bar', bar.map(spRef));
+    add('food', food.map(spRef));
+  } else {
+    add('food', food.map(spRef));
+    if (outdoor) add('walk', walk.map(spRef));
+    add(bar.length ? 'bar' : 'cafe', (bar.length ? bar : cafe).map(spRef));
+  }
+  return { v: 1, date: state.date, slot: state.slot, start: state.slot === 'day' ? 13 * 60 : 17 * 60 + 30, stops, noSpots: false,
+    title: p.named ? `${p.name} 데이트` : `${p.name} 근처 데이트`, place: p.id };
 }
 
 // 정류장 정보 풀기
@@ -844,12 +930,13 @@ function drawCourse() {
   const hours = Math.round((t - t0) / 60 * 2) / 2;
   const notes = [];
   if (COURSE.noSpots) notes.push('이 주변 카페·식당 정보는 아직 모으는 중이에요. 행사 위주로 보여 드려요.');
+  if (COURSE.noEventsHere) notes.push('고른 날 이 지역에 열리는 행사가 없어 동네 코스로 짰어요.');
   if (main?.x.it.kind === 'show') notes.push('공연 시작 시간은 예매처에서 확인하고 시작 시간을 맞춰 주세요.');
   if (main && COURSE.slot === 'night' && ['expo', 'popup'].includes(main.x.it.kind)) notes.push('전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.');
   const saved = store.get('date.saved', []).some(c => c.hash === shareHash());
   box.innerHTML = `
     <p class="eyebrow">${dateLabel(COURSE.date)} · ${COURSE.slot === 'day' ? '낮' : '저녁'} 코스</p>
-    <h1 class="c-title">${esc(main?.x.name || stops[0].x.name)}</h1>
+    <h1 class="c-title">${esc(COURSE.title || main?.x.name || stops[0].x.name)}</h1>
     <div class="facts" id="facts">
       <span>${ic('clock')}<select id="startAt" aria-label="시작 시간">${Array.from({ length: 25 }, (_, i) => 540 + i * 30).concat(STARTS_EXTRA(t0)).sort((a, b) => a - b)
         .map(m => `<option value="${m}" ${m === t0 ? 'selected' : ''}>${hhmm(m)}</option>`).join('')}</select> 시작</span>
@@ -887,7 +974,7 @@ function drawCourse() {
   $('#save').onclick = () => {
     const list = store.get('date.saved', []), hash = shareHash(), at = list.findIndex(c => c.hash === hash);
     if (at >= 0) { list.splice(at, 1); store.set('date.saved', list); drawSaved(); drawCourse(); toast('보관함에서 뺐어요'); return; }
-    list.unshift({ title: main?.x.name || stops[0].x.name, hash, at: Date.now(), date: COURSE.date, slot: COURSE.slot, n: stops.length });
+    list.unshift({ title: COURSE.title || main?.x.name || stops[0].x.name, hash, at: Date.now(), date: COURSE.date, slot: COURSE.slot, n: stops.length });
     store.set('date.saved', list.slice(0, 50)); drawSaved(); drawCourse(); toast('보관함에 저장했어요');
   };
   $('#ics').onclick = () => downloadIcs(times);
@@ -921,15 +1008,28 @@ function downloadIcs(times) {
   toast('캘린더 파일을 받았어요. 열면 일정에 들어가요');
 }
 
+// 아래 가로 목록: 지금 코스가 동네 코스면 다른 동네, 행사 코스면 같은 날 다른 행사
 function drawPicks() {
-  const mainId = COURSE?.stops.find(s => s.type === 'event')?.ref.e;
-  const items = candidates().filter(it => it.id !== mainId).slice(0, 10);
-  $('#picksWrap').hidden = !items.length;
-  $('#picks').innerHTML = items.map(it => `<button class="pick" data-pick="${esc(it.id)}">
-    <div class="ph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
-    <b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${!isEvergreen(it) && daysLeft(it, state.date) <= 7 ? ' · 곧 종료' : ''}</small></button>`).join('');
-  $('#picks').querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
-    PREV = COURSE; COURSE = buildCourse(BY_ID.get(b.dataset.pick)); writeShare(); drawCourse(); drawPicks(); drawNext();
+  const placeMode = !!COURSE?.place || state.noEvent;
+  const curId = COURSE?.place || COURSE?.stops.find(s => s.type === 'event')?.ref.e;
+  $('#picksTitle').textContent = placeMode ? '다른 데이트 동네' : '같은 날 열리는 다른 행사';
+  if (placeMode) {
+    const items = scoredPlaces().sort((a, b) => b.s - a.s).map(x => x.p).filter(p => p.id !== curId).slice(0, 10);
+    $('#picksWrap').hidden = !items.length;
+    $('#picks').innerHTML = items.map(p => `<button class="pick" data-place="${esc(p.id)}">
+      <div class="ph place">${ic(p.named ? 'pin' : 'tree')}<span>${esc(p.name)}</span></div>
+      <b>${esc(p.named ? p.name : p.name + ' 근처')}</b><small>${esc(p.sg || AREA_NAMES[p.area] || '')}${p.moods.length ? ' · ' + esc(MOODS.find(m => m[0] === p.moods[0])?.[1] || '') : ''}</small></button>`).join('');
+  } else {
+    const items = candidates().filter(it => it.id !== curId).slice(0, 10);
+    $('#picksWrap').hidden = !items.length;
+    $('#picks').innerHTML = items.map(it => `<button class="pick" data-pick="${esc(it.id)}">
+      <div class="ph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
+      <b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${!isEvergreen(it) && daysLeft(it, state.date) <= 7 ? ' · 곧 종료' : ''}</small></button>`).join('');
+  }
+  $('#picks').querySelectorAll('[data-pick],[data-place]').forEach(b => b.onclick = () => {
+    PREV = COURSE;
+    COURSE = b.dataset.place ? buildPlaceCourse(PLACE_BY_ID.get(b.dataset.place)) : buildCourse(BY_ID.get(b.dataset.pick));
+    writeShare(); drawCourse(); drawPicks(); drawNext();
     toast('코스를 바꿨어요', ['이전 코스', undoCourse]);
     $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -999,15 +1099,17 @@ function drawDday() {
 
 let CAND = 0, PREV = null;
 function makeCourse(fresh) {
-  const list = candidates();
+  const list = courseCands();
   CAND = Math.min(list.length, 40); // 위쪽 40개 안에서 돈다
   if (!list.length) {
     COURSE = null; history.replaceState(null, '', location.pathname);
-    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 맞는 행사가 없어요</b>지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.</div>`;
+    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 짤 수 있는 코스가 없어요</b>${state.noEvent ? '이 지역은 데이트 동네 정보를 아직 모으는 중이에요. 지역을 넓히거나 \'행사 없이\'를 꺼 보세요.' : '지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.'}</div>`;
     $('#picksWrap').hidden = true; drawNext(); return;
   }
-  // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 행사
-  COURSE = buildCourse(list[state.seed % CAND]);
+  // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 후보
+  const c = list[state.seed % CAND];
+  COURSE = c.kind === 'event' ? buildCourse(c.it) : buildPlaceCourse(c.p);
+  if (c.kind === 'place' && !state.noEvent && !list.some(x => x.kind === 'event')) COURSE.noEventsHere = true;
   writeShare(); drawCourse(); drawPicks(); drawNext();
   if (fresh) { const c = $('#course'); c.classList.remove('fresh'); void c.offsetWidth; c.classList.add('fresh'); }
 }
@@ -1016,7 +1118,7 @@ function drawNext() {
   const b = $('#next');
   if (!ALL.length) { b.disabled = true; b.textContent = '불러오는 중'; return; }
   if (COURSE?.shared) { b.disabled = false; b.innerHTML = `${ic('refresh')}내 조건으로 코스 보기`; return; }
-  if (!COURSE || CAND <= 1) { b.disabled = true; b.textContent = CAND ? '이 조건에 맞는 행사는 이것 하나예요' : '조건을 바꿔 보세요'; return; }
+  if (!COURSE || CAND <= 1) { b.disabled = true; b.textContent = CAND ? '이 조건으로는 이 코스 하나예요' : '조건을 바꿔 보세요'; return; }
   b.disabled = false;
   b.innerHTML = `${ic('shuffle')}다른 코스 보기<small>${state.seed % CAND + 1} / ${CAND}</small>`;
 }
@@ -1037,7 +1139,7 @@ $('#next').onclick = () => {
 
 // ===== 공유 (주소 # 뒤에 코스를 담는다) =====
 function shareHash() {
-  const data = { d: COURSE.date, sl: COURSE.slot, s0: COURSE.start, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i })), n: COURSE.noSpots ? 1 : 0 };
+  const data = { d: COURSE.date, sl: COURSE.slot, s0: COURSE.start, tt: COURSE.title, pl: COURSE.place, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i })), n: COURSE.noSpots ? 1 : 0 };
   return 'c=' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 function writeShare() { history.replaceState(null, '', '#' + shareHash()); }
@@ -1045,14 +1147,14 @@ function readShare() {
   const m = location.hash.match(/c=([\w-]+)/); if (!m) return null;
   try {
     const d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
-    return { v: 1, date: d.d, slot: d.sl, start: d.s0, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0] })) };
+    return { v: 1, date: d.d, slot: d.sl, start: d.s0, title: d.tt, place: d.pl, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0] })) };
   } catch { return null; }
 }
 async function share() {
   writeShare();
   const url = location.href;
   const main = COURSE.stops.map(s => info(s.alts[s.i] || s.ref)).find(x => x?.type === 'event');
-  const title = `${dateLabel(COURSE.date)} 데이트 코스${main ? ` · ${main.name}` : ''}`;
+  const title = `${dateLabel(COURSE.date)} 데이트 코스 · ${COURSE.title || main?.name || ''}`;
   if (navigator.share) { try { await navigator.share({ title, url }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요'); } catch { toast('주소창의 링크를 복사해 보내 주세요'); }
 }

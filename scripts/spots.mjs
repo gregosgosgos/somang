@@ -1,5 +1,5 @@
 // 데이트 코스용 주변 장소 (카페·식당·술집·산책 명소)
-// 데이트에 어울리는 행사 주변을 약 550m 격자로 나눠, 격자마다 반경 900m 안의 장소를 모은다.
+// 데이트에 어울리는 행사 주변과 date/data/hoods.json 의 데이트 동네를 약 550m 격자로 나눠, 격자마다 반경 900m 안의 장소를 모은다.
 // 결과는 date/data/spots.json 하나에 격자별로 쌓아 두고, 30일 지난 격자만 다시 찾는다.
 //
 //   KAKAO_REST_KEY=... node scripts/spots.mjs   # 카카오 로컬 카테고리 검색 (국내 장소에 가장 정확, 인기순)
@@ -13,6 +13,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 
 const EVENTS = new URL('../festivals/data/events.json', import.meta.url);
 const OUT = new URL('../date/data/spots.json', import.meta.url);
+const HOODS = new URL('../date/data/hoods.json', import.meta.url); // 행사가 없어도 코스를 짤 수 있는 데이트 동네
 const KAKAO = process.env.KAKAO_REST_KEY || '';
 const BUDGET_MS = Number(process.env.SPOTS_MINUTES || 20) * 60000;
 const GRID = 0.005;           // 위도 0.005° ≈ 550m
@@ -116,6 +117,13 @@ async function main() {
     const k = cellKey(it.geo[0], it.geo[1]);
     need.set(k, (need.get(k) || 0) + 1);
   }
+  // 데이트 동네는 행사와 상관없이 늘 채워 둔다 (먼저 찾도록 가중치를 크게)
+  try {
+    for (const hd of JSON.parse(await readFile(HOODS, 'utf8')).hoods) {
+      const k = cellKey(hd.geo[0], hd.geo[1]);
+      need.set(k, (need.get(k) || 0) + 50);
+    }
+  } catch {}
   // 아직 없는 격자 → 오래된 격자 순, 같은 조건이면 행사가 많은 곳부터
   // 카카오 키가 새로 생기면 오픈스트리트맵으로 찾은 격자도 다시 찾는다
   const todo = [...need.keys()].filter(k => {
