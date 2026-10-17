@@ -148,7 +148,7 @@
     appearance: none; -webkit-appearance: none; border: 0; background: var(--fill); color: var(--ink); font: inherit; font-weight: 700;
     border-radius: 7px; padding: 2px 8px; font-variant-numeric: tabular-nums; cursor: pointer;
   }
-  .toolbar { display: grid; grid-template-columns: repeat(5, 1fr); margin: 14px 0 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+  .toolbar { display: grid; grid-template-columns: repeat(4, 1fr); margin: 14px 0 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
   .toolbar button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0 9px; font-size: 12px; color: var(--ink-2); }
   .toolbar button + button { border-left: 1px solid var(--line); }
   .toolbar button svg.i { width: 20px; height: 20px; color: var(--ink); }
@@ -262,10 +262,12 @@
   }
   .go svg.i { width: 20px; height: 20px; }
   .go:active { transform: scale(.985); }
-  .go:disabled { opacity: .55; cursor: progress; }
-  .dice { width: 54px; height: 54px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; }
-  .dice svg.i { width: 24px; height: 24px; }
-  .dice:disabled { opacity: .55; }
+  .go:disabled { background: var(--fill); color: var(--ink-3); cursor: default; }
+  .go:disabled:active { transform: none; }
+  .go small { font-size: 13px; font-weight: 600; opacity: .75; font-variant-numeric: tabular-nums; margin-left: 2px; }
+  /* 조건을 바꿔 코스가 새로 그려질 때 바뀐 걸 알 수 있게 */
+  .course.fresh { animation: fresh .35s ease-out; }
+  @keyframes fresh { from { opacity: .25; transform: translateY(6px); } }
 
   /* 아래에서 올라오는 시트 */
   dialog.sheet {
@@ -362,8 +364,7 @@
 
 <div class="cta">
   <div class="inner">
-    <button class="dice" id="dice" disabled aria-label="아무 코스나 고르기" title="아무 코스나"></button>
-    <button class="go" id="go" disabled>불러오는 중</button>
+    <button class="go" id="next" disabled>불러오는 중</button>
   </div>
 </div>
 
@@ -560,6 +561,7 @@ const subGeo = (a, name) => SUBS[a]?.find(s => s.name === name)?.geo;
 
 // ===== 조건 그리기 =====
 function drawDays(wx) {
+  const keep = $('#days').scrollLeft;
   const list = DAYS.includes(state.date) ? DAYS : [...DAYS, state.date];
   $('#days').innerHTML = list.map((d, i) => {
     const dt = dateOf(d), dow = dt.getDay(), w = wx?.[d];
@@ -568,7 +570,8 @@ function drawDays(wx) {
       <span class="dw">${top}</span><span class="dn num">${i >= DAYS.length ? `${dt.getMonth() + 1}/` : ''}${dt.getDate()}</span>
       <span class="dx num">${w ? ic(WMO(w.code)[0]) + w.hi + '°' : ''}</span></button>`;
   }).join('') + `<button class="day pick" id="dayPick" aria-label="다른 날짜 고르기">${ic('cal')}</button>`;
-  $('#days').querySelectorAll('[data-date]').forEach(b => b.onclick = () => { state.date = b.dataset.date; drawControls(); });
+  $('#days').scrollLeft = keep; // 다시 그려도 옆으로 넘긴 위치는 그대로
+  $('#days').querySelectorAll('[data-date]').forEach(b => b.onclick = () => { if (state.date === b.dataset.date) return; state.date = b.dataset.date; changed(); });
   $('#dayPick').onclick = () => { const p = $('#datePick'); p.min = isoOf(TODAY); p.value = isoOf(state.date); try { p.showPicker(); } catch { p.click(); } };
   if (!wx) forecast(wxPoint()).then(m => m && drawDays(m));
 }
@@ -577,14 +580,21 @@ function drawControls() {
   $('#regionBtn').innerHTML = `${ic(state.near ? 'locate' : 'pin')}<span>${areaName()}</span>${ic('down')}`;
   $('#slotSeg').innerHTML = [['day', '낮', 'sun'], ['night', '저녁', 'moon']].map(([v, l, i]) =>
     `<button role="radio" aria-checked="${state.slot === v}" data-slot="${v}">${ic(i)}${l}</button>`).join('');
-  $('#slotSeg').querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { state.slot = b.dataset.slot; drawControls(); });
+  $('#slotSeg').querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { if (state.slot === b.dataset.slot) return; state.slot = b.dataset.slot; changed(); });
+  const keep = $('#filters').scrollLeft;
   $('#filters').innerHTML = MOODS.map(([v, l]) => `<button class="chip" data-mood="${v}" aria-pressed="${state.moods.has(v)}">${l}</button>`).join('') +
     `<span class="chip-sep"></span><button class="chip" id="fFree" aria-pressed="${state.free}">${ic('coins')}무료만</button>` +
     `<button class="chip" id="fIndoor" aria-pressed="${state.indoor}">${ic('umbrella')}실내만</button>`;
-  $('#filters').querySelectorAll('[data-mood]').forEach(b => b.onclick = () => { const m = b.dataset.mood; state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); drawControls(); });
-  $('#fFree').onclick = () => { state.free = !state.free; drawControls(); };
-  $('#fIndoor').onclick = () => { state.indoor = !state.indoor; drawControls(); };
+  $('#filters').scrollLeft = keep;
+  $('#filters').querySelectorAll('[data-mood]').forEach(b => b.onclick = () => { const m = b.dataset.mood; state.moods.has(m) ? state.moods.delete(m) : state.moods.add(m); changed(); });
+  $('#fFree').onclick = () => { state.free = !state.free; changed(); };
+  $('#fIndoor').onclick = () => { state.indoor = !state.indoor; changed(); };
   savePrefs(); drawBanner();
+}
+// 조건을 바꾸면 곧바로 그 조건의 첫 번째 코스로 바꾼다 (따로 '만들기' 버튼을 누르지 않아도 되게)
+function changed() {
+  state.seed = 0; drawControls();
+  if (ALL.length) makeCourse(true);
 }
 // 고른 날 비 소식이 있으면 실내만 보기를 권한다
 let bannerSeq = 0;
@@ -595,7 +605,7 @@ async function drawBanner() {
   if (!w || w.rain < 60 || state.indoor) { el.hidden = true; return; }
   el.hidden = false;
   el.innerHTML = `${ic('umbrella')}<span><b>${areaName()} 비 예보 ${w.rain}%</b> · ${w.lo}~${w.hi}°</span><button type="button" id="wxIndoor">실내 코스로</button>`;
-  $('#wxIndoor').onclick = () => { state.indoor = true; drawControls(); if (ALL.length) makeCourse(); };
+  $('#wxIndoor').onclick = () => { state.indoor = true; changed(); };
 }
 
 // 지역 시트: 왼쪽에서 시·도, 오른쪽에서 구·시·군을 여러 개 고를 수 있다 (안 고르면 시·도 전체)
@@ -634,7 +644,7 @@ function openRegions() {
     }
   };
   $('#rsApply').onclick = () => {
-    const done = () => { $('#regionSheet').close(); drawControls(); if (ALL.length) { state.seed = 0; makeCourse(); } };
+    const done = () => { $('#regionSheet').close(); changed(); };
     if (tmpArea === 'near') {
       if (!navigator.geolocation) return toast('이 브라우저에서는 위치를 쓸 수 없어요');
       $('#rsApply').textContent = '위치 확인 중';
@@ -665,12 +675,10 @@ async function load() {
   assignSubs();
   SPOTS = sp;
   $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
-  $('#go').disabled = false; $('#go').innerHTML = `${ic('refresh')}이 조건으로 코스 만들기`;
-  $('#dice').disabled = false;
   drawControls(); // 세부 지역 이름이 정리된 뒤 다시
   // 공유 링크로 들어왔으면 그 코스, 아니면 지금 조건으로 바로 하나 보여 준다
   const shared = readShare();
-  if (shared) { COURSE = shared; drawCourse(); drawPicks(); } else makeCourse();
+  if (shared) { COURSE = shared; COURSE.shared = true; drawCourse(); drawPicks(); drawNext(); } else makeCourse();
   drawSaved(); drawDday();
 }
 
@@ -849,7 +857,6 @@ function drawCourse() {
       <span class="num">${ic('coins')}2인 약 ${won(cost)}${costUnknown ? '+' : ''}</span>
     </div>
     <div class="toolbar" role="toolbar" aria-label="코스 도구">
-      <button id="again">${ic('shuffle')}다른 코스</button>
       <button id="editBtn" aria-pressed="${!!COURSE.editing}">${ic('edit')}${COURSE.editing ? '편집 완료' : '편집'}</button>
       <button id="share">${ic('share')}공유</button>
       <button id="save" aria-pressed="${saved}">${ic(saved ? 'bookmarked' : 'bookmark')}${saved ? '저장됨' : '저장'}</button>
@@ -875,7 +882,6 @@ function drawCourse() {
     COURSE.stops.push(asStop(type, list[0], list)); redraw();
   });
   $('#startAt').onchange = e => { COURSE.start = +e.target.value; redraw(); };
-  $('#again').onclick = () => { state.seed++; makeCourse(); };
   $('#editBtn').onclick = () => { COURSE.editing = !COURSE.editing; drawCourse(); };
   $('#share').onclick = share;
   $('#save').onclick = () => {
@@ -923,7 +929,8 @@ function drawPicks() {
     <div class="ph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
     <b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${!isEvergreen(it) && daysLeft(it, state.date) <= 7 ? ' · 곧 종료' : ''}</small></button>`).join('');
   $('#picks').querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
-    COURSE = buildCourse(BY_ID.get(b.dataset.pick)); writeShare(); drawCourse(); drawPicks();
+    PREV = COURSE; COURSE = buildCourse(BY_ID.get(b.dataset.pick)); writeShare(); drawCourse(); drawPicks(); drawNext();
+    toast('코스를 바꿨어요', ['이전 코스', undoCourse]);
     $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 }
@@ -941,7 +948,7 @@ function drawSaved() {
       <button class="iconbtn" data-del="${n}" aria-label="삭제">${ic('trash')}</button></li>`;
   }).join('');
   $('#saved').querySelectorAll('[data-open]').forEach(a => a.onclick = () => {
-    location.hash = list[+a.dataset.open].hash; COURSE = readShare(); drawCourse(); drawPicks();
+    location.hash = list[+a.dataset.open].hash; COURSE = readShare(); COURSE.shared = true; drawCourse(); drawPicks(); drawNext();
     $('#course').scrollIntoView({ behavior: 'smooth' });
   });
   $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
@@ -983,25 +990,50 @@ function drawDday() {
     <div class="txt"><b>${label}</b> · ${when.getMonth() + 1}월 ${when.getDate()}일 ${DOW[when.getDay()]}요일<br>${left ? `${left}일 남았어요` : '오늘이에요'}</div>
     <button class="btn primary" id="ddayGo">그날 코스</button><button class="btn text" id="ddayEdit">날짜 수정</button>`;
   $('#ddayGo').onclick = () => {
-    state.date = ymd(when); drawControls(); state.seed = 0; makeCourse();
+    state.date = ymd(when); changed();
     $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (left > 15) toast('날씨는 16일 안쪽만 보여요');
   };
   $('#ddayEdit').onclick = () => { store.set('date.since', ''); drawDday(); };
 }
 
-function makeCourse() {
+let CAND = 0, PREV = null;
+function makeCourse(fresh) {
   const list = candidates();
+  CAND = Math.min(list.length, 40); // 위쪽 40개 안에서 돈다
   if (!list.length) {
     COURSE = null; history.replaceState(null, '', location.pathname);
-    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 맞는 행사가 없어요</b>지역을 전국으로 넓히거나 분위기·무료·실내 조건을 빼 보세요.</div>`;
-    $('#picksWrap').hidden = true; return;
+    $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 맞는 행사가 없어요</b>지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.</div>`;
+    $('#picksWrap').hidden = true; drawNext(); return;
   }
   // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 행사
-  const main = list[state.seed % Math.min(list.length, 40)];
-  COURSE = buildCourse(main);
-  writeShare(); drawCourse(); drawPicks();
+  COURSE = buildCourse(list[state.seed % CAND]);
+  writeShare(); drawCourse(); drawPicks(); drawNext();
+  if (fresh) { const c = $('#course'); c.classList.remove('fresh'); void c.offsetWidth; c.classList.add('fresh'); }
 }
+// 아래 고정 버튼: 누르면 늘 다른 코스가 나온다. 몇 번째 후보인지 함께 보여 준다
+function drawNext() {
+  const b = $('#next');
+  if (!ALL.length) { b.disabled = true; b.textContent = '불러오는 중'; return; }
+  if (COURSE?.shared) { b.disabled = false; b.innerHTML = `${ic('refresh')}내 조건으로 코스 보기`; return; }
+  if (!COURSE || CAND <= 1) { b.disabled = true; b.textContent = CAND ? '이 조건에 맞는 행사는 이것 하나예요' : '조건을 바꿔 보세요'; return; }
+  b.disabled = false;
+  b.innerHTML = `${ic('shuffle')}다른 코스 보기<small>${state.seed % CAND + 1} / ${CAND}</small>`;
+}
+function undoCourse() {
+  if (!PREV) return;
+  [COURSE, PREV] = [PREV, COURSE];
+  writeShare(); drawCourse(); drawPicks(); drawNext();
+}
+$('#next').onclick = () => {
+  const head = $('#course').getBoundingClientRect().top;
+  if (COURSE?.shared) { state.seed = 0; makeCourse(true); }
+  else {
+    PREV = COURSE; state.seed++; makeCourse(true);
+    toast('다른 코스로 바꿨어요', ['이전 코스', () => { state.seed = Math.max(0, state.seed - 1); undoCourse(); }]);
+  }
+  if (head < 0) $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
 
 // ===== 공유 (주소 # 뒤에 코스를 담는다) =====
 function shareHash() {
@@ -1073,13 +1105,10 @@ async function drawMap(points) {
 }
 
 // ===== 연결 =====
-$('#dice').innerHTML = ic('dice');
 document.querySelectorAll('[data-close]').forEach(b => { if (!b.textContent.trim()) b.innerHTML = ic('x'); b.onclick = () => b.closest('dialog').close(); });
 document.querySelectorAll('dialog.sheet').forEach(d => d.addEventListener('click', e => { if (e.target === d) d.close(); })); // 바깥을 누르면 닫기
 $('#regionBtn').onclick = openRegions;
-$('#datePick').onchange = e => { if (e.target.value) { state.date = fromIso(e.target.value); drawControls(); } };
-$('#go').onclick = () => { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
-$('#dice').onclick = () => { state.seed = Math.floor(Math.random() * 40); makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+$('#datePick').onchange = e => { if (e.target.value) { state.date = fromIso(e.target.value); changed(); } };
 load().catch(e => { $('#course').innerHTML = `<div class="empty"><b>행사 정보를 불러오지 못했어요</b>잠시 뒤 새로고침해 주세요. (${esc(e.message)})</div>`; });
 
 // 홈 화면에 추가해 앱처럼 쓰도록 (오프라인이면 마지막 데이터로 열림)
