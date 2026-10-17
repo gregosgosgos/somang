@@ -172,6 +172,7 @@
   .cbody { min-width: 0; }
   .kind { font-size: 12px; font-weight: 700; display: flex; gap: 6px; align-items: center; }
   .kind em { font-style: normal; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kind .ends { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-weak); padding: 1px 6px; border-radius: 5px; white-space: nowrap; }
   .kind.event { color: var(--t-event); } .kind.cafe { color: var(--t-cafe); } .kind.food { color: var(--t-food); } .kind.bar { color: var(--t-bar); } .kind.walk { color: var(--t-walk); }
   .cname { font-size: 15.5px; font-weight: 700; line-height: 1.35; margin-top: 2px; word-break: keep-all; overflow-wrap: anywhere; }
   .cdesc { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -268,10 +269,10 @@
 
   /* 아래에서 올라오는 시트 */
   dialog.sheet {
-    border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 640px; max-height: 86vh;
+    border: 0; padding: 0; margin: auto auto 0; width: 100%; max-width: 640px; max-height: 90vh; overflow: hidden;
     background: var(--surface); color: var(--ink); border-radius: 20px 20px 0 0;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  #review { padding-bottom: env(safe-area-inset-bottom, 0px); overflow: auto; }
   dialog.sheet::backdrop { background: var(--scrim); }
   dialog.sheet[open] { animation: up .22s cubic-bezier(.2, .8, .2, 1); }
   @keyframes up { from { transform: translateY(24px); opacity: .6; } }
@@ -279,10 +280,22 @@
   .sheet header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 4px 20px; }
   .sheet h3 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.03em; }
   .sheet .body { padding: 8px 20px 20px; }
-  .regions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .regions button { height: 44px; border-radius: 12px; background: var(--fill); font-size: 14.5px; font-weight: 600; }
-  .regions button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-  .regions .wide { grid-column: span 2; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  /* 지역: 왼쪽 시·도, 오른쪽 구·시·군 */
+  .rs { display: grid; grid-template-columns: 96px 1fr; height: min(58vh, 520px); border-top: 1px solid var(--line); margin-top: 8px; }
+  .rs-l { overflow-y: auto; background: var(--fill); overscroll-behavior: contain; }
+  .rs-l button { display: flex; align-items: center; gap: 4px; width: 100%; text-align: left; padding: 12px 14px; font-size: 15px; font-weight: 600; color: var(--ink-2); }
+  .rs-l button svg.i { width: 15px; height: 15px; }
+  .rs-l button[aria-selected="true"] { background: var(--surface); color: var(--ink); }
+  .rs-r { overflow-y: auto; padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; align-content: start; overscroll-behavior: contain; }
+  .rs-r .chip { height: 40px; font-size: 14.5px; justify-content: space-between; padding: 0 12px; border-radius: 10px; }
+  .rs-r .chip.all { grid-column: 1 / -1; }
+  .rs-r p { grid-column: 1 / -1; }
+  .rs-r .chip small { color: var(--ink-3); font-weight: 500; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .rs-r .chip[aria-pressed="true"] small { color: inherit; opacity: .75; }
+  .rs-r p { margin: 0; width: 100%; font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+  .rs-r .hint { font-size: 12.5px; color: var(--ink-3); }
+  .rs-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+  .rs-foot .btn { width: 100%; height: 50px; font-size: 16px; }
   .starpick { display: flex; gap: 4px; margin: 8px 0 10px; }
   .starpick button { width: 40px; height: 40px; color: var(--line); display: grid; place-items: center; }
   .starpick button.on { color: var(--accent); }
@@ -357,7 +370,8 @@
 <dialog class="sheet" id="regionSheet" aria-labelledby="rsTitle">
   <div class="grab"></div>
   <header><h3 id="rsTitle">지역</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
-  <div class="body"><div class="regions" id="regions"></div></div>
+  <div class="rs"><div class="rs-l" id="rsL" role="tablist" aria-label="시·도"></div><div class="rs-r" id="rsR"></div></div>
+  <div class="rs-foot"><button class="btn primary" id="rsApply">적용</button></div>
 </dialog>
 
 <dialog class="sheet" id="review" aria-labelledby="rvTitle">
@@ -478,12 +492,12 @@ const prefs = store.get('date.prefs', {});
 const defaultDate = () => { const dow = today.getDay(); return dow >= 1 && dow <= 4 ? DAYS[6 - dow] : TODAY; };
 const state = {
   date: prefs.date && prefs.date >= TODAY ? prefs.date : defaultDate(),
-  areas: new Set((prefs.areas || [1]).slice(0, 1)), near: null,
+  areas: new Set((prefs.areas || [1]).slice(0, 1)), subs: new Set(prefs.subs || []), near: null,
   slot: prefs.slot || 'day', moods: new Set(prefs.moods || []),
   free: false, indoor: false, seed: 0,
 };
 let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null;
-const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], slot: state.slot, moods: [...state.moods] });
+const savePrefs = () => store.set('date.prefs', { date: state.date, areas: [...state.areas], subs: [...state.subs], slot: state.slot, moods: [...state.moods] });
 
 // ===== 날씨 (Open-Meteo, 지역마다 16일치를 한 번에) =====
 const WMO = c => c === 0 ? ['sun', '맑음'] : c <= 2 ? ['partly', '구름 조금'] : c === 3 ? ['cloud', '흐림'] : c <= 48 ? ['fog', '안개']
@@ -503,8 +517,46 @@ function forecast(p) {
   pr.then(m => { if (!m) fcCache.delete(k); }); // 실패는 기억하지 않고 다음에 다시
   return pr;
 }
-const wxPoint = () => state.near || (state.areas.size ? AREA_CENTER[[...state.areas][0]] : AREA_CENTER[1]);
-const areaName = () => state.near ? '내 위치' : state.areas.size ? AREA_NAMES[[...state.areas][0]] : '전국';
+const areaOf = () => state.areas.size ? [...state.areas][0] : null;
+const wxPoint = () => state.near || (state.subs.size && subGeo(areaOf(), [...state.subs][0])) || AREA_CENTER[areaOf() || 1];
+const areaName = () => {
+  if (state.near) return '내 위치';
+  const a = areaOf(); if (!a) return '전국';
+  const subs = [...state.subs];
+  return AREA_NAMES[a] + (subs.length ? ` ${subs[0]}${subs.length > 1 ? ` 외 ${subs.length - 1}` : ''}` : '');
+};
+
+// ===== 세부 지역 (구·시·군) =====
+// 주소에 '인천 연수구 …'처럼 적힌 곳은 그대로 쓰고, 주소가 없는 곳(공연장 이름만 있는 경우)은
+// 같은 시·도에서 위치가 가장 가까운 구·시·군에 붙인다 (구마다 주소가 있는 행사들의 평균 위치 기준)
+const SG_RE = /(?:^|\s)(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도)\S*\s+([가-힣]{1,5}?(?:시|군|구))(?=[\s,(]|$)/;
+const SIDO_SHORT = /^(서울|부산|대구|인천|광주|대전|울산|세종)(시)?$/;
+const SG_ALIAS = { '2|남구': '미추홀구' }; // 2018년 이름이 바뀐 곳
+let SUBS = {}; // 시·도 코드 → [{ name, geo }]
+function assignSubs() {
+  const acc = {};
+  for (const it of ALL) {
+    const m = (it.place || '').match(SG_RE);
+    if (!m || SIDO_SHORT.test(m[1])) continue;
+    // 특별·광역시는 구·군만 (지역이 잘못 붙은 '고양시' 같은 이름이 서울 밑에 나오지 않게), 옛 이름은 새 이름으로
+    if (it.area <= 7 && it.area !== 5 && !/[구군]$/.test(m[1])) continue;
+    const name = SG_ALIAS[it.area + '|' + m[1]] || m[1];
+    it._sg = name;
+    const c = acc[it.area + '|' + name] ||= { area: it.area, name, lat: 0, lng: 0, n: 0 };
+    c.lat += it.geo[0]; c.lng += it.geo[1]; c.n++;
+  }
+  SUBS = {};
+  for (const c of Object.values(acc)) (SUBS[c.area] ||= []).push({ name: c.name, geo: [c.lat / c.n, c.lng / c.n] });
+  for (const a in SUBS) SUBS[a].sort((x, y) => x.name.localeCompare(y.name, 'ko'));
+  for (const it of ALL) if (!it._sg && SUBS[it.area]) {
+    let best = null, bd = 15000;
+    for (const s of SUBS[it.area]) { const d = dist(it.geo, s.geo); if (d < bd) { bd = d; best = s.name; } }
+    if (best) it._sg = best;
+  }
+  // 지금은 없는 세부 지역이 저장돼 있으면 뺀다
+  const a = areaOf(); if (a) for (const s of [...state.subs]) if (!SUBS[a]?.some(x => x.name === s)) state.subs.delete(s);
+}
+const subGeo = (a, name) => SUBS[a]?.find(s => s.name === name)?.geo;
 
 // ===== 조건 그리기 =====
 function drawDays(wx) {
@@ -546,25 +598,58 @@ async function drawBanner() {
   $('#wxIndoor').onclick = () => { state.indoor = true; drawControls(); if (ALL.length) makeCourse(); };
 }
 
-// 지역 시트
+// 지역 시트: 왼쪽에서 시·도, 오른쪽에서 구·시·군을 여러 개 고를 수 있다 (안 고르면 시·도 전체)
+const openOn = d => it => it.start <= d && (it.end || it.start) >= d && it.kind !== 'fair' && it.src !== 'market5';
 function openRegions() {
-  const cur = state.near ? 'near' : state.areas.size ? String([...state.areas][0]) : 'all';
-  $('#regions').innerHTML = `<button class="wide" data-r="near" aria-pressed="${cur === 'near'}">${ic('locate')}내 위치 주변</button>
-    <button class="wide" data-r="all" aria-pressed="${cur === 'all'}">전국</button>` +
-    AREA_ORDER.map(c => `<button data-r="${c}" aria-pressed="${cur === String(c)}">${AREA_NAMES[c]}</button>`).join('');
-  $('#regions').querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
-    const r = b.dataset.r;
-    if (r === 'near') {
+  let tmpArea = state.near ? 'near' : areaOf() || 'all';
+  let tmpSubs = new Set(state.subs);
+  const isOpen = openOn(state.date);
+  const count = (area, subs) => ALL.reduce((n, it) => n + (isOpen(it) && (area === 'all' || it.area === area) && (!subs.size || subs.has(it._sg)) ? 1 : 0), 0);
+  const paint = () => {
+    $('#rsL').innerHTML = [['near', `${ic('locate')}내 위치`], ['all', '전국'], ...AREA_ORDER.map(c => [c, AREA_NAMES[c]])]
+      .map(([v, l]) => `<button role="tab" data-a="${v}" aria-selected="${String(tmpArea) === String(v)}">${l}</button>`).join('');
+    $('#rsL').querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+      const v = b.dataset.a; tmpArea = v === 'near' || v === 'all' ? v : +v; tmpSubs = new Set(); paint();
+    });
+    const r = $('#rsR'), foot = $('#rsApply');
+    if (tmpArea === 'near') {
+      r.innerHTML = '<p>지금 있는 곳에서 25km 안에서 열리는 행사로 코스를 짜요.</p><p class="hint">위치 권한을 물어보면 허용해 주세요.</p>';
+      foot.textContent = '내 위치로 보기';
+    } else if (tmpArea === 'all') {
+      r.innerHTML = '<p>전국에서 고른 날 열리는 행사로 코스를 짜요.</p>';
+      foot.textContent = `행사 ${count('all', new Set()).toLocaleString()}개 보기`;
+    } else {
+      const subs = SUBS[tmpArea] || [];
+      // 고른 날 행사가 없는 곳은 숨긴다 (이미 고른 곳은 남김)
+      r.innerHTML = `<button class="chip all" data-s="" aria-pressed="${!tmpSubs.size}">${AREA_NAMES[tmpArea]} 전체 <small>${count(tmpArea, new Set())}</small></button>` +
+        subs.map(s => [s, count(tmpArea, new Set([s.name]))]).filter(([s, n]) => n || tmpSubs.has(s.name))
+          .map(([s, n]) => `<button class="chip" data-s="${esc(s.name)}" aria-pressed="${tmpSubs.has(s.name)}">${esc(s.name)} <small>${n}</small></button>`).join('') +
+        (subs.length ? '<p class="hint" style="margin-top:4px">여러 곳을 함께 고를 수 있어요. 숫자는 고른 날 열리는 행사 수예요.</p>' : '');
+      r.querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+        const s = b.dataset.s;
+        if (!s) tmpSubs.clear(); else tmpSubs.has(s) ? tmpSubs.delete(s) : tmpSubs.add(s);
+        paint();
+      });
+      foot.textContent = `행사 ${count(tmpArea, tmpSubs).toLocaleString()}개 보기`;
+    }
+  };
+  $('#rsApply').onclick = () => {
+    const done = () => { $('#regionSheet').close(); drawControls(); if (ALL.length) { state.seed = 0; makeCourse(); } };
+    if (tmpArea === 'near') {
       if (!navigator.geolocation) return toast('이 브라우저에서는 위치를 쓸 수 없어요');
-      b.textContent = '위치 확인 중';
-      navigator.geolocation.getCurrentPosition(p => { state.near = [p.coords.latitude, p.coords.longitude]; state.areas.clear(); $('#regionSheet').close(); drawControls(); },
+      $('#rsApply').textContent = '위치 확인 중';
+      navigator.geolocation.getCurrentPosition(p => { state.near = [p.coords.latitude, p.coords.longitude]; state.areas.clear(); state.subs.clear(); done(); },
         () => { $('#regionSheet').close(); toast('위치 권한이 없어요. 지역을 골라 주세요'); }, { timeout: 10000, maximumAge: 600000 });
       return;
     }
-    state.near = null; state.areas = r === 'all' ? new Set() : new Set([+r]);
-    $('#regionSheet').close(); drawControls();
-  });
+    state.near = null;
+    state.areas = tmpArea === 'all' ? new Set() : new Set([tmpArea]);
+    state.subs = tmpArea === 'all' ? new Set() : tmpSubs;
+    done();
+  };
+  paint();
   $('#regionSheet').showModal();
+  $('#rsL [aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
 }
 
 // ===== 데이터 =====
@@ -577,10 +662,12 @@ async function load() {
   ]);
   ALL = (ev.items || []).filter(it => it.geo && (it.geoLv === 'src' || it.geoLv === 'place'));
   for (const it of ALL) BY_ID.set(it.id, it);
+  assignSubs();
   SPOTS = sp;
   $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
   $('#go').disabled = false; $('#go').innerHTML = `${ic('refresh')}이 조건으로 코스 만들기`;
   $('#dice').disabled = false;
+  drawControls(); // 세부 지역 이름이 정리된 뒤 다시
   // 공유 링크로 들어왔으면 그 코스, 아니면 지금 조건으로 바로 하나 보여 준다
   const shared = readShare();
   if (shared) { COURSE = shared; drawCourse(); drawPicks(); } else makeCourse();
@@ -612,6 +699,7 @@ function candidates() {
     const a = it.ai || {};
     if (a.stay === '하루 이상') continue;
     if (state.areas.size && !state.areas.has(it.area)) continue;
+    if (state.subs.size && !state.subs.has(it._sg)) continue;
     let km = 0;
     if (state.near) { km = dist(state.near, it.geo) / 1000; if (km > 25) continue; }
     if (state.free && a.cost !== '무료') continue;
@@ -623,6 +711,12 @@ function candidates() {
     if (state.moods.size && !(a.mood || []).some(m => state.moods.has(m))) s -= 2;
     if (it.famous) s += 1;
     if (it.img) s += 1;
+    // 늘 열려 있는 상시 상품(원데이클래스·체험 마을 등)은 어느 날이나 같은 곳만 나오지 않게 낮추고,
+    // 기간이 짧거나 곧 끝나는 전시·공연·축제를 올린다
+    const span = runDays(it), left = daysLeft(it, d);
+    if (isEvergreen(it)) s -= 5;
+    else { if (span <= 31) s += 2; if (left <= 7) s += 1; }
+    if (it.kind === 'edu') s -= 1;
     if (state.slot === 'night') { if ((a.time || '').includes('밤')) s += 2; if (it.kind === 'show') s += 1; }
     else { if (a.time === '밤') s -= 3; if ((a.time || '').includes('낮')) s += 1; }
     if (hasSpots(it.geo)) s += 2;
@@ -631,6 +725,11 @@ function candidates() {
   }
   return list.sort((a, b) => b.s - a.s || (a.it.id < b.it.id ? -1 : 1)).map(x => x.it);
 }
+
+const EVERGREEN_SRC = new Set(['frip', 'sssd', 'welchon', 'foresttrip', 'templestay', 'knps']);
+const runDays = it => (dateOf(it.end || it.start) - dateOf(it.start)) / 864e5;
+const daysLeft = (it, d) => Math.round((dateOf(it.end || it.start) - dateOf(d)) / 864e5);
+const isEvergreen = it => EVERGREEN_SRC.has(it.src) && runDays(it) > 90;
 
 // ===== 코스 만들기 =====
 function rankSpots(list, type, from) {
@@ -670,7 +769,8 @@ function info(ref) {
   if (ref.e) {
     const it = BY_ID.get(ref.e); if (!it) return null;
     const a = it.ai || {};
-    return { type: 'event', it, name: showTitle(it.title), geo: it.geo, img: it.img,
+    const left = COURSE ? daysLeft(it, COURSE.date) : 99;
+    return { type: 'event', it, name: showTitle(it.title), geo: it.geo, img: it.img, ends: !isEvergreen(it) && left <= 7 ? (left ? `${left}일 뒤 종료` : '오늘 종료') : '',
       desc: a.blurb || it.summary || '', sub: [KIND_LABEL[it.kind], a.cost && a.cost !== '미상' ? a.cost : ''].filter(Boolean).join(' · '),
       place: it.place, dur: it.kind === 'show' || it.kind === 'sport' ? 150 : DUR[a.stay] || 90,
       link: it.homepage || `https://search.naver.com/search.naver?query=${encodeURIComponent(it.title)}` };
@@ -717,7 +817,7 @@ function drawCourse() {
       <article class="card">
         <div class="thumb ${x.type}">${ic(icon)}${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
         <div class="cbody">
-          <div class="kind ${x.type}">${label}${x.sub ? `<em>${esc(x.sub)}</em>` : ''}</div>
+          <div class="kind ${x.type}">${label}${x.sub ? `<em>${esc(x.sub)}</em>` : ''}${x.ends ? `<span class="ends">${x.ends}</span>` : ''}</div>
           <div class="cname">${esc(x.name)}</div>
           ${x.desc ? `<div class="cdesc">${esc(x.desc)}</div>` : ''}
           ${x.place ? `<div class="cplace">${esc(x.place)}</div>` : ''}
@@ -791,7 +891,7 @@ function drawCourse() {
     const sm = +w.sunset.slice(0, 2) * 60 + +w.sunset.slice(3, 5);
     const during = times.find(([a, b]) => a <= sm && sm < b);
     const nm = during ? during[2].name : '';
-    el.insertAdjacentHTML('beforeend', `<span class="num">${ic(WMO(w.code)[0])}${WMO(w.code)[1]} ${w.lo}~${w.hi}° · 비 ${w.rain}%</span>` +
+    el.insertAdjacentHTML('beforeend', `<span class="num">${ic(WMO(w.code)[0])}${WMO(w.code)[1]} ${w.lo}~${w.hi}° · 강수 ${w.rain}%</span>` +
       `<span class="num">${ic('sunset')}일몰 ${w.sunset}${nm ? ` · ${esc(nm.length > 10 ? nm.slice(0, 10) + '…' : nm)}에서` : ''}</span>`);
   });
   drawMap(stops.map(s => s.x));
@@ -821,7 +921,7 @@ function drawPicks() {
   $('#picksWrap').hidden = !items.length;
   $('#picks').innerHTML = items.map(it => `<button class="pick" data-pick="${esc(it.id)}">
     <div class="ph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
-    <b>${esc(showTitle(it.title))}</b><small>${esc(AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}</small></button>`).join('');
+    <b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${!isEvergreen(it) && daysLeft(it, state.date) <= 7 ? ' · 곧 종료' : ''}</small></button>`).join('');
   $('#picks').querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
     COURSE = buildCourse(BY_ID.get(b.dataset.pick)); writeShare(); drawCourse(); drawPicks();
     $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
