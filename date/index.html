@@ -210,6 +210,50 @@
   /* 섹션 */
   .sec { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; margin: 36px 0 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .sec small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
+  /* 추천 코스 가로 목록 (코스 바로 위) */
+  .recs { margin-top: 18px; }
+  .recs-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .recs-head b { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; }
+  .recs-head small { font-size: 12.5px; color: var(--ink-3); }
+  .reclist { display: flex; gap: 8px; overflow-x: auto; margin-inline: -16px; padding: 2px 16px 4px; scroll-padding-inline: 16px; scroll-snap-type: x proximity; scrollbar-width: none; }
+  .reclist::-webkit-scrollbar { display: none; }
+  .rec {
+    flex: 0 0 236px; display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center; text-align: left; scroll-snap-align: start;
+    padding: 8px; border-radius: 14px; background: var(--surface); border: 1.5px solid var(--line); min-width: 0;
+  }
+  .rec[aria-current="true"] { border-color: var(--ink); }
+  .rec .rph { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; background: var(--fill); display: grid; place-items: center; position: relative; color: var(--ink-3); }
+  .rec .rph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .rec .rph.place { background: color-mix(in srgb, var(--t-walk) 10%, var(--surface)); color: var(--t-walk); }
+  .rec .rtx { min-width: 0; }
+  .rec .rtx b { display: block; font-size: 14px; font-weight: 700; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec .rtx small { display: block; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec .rtx .rk { font-size: 11.5px; font-weight: 700; color: var(--t-event); }
+  .rec .rtx .rk.place { color: var(--t-walk); }
+  /* 처음 온 사람을 위한 한 번짜리 안내 */
+  .tip { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: start; margin-top: 12px; padding: 12px 14px; border-radius: var(--r-card); background: var(--surface); border: 1px dashed var(--line); font-size: 13.5px; color: var(--ink-2); }
+  .tip ol { margin: 0; padding-left: 18px; }
+  .tip li + li { margin-top: 2px; }
+  .tip b { color: var(--ink); }
+  .tip button { grid-column: 2; justify-self: end; margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--accent); padding: 4px 0; }
+  /* 코스를 끝까지 본 자리에서 바로 정하기 */
+  .finish { margin-top: 18px; padding: 16px; border-radius: var(--r-card); background: var(--surface); border: 1px solid var(--line); }
+  .finish b { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
+  .finish p { margin: 2px 0 12px; font-size: 13px; color: var(--ink-2); }
+  .finish .row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+  .finish .btn { height: 46px; }
+  /* 장소 고르기 시트 */
+  .swlist { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; }
+  .swlist li { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+  .swlist li:last-child { border-bottom: 0; }
+  .swlist .pickrow { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 0; text-align: left; }
+  .swlist .pickrow .dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); flex: none; display: grid; place-items: center; }
+  .swlist .pickrow[aria-pressed="true"] .dot { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+  .swlist .pickrow .dot svg.i { width: 14px; height: 14px; stroke-width: 3; }
+  .swlist .pickrow b { display: block; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .swlist .pickrow small { display: block; font-size: 12.5px; color: var(--ink-3); }
+  .swlist .pickrow > span:last-child { min-width: 0; }
+  .swlist a { font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 8px 0 8px 8px; white-space: nowrap; }
   .hscroll { display: grid; grid-auto-flow: column; grid-auto-columns: 148px; gap: 10px; overflow-x: auto; margin-inline: -16px; padding: 0 16px 4px; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
   .hscroll::-webkit-scrollbar { display: none; }
   .pick { text-align: left; scroll-snap-align: start; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
@@ -344,12 +388,12 @@
     <div class="banner" id="wxBanner" hidden></div>
   </section>
 
-  <section class="course" id="course" aria-live="polite"></section>
-
-  <section id="picksWrap" hidden>
-    <h2 class="sec"><span id="picksTitle">같은 날 열리는 다른 행사</span> <small>누르면 코스가 바뀌어요</small></h2>
-    <div class="hscroll" id="picks"></div>
+  <section class="recs" id="recs" hidden aria-label="추천 코스">
+    <div class="recs-head"><b id="recsTitle">추천 코스</b><small>옆으로 넘겨 골라 보세요</small></div>
+    <div class="reclist" id="recList"></div>
   </section>
+
+  <section class="course" id="course" aria-live="polite"></section>
 
   <section>
     <h2 class="sec">보관함</h2>
@@ -375,6 +419,12 @@
   <header><h3 id="rsTitle">지역</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
   <div class="rs"><div class="rs-l" id="rsL" role="tablist" aria-label="시·도"></div><div class="rs-r" id="rsR"></div></div>
   <div class="rs-foot"><button class="btn primary" id="rsApply">적용</button></div>
+</dialog>
+
+<dialog class="sheet" id="swapSheet" aria-labelledby="swTitle">
+  <div class="grab"></div>
+  <header><h3 id="swTitle">다른 곳 고르기</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
+  <div class="body"><ul class="swlist" id="swList"></ul></div>
 </dialog>
 
 <dialog class="sheet" id="review" aria-labelledby="rvTitle">
@@ -430,6 +480,7 @@ const ICONS = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   heart: '<path d="M12 20s-7.4-4.5-9.1-9.3C1.7 7.3 3.9 4 7.3 4c2 0 3.5 1 4.7 2.7C13.2 5 14.7 4 16.7 4c3.4 0 5.6 3.3 4.4 6.7C19.4 15.5 12 20 12 20z"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5L18 7M9 7V4.5h6V7"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7"/>',
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
   dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.3" fill="currentColor" stroke="none"/>',
 };
@@ -685,7 +736,7 @@ async function load() {
   drawControls(); // 세부 지역 이름이 정리된 뒤 다시
   // 공유 링크로 들어왔으면 그 코스, 아니면 지금 조건으로 바로 하나 보여 준다
   const shared = readShare();
-  if (shared) { COURSE = shared; COURSE.shared = true; drawCourse(); drawPicks(); drawNext(); } else makeCourse();
+  if (shared) { COURSE = shared; COURSE.shared = true; CANDS = courseCands().slice(0, 40); CAND = CANDS.length; drawCourse(); drawRecs(); drawNext(); } else makeCourse();
   drawSaved(); drawDday();
 }
 
@@ -810,7 +861,7 @@ function rankSpots(list, type, from) {
     if (type === 'food') { const t = s.name + ' ' + s.sub; if (DATE_FOOD.test(t)) k -= 2; if (PLAIN_FOOD.test(t)) k += 3; }
     if (from) k += dist(from, s.geo) / 600;
     return { s, k };
-  }).sort((a, b) => a.k - b.k).map(x => x.s).slice(0, 8);
+  }).sort((a, b) => a.k - b.k).map(x => x.s).slice(0, 12);
 }
 const asStop = (type, ref, alts) => ({ type, ref, alts, i: 0 });
 const evRef = it => ({ e: it.id });
@@ -918,7 +969,7 @@ function drawCourse() {
           ${alts > 1 || COURSE.editing ? '' : `<a class="clink" href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세 정보' : '지도·리뷰'}${ic('right')}</a>`}
         </div>
         ${alts > 1 || COURSE.editing ? `<div class="cact">
-          ${alts > 1 ? `<button class="mini" data-swap="${s.idx}">${ic('refresh')}다른 곳 <small>${s.i + 1}/${alts}</small></button>` : ''}
+          ${alts > 1 ? `<button class="mini" data-swap="${s.idx}">${ic('refresh')}다른 곳 고르기 <small>${alts - 1}곳</small></button>` : ''}
           <a class="mini ghost" href="${esc(x.link)}" target="_blank" rel="noopener">${ic(x.type === 'event' ? 'info' : 'map')}${x.type === 'event' ? '상세 정보' : '지도·리뷰'}</a>
           ${COURSE.editing ? `${n ? `<button class="mini ghost push" data-up="${s.idx}" aria-label="한 칸 앞으로">${ic('up')}</button>` : '<span class="push"></span>'}
             ${stops.length > 1 ? `<button class="mini danger" data-del="${s.idx}">${ic('x')}빼기</button>` : ''}` : ''}
@@ -949,12 +1000,23 @@ function drawCourse() {
       <button id="save" aria-pressed="${saved}">${ic(saved ? 'bookmarked' : 'bookmark')}${saved ? '저장됨' : '저장'}</button>
       <button id="ics">${ic('calplus')}캘린더</button>
     </div>
+    ${store.get('date.tipDone', false) ? '' : `<div class="tip" id="tip">${ic('info')}<ol>
+      <li>위에서 <b>날짜·지역</b>을 바꾸면 코스가 바로 바뀌어요</li>
+      <li>마음에 안 드는 곳은 <b>다른 곳 고르기</b>로 바꿔요</li>
+      <li>다 정했으면 맨 아래에서 <b>보내기</b></li></ol><button id="tipOk">알겠어요</button></div>`}
     ${notes.map(n => `<div class="note">${ic('info')}<span>${n}</span></div>`).join('')}
     <ol class="timeline">${html}</ol>
     ${COURSE.editing ? `<div class="addrow"><span>추가</span>${['cafe', 'food', 'bar', 'walk'].map(k => `<button class="chip" data-add="${k}">${ic(TYPE[k][1])}${TYPE[k][0]}</button>`).join('')}</div>` : ''}
-    <div id="cmap" aria-label="코스 지도"></div>`;
+    <div id="cmap" aria-label="코스 지도"></div>
+    <div class="finish">
+      <b>이 코스로 정했다면</b>
+      <p>링크를 보내면 상대도 같은 코스를 그대로 볼 수 있어요.</p>
+      <div class="row"><button class="btn primary" id="share2">${ic('share')}보내기</button>
+        <button class="btn" id="save2">${ic(saved ? 'bookmarked' : 'bookmark')}${saved ? '저장됨' : '저장'}</button>
+        <button class="btn" id="ics2">${ic('calplus')}캘린더</button></div>
+    </div>`;
   const redraw = () => { drawCourse(); writeShare(); };
-  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const st = COURSE.stops[+b.dataset.swap]; st.i = (st.i + 1) % st.alts.length; redraw(); });
+  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => openSwap(+b.dataset.swap));
   box.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [COURSE.stops[i - 1], COURSE.stops[i]] = [COURSE.stops[i], COURSE.stops[i - 1]]; redraw(); } });
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const i = +b.dataset.del, removed = COURSE.stops.splice(i, 1)[0]; redraw();
@@ -977,7 +1039,10 @@ function drawCourse() {
     list.unshift({ title: COURSE.title || main?.x.name || stops[0].x.name, hash, at: Date.now(), date: COURSE.date, slot: COURSE.slot, n: stops.length });
     store.set('date.saved', list.slice(0, 50)); drawSaved(); drawCourse(); toast('보관함에 저장했어요');
   };
-  $('#ics').onclick = () => downloadIcs(times);
+  $('#ics').onclick = $('#ics2').onclick = () => downloadIcs(times);
+  $('#share2').onclick = share;
+  $('#save2').onclick = () => $('#save').click();
+  $('#tipOk')?.addEventListener('click', () => { store.set('date.tipDone', true); $('#tip').remove(); });
   // 첫 장소 기준 날씨와 일몰 (해 질 때 어디 있는지)
   forecast(stops[0].x.geo).then(m => {
     const el = $('#facts'), w = m?.[COURSE.date]; if (!el || !w) return;
@@ -1008,31 +1073,52 @@ function downloadIcs(times) {
   toast('캘린더 파일을 받았어요. 열면 일정에 들어가요');
 }
 
-// 아래 가로 목록: 지금 코스가 동네 코스면 다른 동네, 행사 코스면 같은 날 다른 행사
-function drawPicks() {
-  const placeMode = !!COURSE?.place || state.noEvent;
-  const curId = COURSE?.place || COURSE?.stops.find(s => s.type === 'event')?.ref.e;
-  $('#picksTitle').textContent = placeMode ? '다른 데이트 동네' : '같은 날 열리는 다른 행사';
-  if (placeMode) {
-    const items = scoredPlaces().sort((a, b) => b.s - a.s).map(x => x.p).filter(p => p.id !== curId).slice(0, 10);
-    $('#picksWrap').hidden = !items.length;
-    $('#picks').innerHTML = items.map(p => `<button class="pick" data-place="${esc(p.id)}">
-      <div class="ph place">${ic(p.named ? 'pin' : 'tree')}<span>${esc(p.name)}</span></div>
-      <b>${esc(p.named ? p.name : p.name + ' 근처')}</b><small>${esc(p.sg || AREA_NAMES[p.area] || '')}${p.moods.length ? ' · ' + esc(MOODS.find(m => m[0] === p.moods[0])?.[1] || '') : ''}</small></button>`).join('');
-  } else {
-    const items = candidates().filter(it => it.id !== curId).slice(0, 10);
-    $('#picksWrap').hidden = !items.length;
-    $('#picks').innerHTML = items.map(it => `<button class="pick" data-pick="${esc(it.id)}">
-      <div class="ph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
-      <b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')} · ${esc(KIND_LABEL[it.kind] || '')}${!isEvergreen(it) && daysLeft(it, state.date) <= 7 ? ' · 곧 종료' : ''}</small></button>`).join('');
-  }
-  $('#picks').querySelectorAll('[data-pick],[data-place]').forEach(b => b.onclick = () => {
-    PREV = COURSE;
-    COURSE = b.dataset.place ? buildPlaceCourse(PLACE_BY_ID.get(b.dataset.place)) : buildCourse(BY_ID.get(b.dataset.pick));
-    writeShare(); drawCourse(); drawPicks(); drawNext();
-    toast('코스를 바꿨어요', ['이전 코스', undoCourse]);
-    $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' });
+// 코스 바로 위 가로 목록: 이 조건의 추천 코스를 한눈에 보고 골라 바꾼다 (지금 보고 있는 코스는 테두리)
+function drawRecs() {
+  const wrap = $('#recs');
+  if (!CANDS.length) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const cur = COURSE?.shared ? -1 : state.seed % CAND;
+  $('#recsTitle').textContent = `추천 코스 ${CANDS.length}`;
+  $('#recList').innerHTML = CANDS.map((c, i) => {
+    if (c.kind === 'event') {
+      const it = c.it, left = daysLeft(it, state.date);
+      return `<button class="rec" data-i="${i}" aria-current="${i === cur}"><div class="rph">${ic('ticket')}${it.img ? `<img src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</div>
+        <div class="rtx"><small class="rk">${esc(KIND_LABEL[it.kind] || '행사')}${!isEvergreen(it) && left <= 7 ? ` · ${left ? left + '일 뒤 종료' : '오늘 종료'}` : ''}</small><b>${esc(showTitle(it.title))}</b><small>${esc(it._sg || AREA_NAMES[it.area] || '')}</small></div></button>`;
+    }
+    const p = c.p;
+    return `<button class="rec" data-i="${i}" aria-current="${i === cur}"><div class="rph place">${ic(p.named ? 'pin' : 'tree')}</div>
+      <div class="rtx"><small class="rk place">동네 코스</small><b>${esc(p.named ? p.name : p.name + ' 근처')}</b><small>${esc([p.sg || AREA_NAMES[p.area], MOODS.find(m => m[0] === p.moods[0])?.[1]].filter(Boolean).join(' · '))}</small></div></button>`;
+  }).join('');
+  $('#recList').querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i; if (i === cur) return;
+    const prevSeed = state.seed; PREV = COURSE; state.seed = i; makeCourse(true);
+    toast('코스를 바꿨어요', ['이전 코스', () => { state.seed = prevSeed; undoCourse(); }]);
   });
+  // 지금 코스 카드가 보이게 옆으로 맞춘다
+  const curEl = $('#recList [aria-current="true"]');
+  if (curEl) { const l = $('#recList'); l.scrollLeft = Math.max(0, curEl.offsetLeft - l.offsetLeft - 16 - (cur ? 40 : 0)); }
+}
+
+// 장소 고르기 시트: 같은 종류의 다른 곳을 거리·분류와 함께 보여 주고 골라 바꾼다
+function openSwap(idx) {
+  const st = COURSE.stops[idx]; if (!st) return;
+  const infos = COURSE.stops.map(s => info(s.alts[s.i] || s.ref));
+  const order = COURSE.stops.indexOf(st);
+  const from = infos[order - 1] || infos[order + 1]; // 바로 앞 장소 (첫 장소면 다음 장소) 기준 거리
+  $('#swTitle').textContent = `다른 ${TYPE[st.type][0]} 고르기`;
+  $('#swList').innerHTML = st.alts.map((ref, k) => {
+    const x = info(ref); if (!x) return '';
+    const leg = from ? legOf(from.geo, x.geo) : null;
+    const where = from ? `${from.name.length > 8 ? from.name.slice(0, 8) + '…' : from.name}에서 ${leg.text.split(' · ')[0]}` : '';
+    return `<li><button class="pickrow" data-k="${k}" aria-pressed="${k === st.i}"><span class="dot">${k === st.i ? ic('check') : ''}</span>
+      <span><b>${esc(x.name)}</b><small>${esc([x.sub, where].filter(Boolean).join(' · '))}</small></span></button>
+      <a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세' : '지도'}</a></li>`;
+  }).join('');
+  $('#swList').querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
+    st.i = +b.dataset.k; $('#swapSheet').close(); drawCourse(); writeShare();
+  });
+  $('#swapSheet').showModal();
 }
 
 // ===== 보관함: 저장한 코스와 다녀온 기록 =====
@@ -1048,7 +1134,7 @@ function drawSaved() {
       <button class="iconbtn" data-del="${n}" aria-label="삭제">${ic('trash')}</button></li>`;
   }).join('');
   $('#saved').querySelectorAll('[data-open]').forEach(a => a.onclick = () => {
-    location.hash = list[+a.dataset.open].hash; COURSE = readShare(); COURSE.shared = true; drawCourse(); drawPicks(); drawNext();
+    location.hash = list[+a.dataset.open].hash; COURSE = readShare(); COURSE.shared = true; drawCourse(); drawRecs(); drawNext();
     $('#course').scrollIntoView({ behavior: 'smooth' });
   });
   $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
@@ -1097,20 +1183,21 @@ function drawDday() {
   $('#ddayEdit').onclick = () => { store.set('date.since', ''); drawDday(); };
 }
 
-let CAND = 0, PREV = null;
+let CAND = 0, CANDS = [], PREV = null;
 function makeCourse(fresh) {
   const list = courseCands();
   CAND = Math.min(list.length, 40); // 위쪽 40개 안에서 돈다
+  CANDS = list.slice(0, CAND);
   if (!list.length) {
     COURSE = null; history.replaceState(null, '', location.pathname);
     $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 짤 수 있는 코스가 없어요</b>${state.noEvent ? '이 지역은 데이트 동네 정보를 아직 모으는 중이에요. 지역을 넓히거나 \'행사 없이\'를 꺼 보세요.' : '지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.'}</div>`;
-    $('#picksWrap').hidden = true; drawNext(); return;
+    $('#recs').hidden = true; drawNext(); return;
   }
   // 위쪽 후보부터 차례로, 다른 코스를 누를 때마다 다음 후보
   const c = list[state.seed % CAND];
   COURSE = c.kind === 'event' ? buildCourse(c.it) : buildPlaceCourse(c.p);
   if (c.kind === 'place' && !state.noEvent && !list.some(x => x.kind === 'event')) COURSE.noEventsHere = true;
-  writeShare(); drawCourse(); drawPicks(); drawNext();
+  writeShare(); drawCourse(); drawRecs(); drawNext();
   if (fresh) { const c = $('#course'); c.classList.remove('fresh'); void c.offsetWidth; c.classList.add('fresh'); }
 }
 // 아래 고정 버튼: 누르면 늘 다른 코스가 나온다. 몇 번째 후보인지 함께 보여 준다
@@ -1125,7 +1212,7 @@ function drawNext() {
 function undoCourse() {
   if (!PREV) return;
   [COURSE, PREV] = [PREV, COURSE];
-  writeShare(); drawCourse(); drawPicks(); drawNext();
+  writeShare(); drawCourse(); drawRecs(); drawNext();
 }
 $('#next').onclick = () => {
   const head = $('#course').getBoundingClientRect().top;
