@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>데이트 코스</title>
 <meta name="description" content="날짜와 지역을 고르면 그날 열리는 전시·공연·축제를 중심으로 근처 카페·식당·산책 코스를 짭니다">
-<meta name="theme-color" content="#F6F5F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#121011" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1C1819" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -18,7 +18,7 @@
 <style>
   /* 한 손으로 쓰는 앱 한 열: 날짜 띠 → 조건 → 코스 타임라인 → 지도 → 다른 행사 → 보관함, 아래 고정 버튼 */
   :root {
-    --bg: #F6F5F5;
+    --bg: #F0EEEE;
     --surface: #FFFFFF;
     --ink: #1B1718;
     --ink-2: #5F5759;
@@ -67,7 +67,7 @@
     font-size: 15px; line-height: 1.5; letter-spacing: -0.01em; -webkit-font-smoothing: antialiased;
     padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   }
-  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
   a { color: inherit; text-decoration: none; }
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
@@ -79,7 +79,7 @@
 
   /* 상단 바 */
   .appbar {
-    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent);
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--surface) 90%, transparent);
     backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
   }
   .appbar .wrap { display: flex; align-items: center; justify-content: space-between; height: 52px; }
@@ -142,7 +142,6 @@
   .banner button { margin-left: auto; font-weight: 700; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
 
   /* 코스 */
-  .course { margin-top: 22px; }
   .eyebrow { font-size: 13px; color: var(--ink-2); font-weight: 500; margin: 0; }
   .c-title { font-size: 22px; font-weight: 800; line-height: 1.3; letter-spacing: -0.03em; margin: 2px 0 10px; text-wrap: balance; word-break: keep-all; overflow-wrap: anywhere; }
   .facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--ink-2); }
@@ -226,7 +225,7 @@
   }
   .addbtn:hover { border-color: var(--accent); color: var(--accent); }
   .addbtn svg.i { width: 17px; height: 17px; }
-  #cmap { height: 260px; border-radius: var(--r-card); border: 1px solid var(--line); margin-top: 18px; background: var(--fill); overflow: hidden; }
+  #cmap { height: 280px; border-radius: var(--r-card); border: 1px solid var(--line); background: var(--fill); overflow: hidden; }
   .pin {
     width: 26px; height: 26px; border-radius: 50%; background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 700;
     display: grid; place-items: center; box-shadow: 0 0 0 3px var(--surface), 0 2px 6px rgba(0, 0, 0, .25);
@@ -234,13 +233,19 @@
   .pin.first { background: var(--accent); color: var(--accent-ink); }
 
   /* 섹션 */
-  .sec { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; margin: 36px 0 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  /* 섹션: 흰 블록을 회색 띠로 나눈다 */
+  .sect { background: var(--surface); padding: 22px 0 24px; scroll-margin-top: 52px; }
+  #course { scroll-margin-top: 72px; }
+  .sect + .sect { margin-top: 10px; }
+  .sect.top { padding: 2px 0 16px; }
+  .sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .sec-h small { font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+  .sec-h .sec { margin: 0; }
+  .sempty { margin: 0; padding: 16px; border-radius: 14px; background: var(--fill); font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+  .sempty b { color: var(--ink); }
+  .sec { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; margin: 0 0 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .sec small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; }
   /* 추천 코스 가로 목록 (코스 바로 위) */
-  .recs { margin-top: 18px; }
-  .recs-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
-  .recs-head b { font-size: 15px; font-weight: 800; letter-spacing: -0.02em; }
-  .recs-head small { font-size: 12.5px; color: var(--ink-3); }
   .reclist { display: flex; gap: 8px; overflow-x: auto; margin-inline: -16px; padding: 2px 16px 4px; scroll-padding-inline: 16px; scroll-snap-type: x proximity; scrollbar-width: none; }
   .reclist::-webkit-scrollbar { display: none; }
   .rec {
@@ -297,14 +302,12 @@
   .pick b { font-size: 14px; font-weight: 600; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .pick small { font-size: 12px; color: var(--ink-3); margin-top: -4px; }
 
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
-  .panel + .panel { margin-top: 10px; }
-  .dday { padding: 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .dday { padding: 16px; border-radius: 14px; background: var(--fill); display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .dday > svg.i { width: 24px; height: 24px; color: var(--accent); }
   .dday .big { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
   .dday .txt { flex: 1; min-width: 160px; font-size: 13.5px; color: var(--ink-2); }
   .dday .txt b { color: var(--ink); font-weight: 700; }
-  .dday input[type="date"] { height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--fill); color: var(--ink); font: inherit; padding: 0 10px; }
+  .dday input[type="date"] { height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit; padding: 0 10px; }
   .btn {
     height: 38px; padding: 0 14px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
     background: var(--fill); color: var(--ink);
@@ -312,7 +315,7 @@
   .btn.primary { background: var(--accent); color: var(--accent-ink); }
   .btn.text { background: transparent; color: var(--ink-3); padding: 0 6px; font-weight: 500; font-size: 13px; }
   .saved { list-style: none; margin: 0; padding: 0; }
-  .saved li { display: flex; align-items: center; gap: 8px; padding: 12px 10px 12px 14px; }
+  .saved li { display: flex; align-items: center; gap: 8px; padding: 12px 0; }
   .saved li + li { border-top: 1px solid var(--line); }
   .saved .s-main { flex: 1; min-width: 0; text-align: left; }
   .saved .s-main b { display: block; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -323,14 +326,14 @@
   .iconbtn:hover { background: var(--fill); color: var(--ink); }
   .empty { padding: 28px 16px; text-align: center; color: var(--ink-2); font-size: 14px; }
   .empty b { display: block; color: var(--ink); font-size: 16px; margin-bottom: 4px; }
-  footer { margin: 40px 0 8px; font-size: 12px; color: var(--ink-3); line-height: 1.65; }
+  footer { margin: 20px auto 8px; font-size: 12px; color: var(--ink-3); line-height: 1.65; }
   footer a { text-decoration: underline; text-underline-offset: 2px; }
 
   /* 아래 고정 버튼 */
   .cta {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
     padding: 12px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-    background: linear-gradient(to top, var(--bg) 72%, color-mix(in srgb, var(--bg) 0%, transparent));
+    background: linear-gradient(to top, var(--surface) 72%, color-mix(in srgb, var(--surface) 0%, transparent));
   }
   .cta .inner { max-width: 608px; margin: 0 auto; display: flex; gap: 8px; }
   .go {
@@ -452,32 +455,54 @@
   </div>
 </header>
 
-<main class="wrap">
-  <section aria-label="조건">
-    <div class="days" id="days" role="listbox" aria-label="날짜"></div>
-    <input type="date" id="datePick" class="sr-only" tabindex="-1" aria-hidden="true">
-    <div class="ctrl-row">
-      <button class="select" id="regionBtn" aria-haspopup="dialog"></button>
-      <button class="select tbtn" id="timeBtn" aria-haspopup="dialog"></button>
-      <button class="select fbtn" id="filterBtn" aria-haspopup="dialog"></button>
+<main>
+  <section class="sect top" aria-label="조건">
+    <div class="wrap">
+      <div class="days" id="days" role="listbox" aria-label="날짜"></div>
+      <input type="date" id="datePick" class="sr-only" tabindex="-1" aria-hidden="true">
+      <div class="ctrl-row">
+        <button class="select" id="regionBtn" aria-haspopup="dialog"></button>
+        <button class="select tbtn" id="timeBtn" aria-haspopup="dialog"></button>
+        <button class="select fbtn" id="filterBtn" aria-haspopup="dialog"></button>
+      </div>
+      <div class="banner" id="wxBanner" hidden></div>
     </div>
-    <div class="banner" id="wxBanner" hidden></div>
   </section>
 
-  <section class="recs" id="recs" hidden aria-label="추천 코스">
-    <div class="recs-head"><b id="recsTitle">추천 코스</b></div>
-    <div class="reclist" id="recList"></div>
+  <section class="sect" id="recs" hidden aria-labelledby="recsTitle">
+    <div class="wrap">
+      <div class="sec-h"><h2 class="sec" id="recsTitle">추천 코스</h2><small id="recsSub"></small></div>
+      <div class="reclist" id="recList"></div>
+    </div>
   </section>
 
-  <section class="course" id="course" aria-live="polite"></section>
-
-  <section>
-    <h2 class="sec">보관함</h2>
-    <div class="panel dday" id="dday"></div>
-    <div class="panel" id="savedBox" hidden><ul class="saved" id="saved"></ul></div>
+  <section class="sect" aria-label="코스">
+    <div class="wrap"><div class="course" id="course" aria-live="polite"></div></div>
   </section>
 
-  <footer>
+  <section class="sect" id="mapSect" hidden aria-labelledby="mapH">
+    <div class="wrap">
+      <div class="sec-h"><h2 class="sec" id="mapH">동선</h2><small id="mapSub"></small></div>
+      <div id="cmap" aria-label="코스 지도"></div>
+    </div>
+  </section>
+
+  <section class="sect" aria-labelledby="savedH">
+    <div class="wrap">
+      <div class="sec-h"><h2 class="sec" id="savedH">보관함</h2><small id="savedSub"></small></div>
+      <p class="sempty" id="savedEmpty">마음에 드는 코스를 제목 옆 <b>저장</b>으로 모아 두세요. 다녀온 뒤 별점과 메모도 남길 수 있어요.</p>
+      <ul class="saved" id="saved" hidden></ul>
+    </div>
+  </section>
+
+  <section class="sect" aria-labelledby="ddayH">
+    <div class="wrap">
+      <div class="sec-h"><h2 class="sec" id="ddayH">기념일</h2></div>
+      <div class="dday" id="dday"></div>
+    </div>
+  </section>
+
+  <footer class="wrap">
     행사 정보는 한국관광공사·한국문화정보원 공공데이터와 각 예매처, 주변 장소는 <span id="spotSrc">오픈스트리트맵</span>, 날씨는 Open-Meteo 자료입니다.
     운영 시간과 예약 여부는 방문 전에 확인하세요. 저장한 코스와 기록은 이 기기에만 남습니다.
     <a href="../festivals/">전시·축제 전체 보기</a>
@@ -1360,7 +1385,7 @@ const gapLabel = m => m < 60 ? `${m}분` : m % 60 ? `${Math.floor(m / 60)}시간
 const FROM = { edit: ['edit', '고친 코스'], shared: ['share', '받은 코스'], saved: ['bookmarked', '저장한 코스'] };
 function drawCourse() {
   const box = $('#course');
-  if (!COURSE) { box.innerHTML = ''; return; }
+  if (!COURSE) { box.innerHTML = ''; $('#mapSect').hidden = true; return; }
   const T = timesOf(COURSE);
   const t0 = COURSE.start ?? 780;
   let walkM = 0, html = '', cost = 0, costUnknown = false;
@@ -1432,7 +1457,9 @@ function drawCourse() {
     ${T.length && !store.get('date.tipDone4', false) ? `<div class="tip" id="tip">${ic('info')}<span><b>일정을 누르면</b> 바꾸기·시간·빼기, 사이의 <b>＋</b>로 넣기</span><button id="tipOk" aria-label="안내 닫기">${ic('x')}</button></div>` : ''}
     ${T.length ? `<ol class="timeline">${html}</ol>` : '<div class="empty"><b>일정이 비었어요</b>아래에서 첫 일정을 넣어 보세요.</div>'}
     <button class="addbtn" id="addEnd">${ic('plus')}${T.length ? '일정 추가' : '첫 일정 넣기'}</button>
-    ${T.length ? '<div id="cmap" aria-label="코스 지도"></div>' : ''}`;
+    `;
+  $('#mapSect').hidden = !T.length;
+  $('#mapSub').textContent = T.length ? `${T.length}곳 · ${(walkM / 1000).toFixed(1)}km` : '';
   box.querySelectorAll('[data-stop]').forEach(b => b.onclick = () => openStop(+b.dataset.stop));
   box.querySelectorAll('[data-ins]').forEach(b => b.onclick = () => openPicker({ insert: +b.dataset.ins }));
   // 마지막에 넣기: 코스에 없는 종류부터 보여 준다
@@ -1555,7 +1582,8 @@ function drawRecs() {
   const wrap = $('#recs');
   if (!CANDS.length && !MINE.length) { wrap.hidden = true; return; }
   wrap.hidden = false;
-  $('#recsTitle').textContent = MINE.length ? `내 코스 ${MINE.length} · 추천 ${CANDS.length}` : `추천 코스 ${CANDS.length}`;
+  $('#recsTitle').textContent = MINE.length ? '내 코스와 추천' : '추천 코스';
+  $('#recsSub').textContent = [MINE.length ? `내 코스 ${MINE.length}` : '', CANDS.length ? `추천 ${CANDS.length}` : ''].filter(Boolean).join(' · ');
   const curM = VIEW?.mine, curR = VIEW?.rec;
   const mine = MINE.map(m => {
     const c = m.course, [icn, lbl] = FROM[m.from] || FROM.edit;
@@ -1662,7 +1690,8 @@ function openPicker({ swap, insert, type }) {
 function drawSaved() {
   const list = store.get('date.saved', []);
   if (list.some(c => !c.id)) { list.forEach((c, k) => c.id ||= 's' + ((c.at || 0) + k).toString(36)); store.set('date.saved', list); }
-  $('#savedBox').hidden = !list.length;
+  $('#saved').hidden = !list.length; $('#savedEmpty').hidden = !!list.length;
+  $('#savedSub').textContent = list.length ? `${list.length}개` : '';
   $('#saved').innerHTML = list.map((c, n) => {
     const past = c.date && c.date < TODAY;
     const sub = c.stars ? `<span class="stars">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</span>${c.memo ? ' · ' + esc(c.memo) : ''}`
@@ -1764,7 +1793,7 @@ function afterShow(fresh) {
 }
 function showRec(i, { fresh } = {}) {
   if (!CANDS.length) {
-    COURSE = null; VIEW = null; history.replaceState(null, '', location.pathname);
+    COURSE = null; VIEW = null; history.replaceState(null, '', location.pathname); $('#mapSect').hidden = true;
     $('#course').innerHTML = `<div class="empty"><b>${dateLabel(state.date)}, ${areaName()}에서 짤 수 있는 코스가 없어요</b>지역을 넓히거나 분위기·무료·실내 조건을 빼 보세요.</div>`;
     drawRecs(); drawNext(); return;
   }
@@ -1866,39 +1895,39 @@ function loadLib() {
     const js = document.createElement('script'); js.src = MAPLIBRE + '.js'; js.onload = res; js.onerror = rej; document.head.appendChild(js);
   });
 }
+let MAP_PTS = [], mapReady = false;
 async function drawMap(points) {
-  const el = $('#cmap'); if (!el) return;
+  MAP_PTS = points;
+  const el = $('#cmap'); if (!el || !points.length) return;
   try { await loadLib(); } catch { el.innerHTML = '<div class="empty">지도를 불러오지 못했어요</div>'; return; }
-  if (MAP && MAP.getContainer() !== el) { MAP.remove(); MAP = null; }
-  const coords = points.map(p => [p.geo[1], p.geo[0]]);
-  const line = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
-  const fit = () => {
-    const b = new maplibregl.LngLatBounds(coords[0], coords[0]); coords.forEach(c => b.extend(c));
-    MAP.resize(); MAP.fitBounds(b, { padding: { top: 48, right: 48, bottom: 56, left: 48 }, maxZoom: 16, duration: 0 });
-  };
-  const paint = () => {
-    markers.forEach(m => m.remove()); markers = [];
-    points.forEach((p, n) => {
-      const d = document.createElement('div'); d.className = 'pin' + (n ? '' : ' first'); d.textContent = n + 1; d.title = p.name;
-      markers.push(new maplibregl.Marker({ element: d }).setLngLat([p.geo[1], p.geo[0]]).addTo(MAP));
-    });
-    if (MAP.getSource('route')) MAP.getSource('route').setData(line);
-    else {
-      MAP.addSource('route', { type: 'geojson', data: line });
-      MAP.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': cssVar('--ink'), 'line-width': 2.5, 'line-dasharray': [1, 2] } });
-    }
-    fit();
-  };
   if (!MAP) {
+    const c = points[0].geo;
     MAP = new maplibregl.Map({ container: el, style: `https://tiles.openfreemap.org/styles/${darkMode() ? 'dark' : 'positron'}`,
-      center: coords[0], zoom: 14, cooperativeGestures: true, dragRotate: false, attributionControl: { compact: true } });
+      center: [c[1], c[0]], zoom: 14, cooperativeGestures: true, dragRotate: false, attributionControl: { compact: true } });
     MAP.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     MAP.on('load', () => {
       for (const l of MAP.getStyle().layers) if (l.type === 'symbol' && l.layout && l.layout['text-field']) MAP.setLayoutProperty(l.id, 'text-field', ['coalesce', ['get', 'name:ko'], ['get', 'name']]);
-      paint();
+      mapReady = true; paintMap();
       el.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
     });
-  } else paint();
+  } else if (mapReady) paintMap();
+}
+function paintMap() {
+  const points = MAP_PTS; if (!MAP || !points.length) return;
+  const coords = points.map(p => [p.geo[1], p.geo[0]]);
+  const line = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+  markers.forEach(m => m.remove()); markers = [];
+  points.forEach((p, n) => {
+    const d = document.createElement('div'); d.className = 'pin' + (n ? '' : ' first'); d.textContent = n + 1; d.title = p.name;
+    markers.push(new maplibregl.Marker({ element: d }).setLngLat([p.geo[1], p.geo[0]]).addTo(MAP));
+  });
+  if (MAP.getSource('route')) MAP.getSource('route').setData(line);
+  else {
+    MAP.addSource('route', { type: 'geojson', data: line });
+    MAP.addLayer({ id: 'route', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': cssVar('--ink'), 'line-width': 2.5, 'line-dasharray': [1, 2] } });
+  }
+  const b = new maplibregl.LngLatBounds(coords[0], coords[0]); coords.forEach(c => b.extend(c));
+  MAP.resize(); MAP.fitBounds(b, { padding: { top: 48, right: 48, bottom: 56, left: 48 }, maxZoom: 16, duration: 0 });
 }
 
 // ===== 연결 =====
