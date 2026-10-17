@@ -1,5 +1,5 @@
 // 데이트 코스 앱 오프라인 지원: 화면 파일은 먼저 캐시에서, 행사·장소 데이터는 먼저 네트워크에서 (안 되면 마지막으로 받은 것)
-const CACHE = 'date-v3';
+const CACHE = 'date-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
