@@ -142,8 +142,54 @@
   footer { color: var(--sub); font-size: 12px; margin-top: 30px; line-height: 1.6; }
   .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 13px; z-index: 50; }
 
+  /* 테마 바로가기 */
+  .themes { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scrollbar-width: none; }
+  .themes::-webkit-scrollbar { display: none; }
+  .theme {
+    flex: 0 0 auto; border: 1px solid var(--line); background: var(--card); border-radius: 14px; padding: 8px 12px;
+    cursor: pointer; text-align: left; box-shadow: var(--shadow); min-width: 104px;
+  }
+  .theme b { display: block; font-size: 14px; }
+  .theme small { color: var(--sub); font-size: 11.5px; }
+  .theme:hover { border-color: var(--accent-line); }
+  .gorow { display: flex; gap: 8px; margin-top: 10px; }
+  .gorow .go { margin-top: 0; }
+  .dice { flex: 0 0 auto; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); border-radius: 12px; padding: 0 16px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .weather { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--sub); margin-top: 8px; }
+  .weather .w { background: var(--field); border-radius: 999px; padding: 3px 10px; color: var(--ink); }
+  .weather button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-size: 13px; text-decoration: underline; }
+  /* 코스 편집 */
+  .tools { display: flex; flex-direction: column; border-left: 1px solid var(--line); min-width: 48px; }
+  .tools button { flex: 1; border: 0; background: transparent; color: var(--sub); cursor: pointer; padding: 0 10px; font-size: 12px; min-height: 30px; }
+  .tools button + button { border-top: 1px solid var(--line); }
+  .tools button:hover { color: var(--accent); background: var(--accent-soft); }
+  .tools button.swap-b { font-size: 12px; line-height: 1.2; }
+  .tools button.swap-b { flex: 1.6; padding: 4px 6px; }
+  .tools button.swap-b span { display: block; font-size: 18px; font-weight: 700; line-height: 1.1; }
+  .scard.has-img { grid-template-columns: 92px 1fr auto; }
+  .summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+  .summary span { background: var(--field); border-radius: 999px; padding: 3px 10px; font-size: 12.5px; }
+  .starttime { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 2px 6px; font: inherit; font-size: 13px; }
+  .move a { margin-left: 6px; font-size: 12px; }
+  .addrow { display: flex; gap: 6px; flex-wrap: wrap; margin: 12px 0 0 58px; }
+  .addrow span { color: var(--sub); font-size: 12.5px; align-self: center; }
+  /* 기념일 · 기록 */
+  .dday { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: 14px; }
+  .dday b { color: var(--accent); font-size: 18px; }
+  .dday input { border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 13px; }
+  .saved .memo { display: block; color: var(--sub); font-size: 12.5px; }
+  .saved .stars { color: var(--accent); letter-spacing: 1px; }
+  dialog { border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--ink); padding: 18px; width: min(92vw, 380px); }
+  dialog::backdrop { background: rgba(0, 0, 0, .35); }
+  dialog h4 { margin: 0 0 10px; font-size: 16px; }
+  .starpick button { border: 0; background: none; font-size: 28px; cursor: pointer; color: var(--line); padding: 0 2px; }
+  .starpick button.on { color: var(--accent); }
+  dialog textarea { width: 100%; min-height: 80px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); color: var(--ink); font: inherit; padding: 8px; margin-top: 8px; }
+  dialog .row2 { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
   @media (max-width: 520px) {
     h1 { font-size: 23px; }
+    .addrow { margin-left: 48px; }
     .row { grid-template-columns: 1fr; gap: 4px; }
     .row > b { padding-top: 0; }
     .course-head { flex-direction: column; }
@@ -152,6 +198,7 @@
     .move { margin-left: 48px; }
     .scard.has-img { grid-template-columns: 76px 1fr auto; }
     .scard img { width: 76px; min-height: 76px; }
+    .tools button { padding: 0 8px; }
   }
 </style>
 </head>
@@ -165,13 +212,19 @@
     <a class="toplink" href="../festivals/">전체 행사 보기 →</a>
   </header>
 
+  <div class="themes" id="themes" aria-label="테마로 바로 짜기"></div>
+
   <section class="panel" aria-label="조건">
     <div class="row"><b>언제</b><div class="chips" id="when"></div></div>
     <div class="row"><b>어디서</b><div class="chips" id="where"></div></div>
     <div class="row"><b>시간대</b><div class="chips" id="slot"></div></div>
     <div class="row"><b>분위기</b><div class="chips" id="mood"></div></div>
     <div class="row"><b>예산·날씨</b><div class="chips" id="opts"></div></div>
-    <button class="go" id="go" disabled>행사 정보를 불러오는 중…</button>
+    <div class="weather" id="wx" hidden></div>
+    <div class="gorow">
+      <button class="go" id="go" disabled>행사 정보를 불러오는 중…</button>
+      <button class="dice" id="dice" disabled title="아무거나 골라 주기" aria-label="아무거나">🎲</button>
+    </div>
   </section>
 
   <section class="course" id="course" aria-live="polite"></section>
@@ -182,9 +235,19 @@
   </section>
 
   <section id="savedWrap" hidden>
-    <h3>저장한 코스</h3>
+    <h3>저장한 코스 · 다녀온 기록</h3>
     <ul class="saved" id="saved"></ul>
   </section>
+
+  <h3>우리 기념일</h3>
+  <div class="dday" id="dday"></div>
+
+  <dialog id="review">
+    <h4 id="rvTitle">다녀온 데이트 기록</h4>
+    <div class="starpick" id="rvStars"></div>
+    <textarea id="rvMemo" placeholder="어땠는지 한 줄 남겨 두세요 (이 기기에만 저장돼요)"></textarea>
+    <div class="row2"><button class="btn" id="rvCancel">닫기</button><button class="btn primary" id="rvSave">저장</button></div>
+  </dialog>
 
   <footer>
     행사는 <a href="../festivals/">전시·축제 모아보기</a>와 같은 공공데이터·예매처 정보이고, 주변 장소는 <span id="spotSrc">카카오 로컬 / 오픈스트리트맵</span> 자료입니다.
@@ -205,6 +268,41 @@ const CHAIN = /스타벅스|이디야|투썸|메가(MGC)?커피|메가커피|컴
 const DATE_FOOD = /이탈리|파스타|양식|스테이크|비스트로|다이닝|와인|일식|오마카세|스시|초밥|브런치|레스토랑|프렌치|프랑스|피자|타파스|트라토리아|오스테리아|퓨전|태국|베트남|멕시칸|라멘|덮밥|이자카야|화덕/;
 const PLAIN_FOOD = /국밥|해장|분식|기사식당|순대|감자탕|뼈|설렁탕|백반|구내식당|중국집|짜장|치킨|족발|보쌈|곱창|김치찌개/;
 const DUR = { '1시간 이내': 60, '2~3시간': 120, '반나절': 180, '하루 이상': 240 };
+// 테마 바로가기: 누르면 조건을 맞추고 바로 코스를 짠다
+const THEMES = [
+  { icon: '💕', name: '첫 데이트', desc: '대화하기 좋은 전시·카페', set: { slot: 'day', moods: ['감성·예술', '힐링·여유'], free: false, indoor: false } },
+  { icon: '🌧', name: '비 오는 날', desc: '실내로만', set: { moods: [], indoor: true } },
+  { icon: '🌃', name: '야경·저녁', desc: '저녁 먹고 공연·한잔', set: { slot: 'night', moods: ['로맨틱'], indoor: false } },
+  { icon: '💸', name: '가성비', desc: '무료 행사 위주', set: { free: true, moods: [] } },
+  { icon: '🎢', name: '신나게', desc: '축제·공연·스포츠', set: { moods: ['활기찬·신나는'], indoor: false } },
+  { icon: '🔥', name: '요즘 핫플', desc: '팝업·트렌디', set: { moods: ['트렌디·핫플'] } },
+  { icon: '🍂', name: '고즈넉하게', desc: '전통·산책', set: { slot: 'day', moods: ['전통·고즈넉', '힐링·여유'], indoor: false } },
+];
+// 2인 기준 대략적인 비용 (원). 행사는 AI 가 매긴 1인 요금 구간의 가운데 값
+const COST = { cafe: 14000, food: 60000, bar: 50000, walk: 0 };
+const EV_COST = { '무료': 0, '1만원 이하': 8000, '1~3만원': 20000, '3만원 이상': 50000 };
+// 지역 날씨를 볼 대표 좌표 (시청·도청 근처)
+const AREA_CENTER = { 1: [37.5665, 126.978], 2: [37.4563, 126.7052], 3: [36.3504, 127.3845], 4: [35.8714, 128.6014], 5: [35.1595, 126.8526],
+  6: [35.1796, 129.0756], 7: [35.5384, 129.3114], 8: [36.48, 127.289], 31: [37.2636, 127.0286], 32: [37.8813, 127.7298], 33: [36.6424, 127.489],
+  34: [36.6588, 126.6728], 35: [36.019, 129.3435], 36: [35.2279, 128.6811], 37: [35.8242, 127.148], 38: [34.8161, 126.4629], 39: [33.4996, 126.5312] };
+const WMO = c => c === 0 ? ['☀️', '맑음'] : c <= 2 ? ['🌤', '구름 조금'] : c === 3 ? ['☁️', '흐림'] : c <= 48 ? ['🌫', '안개']
+  : c <= 57 ? ['🌦', '이슬비'] : c <= 67 ? ['🌧', '비'] : c <= 77 ? ['🌨', '눈'] : c <= 82 ? ['🌧', '소나기'] : c <= 86 ? ['🌨', '눈'] : ['⛈', '뇌우'];
+const wxCache = new Map();
+async function weather(p, date) {
+  const k = `${p[0].toFixed(1)},${p[1].toFixed(1)},${date}`;
+  if (wxCache.has(k)) return wxCache.get(k);
+  const d = isoOf(date);
+  const pr = fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0]}&longitude=${p[1]}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset&timezone=Asia%2FSeoul&start_date=${d}&end_date=${d}`)
+    .then(r => r.ok ? r.json() : null).then(j => {
+      const x = j?.daily; if (!x?.time?.length) return null;
+      return { code: x.weather_code[0], hi: Math.round(x.temperature_2m_max[0]), lo: Math.round(x.temperature_2m_min[0]), rain: x.precipitation_probability_max[0] ?? 0, sunset: (x.sunset[0] || '').slice(11, 16) };
+    }).catch(() => null); // 16일 넘게 남은 날짜나 연결 실패는 조용히 넘긴다
+  wxCache.set(k, pr);
+  pr.then(w => { if (!w) wxCache.delete(k); }); // 실패는 기억하지 않고 다음에 다시
+  return pr;
+}
+const wxText = w => { const [i, t] = WMO(w.code); return `${i} ${t} · ${w.lo}~${w.hi}° · 비 ${w.rain}%`; };
+const won = n => n >= 10000 ? `${Math.round(n / 1000) / 10}만원` : `${n.toLocaleString()}원`;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -236,6 +334,7 @@ const state = {
   slot: saved.slot || 'day', moods: new Set(saved.moods || []),
   free: false, indoor: false, seed: 0,
 };
+const wxPoint = () => state.near || (state.areas.size === 1 ? AREA_CENTER[[...state.areas][0]] : AREA_CENTER[1]);
 let ALL = [], BY_ID = new Map(), SPOTS = { cells: {} }, COURSE = null;
 
 // ===== 조건 칩 =====
@@ -274,11 +373,36 @@ function drawChips() {
   opts.appendChild(chip('💸 무료 행사만', state.free, () => { state.free = !state.free; drawChips(); }));
   opts.appendChild(chip('☔ 실내만', state.indoor, () => { state.indoor = !state.indoor; drawChips(); }));
   store.set('date.prefs', { date: state.date, areas: [...state.areas], slot: state.slot, moods: [...state.moods] });
+  drawWxHint();
+}
+// 고른 날짜·지역의 날씨를 미리 보여 주고, 비가 오면 실내만 켜기를 권한다
+let wxSeq = 0;
+async function drawWxHint() {
+  const seq = ++wxSeq, el = $('#wx');
+  const w = await weather(wxPoint(), state.date);
+  if (seq !== wxSeq) return;
+  if (!w) { el.hidden = true; return; }
+  const where = state.near ? '내 근처' : state.areas.size === 1 ? AREA_NAMES[[...state.areas][0]] : '서울';
+  el.hidden = false;
+  el.innerHTML = `<span>${where} 날씨</span><span class="w">${wxText(w)}</span><span>🌇 일몰 ${w.sunset}</span>` +
+    (w.rain >= 60 && !state.indoor ? '<button type="button" id="wxIndoor">비 소식이 있어요 · 실내만 보기</button>' : '');
+  $('#wxIndoor')?.addEventListener('click', () => { state.indoor = true; drawChips(); });
+}
+function drawThemes() {
+  $('#themes').innerHTML = THEMES.map((t, i) => `<button class="theme" data-theme="${i}"><b>${t.icon} ${t.name}</b><small>${t.desc}</small></button>`).join('');
+  $('#themes').querySelectorAll('[data-theme]').forEach(b => b.onclick = () => {
+    const s = THEMES[+b.dataset.theme].set;
+    if (s.slot) state.slot = s.slot;
+    if (s.moods) state.moods = new Set(s.moods);
+    if ('free' in s) state.free = s.free;
+    if ('indoor' in s) state.indoor = s.indoor;
+    drawChips(); if (ALL.length) { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  });
 }
 
 // ===== 데이터 =====
 async function load() {
-  drawChips();
+  drawThemes(); drawDday(); drawChips();
   $('#course').innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
   const [ev, sp] = await Promise.all([
     fetch('../festivals/data/events.json').then(r => r.json()),
@@ -289,6 +413,7 @@ async function load() {
   SPOTS = sp;
   $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
   $('#go').disabled = false; $('#go').textContent = '코스 짜기';
+  $('#dice').disabled = false;
   // 공유 링크로 들어왔으면 그 코스를 그대로 보여 준다
   const shared = readShare();
   if (shared) { COURSE = shared; drawCourse(); drawPicks(); }
@@ -371,7 +496,7 @@ function buildCourse(main) {
     stops.push(asStop('event', evRef(main), [evRef(main)]));
     add(bar.length ? 'bar' : 'cafe', (bar.length ? bar : cafe).map(spRef));
   }
-  return { v: 1, date: state.date, slot: state.slot, stops, noSpots: !near.length };
+  return { v: 1, date: state.date, slot: state.slot, start: state.slot === 'day' ? 13 * 60 : 17 * 60 + 30, stops, noSpots: !near.length };
 }
 
 // 정류장 정보 풀기
@@ -400,18 +525,24 @@ function drawCourse() {
   const box = $('#course');
   if (!COURSE) { box.innerHTML = ''; return; }
   const stops = COURSE.stops.map((s, idx) => ({ ...s, idx, x: info(s.alts[s.i] || s.ref) })).filter(s => s.x);
-  if (!stops.length) { box.innerHTML = '<div class="empty">이 행사는 더 이상 정보가 없어요. 다시 짜 주세요.</div>'; return; }
-  let t = COURSE.slot === 'day' ? 13 * 60 : 17 * 60 + 30, walkM = 0, html = '';
+  if (!stops.length) { box.innerHTML = '<div class="empty">코스가 비었어요. 다시 짜 주세요.</div>'; return; }
+  const t0 = COURSE.start ?? (COURSE.slot === 'day' ? 780 : 1050);
+  let t = t0, walkM = 0, html = '', cost = 0, costUnknown = false;
+  const times = [];
   stops.forEach((s, n) => {
     if (n) {
-      const [txt, mins] = moveText(stops[n - 1].x.geo, s.x.geo);
-      walkM += dist(stops[n - 1].x.geo, s.x.geo);
+      const a = stops[n - 1].x, [txt, mins] = moveText(a.geo, s.x.geo);
+      walkM += dist(a.geo, s.x.geo);
       t += mins; t = Math.ceil(t / 10) * 10;
       // 낮 코스의 식사는 저녁 시간에 맞춘다
-      if (COURSE.slot === 'day' && s.x.type === 'food') t = Math.max(t, 17 * 60 + 30);
-      html += `<li class="move">${txt}</li>`;
+      if (COURSE.slot === 'day' && s.x.type === 'food' && t0 < 17 * 60) t = Math.max(t, 17 * 60 + 30);
+      const route = `https://map.kakao.com/link/from/${encodeURIComponent(a.name)},${a.geo[0]},${a.geo[1]}/to/${encodeURIComponent(s.x.name)},${s.x.geo[0]},${s.x.geo[1]}`;
+      html += `<li class="move">${txt}<a href="${route}" target="_blank" rel="noopener">길찾기</a></li>`;
     }
     const x = s.x, alts = s.alts.length;
+    if (x.type === 'event') { const c = EV_COST[x.it.ai?.cost]; if (c == null) costUnknown = true; else cost += c * 2; }
+    else cost += COST[x.type] || 0;
+    times.push([t, t + x.dur, x]);
     html += `<li class="stop"><div class="time">${hhmm(t)}</div>
       <div class="scard ${x.img ? 'has-img' : ''}">
         ${x.img ? `<img src="${esc(x.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-img');this.remove()">` : ''}
@@ -422,38 +553,86 @@ function drawCourse() {
           <div class="links"><a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '자세히' : '지도·리뷰'}</a>
             ${x.place ? `<span style="color:var(--sub)">📍 ${esc(x.place)}</span>` : ''}</div>
         </div>
-        ${alts > 1 ? `<button class="swap" data-swap="${s.idx}" title="다른 곳으로"><span>↻</span>바꾸기<br>${s.i + 1}/${alts}</button>` : '<span></span>'}
+        <div class="tools">
+          ${alts > 1 ? `<button class="swap-b" data-swap="${s.idx}" title="다른 곳으로"><span>↻</span>${s.i + 1}/${alts}</button>` : ''}
+          ${n ? `<button data-up="${s.idx}" title="앞으로" aria-label="앞으로">▲</button>` : ''}
+          ${stops.length > 1 ? `<button data-del="${s.idx}" title="빼기" aria-label="빼기">✕</button>` : ''}
+        </div>
       </div></li>`;
     t += x.dur;
   });
   const main = stops.find(s => s.type === 'event');
+  const hours = Math.round((t - t0) / 60 * 2) / 2;
   box.innerHTML = `
     <div class="course-head">
       <div><h2>${dateLabel(COURSE.date)} ${COURSE.slot === 'day' ? '낮' : '저녁'} 코스</h2>
-        <div class="meta">${stops.length}곳 · 약 ${Math.round((t - (COURSE.slot === 'day' ? 780 : 1050)) / 60 * 2) / 2}시간 · 이동 ${(walkM / 1000).toFixed(1)}km</div></div>
+        <div class="meta">${stops.length}곳 · 약 ${hours}시간 · 이동 ${(walkM / 1000).toFixed(1)}km ·
+          <label>시작 <input class="starttime" type="time" id="startAt" value="${hhmm(t0)}" step="600"></label></div></div>
       <div class="actions">
         <button class="btn primary" id="again">🔀 다른 코스</button>
         <button class="btn" id="share">🔗 공유</button>
         <button class="btn" id="save">☆ 저장</button>
+        <button class="btn" id="ics">📅 캘린더</button>
       </div>
     </div>
+    <div class="summary">
+      <span>💰 2인 예상 ${won(cost)}${costUnknown ? '+ (행사 요금 미상)' : ''}</span>
+      <span id="cwx">날씨 확인 중…</span>
+    </div>
     ${COURSE.noSpots ? '<div class="note">이 주변 카페·식당 정보는 아직 모으는 중이에요. 행사 위주로 보여 드려요.</div>' : ''}
-    ${main && main.x.it.kind === 'show' ? '<div class="note">공연 시작 시간은 예매처에서 확인하고 앞뒤 일정을 맞춰 주세요.</div>' : ''}
+    ${main && main.x.it.kind === 'show' ? '<div class="note">공연 시작 시간은 예매처에서 확인하고 시작 시간을 맞춰 주세요.</div>' : ''}
     ${main && COURSE.slot === 'night' && ['expo', 'popup'].includes(main.x.it.kind) ? '<div class="note">전시·팝업은 저녁 일찍 닫는 곳이 많아요. 마감 시간을 확인해 주세요.</div>' : ''}
     <ol class="timeline">${html}</ol>
+    <div class="addrow" id="addrow"><span>＋ 넣기</span>
+      ${['cafe', 'food', 'bar', 'walk'].map(k => `<button class="chip" data-add="${k}">${TYPE_LABEL[k]}</button>`).join('')}</div>
     <div id="cmap" aria-label="코스 지도"></div>`;
-  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => {
-    const st = COURSE.stops[+b.dataset.swap]; st.i = (st.i + 1) % st.alts.length; drawCourse(); writeShare();
+  const redraw = () => { drawCourse(); writeShare(); };
+  box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const st = COURSE.stops[+b.dataset.swap]; st.i = (st.i + 1) % st.alts.length; redraw(); });
+  box.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const i = +b.dataset.up; if (i > 0) { [COURSE.stops[i - 1], COURSE.stops[i]] = [COURSE.stops[i], COURSE.stops[i - 1]]; redraw(); } });
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { COURSE.stops.splice(+b.dataset.del, 1); redraw(); });
+  box.querySelectorAll('[data-add]').forEach(b => b.onclick = () => {
+    // 마지막 장소 근처에서 같은 종류를 찾아 끝에 붙인다 (이미 코스에 있는 곳은 빼고)
+    const last = stops[stops.length - 1].x, type = b.dataset.add;
+    const used = new Set(stops.map(s => s.x.name));
+    const list = rankSpots(spotsNear(last.geo, 1500).filter(s => !used.has(s.name)), type, last.geo).map(spRef);
+    if (!list.length) return toast(`근처에 ${TYPE_LABEL[type]} 정보가 없어요`);
+    COURSE.stops.push(asStop(type, list[0], list)); redraw();
   });
+  $('#startAt').onchange = e => { const [hh, mm] = e.target.value.split(':').map(Number); if (!isNaN(hh)) { COURSE.start = hh * 60 + (mm || 0); redraw(); } };
   $('#again').onclick = () => { state.seed++; makeCourse(); };
   $('#share').onclick = share;
   $('#save').onclick = () => {
     const list = store.get('date.saved', []);
-    const title = `${dateLabel(COURSE.date)} · ${stops.find(s => s.type === 'event')?.x.name || stops[0].x.name}`;
-    list.unshift({ title, hash: shareHash(), at: Date.now() }); store.set('date.saved', list.slice(0, 30));
+    const title = `${dateLabel(COURSE.date)} · ${main?.x.name || stops[0].x.name}`;
+    list.unshift({ title, hash: shareHash(), at: Date.now(), date: COURSE.date }); store.set('date.saved', list.slice(0, 50));
     drawSaved(); toast('저장했어요');
   };
+  $('#ics').onclick = () => downloadIcs(times);
+  // 코스 첫 장소 기준 날씨와 일몰
+  weather(stops[0].x.geo, COURSE.date).then(w => {
+    const el = $('#cwx'); if (!el) return;
+    if (!w) { el.textContent = '🌤 날씨는 16일 이내만 볼 수 있어요'; return; }
+    const sunsetM = +w.sunset.slice(0, 2) * 60 + +w.sunset.slice(3, 5);
+    const during = times.find(([a, b]) => a <= sunsetM && sunsetM < b);
+    el.textContent = `${wxText(w)} · 🌇 일몰 ${w.sunset}${during ? ` (${during[2].name.slice(0, 12)}에 있을 때)` : ''}`;
+  });
   drawMap(stops.map(s => s.x));
+}
+
+// 캘린더 파일(.ics): 장소마다 일정 하나씩
+function downloadIcs(times) {
+  const d = COURSE.date, pad = n => String(n).padStart(2, '0');
+  const at = m => { const day = new Date(isoOf(d) + 'T00:00'); day.setMinutes(m); return `${day.getFullYear()}${pad(day.getMonth() + 1)}${pad(day.getDate())}T${pad(day.getHours())}${pad(day.getMinutes())}00`; };
+  const escI = s => String(s).replace(/[\;,]/g, c => '\\' + c).replace(/\n/g, '\\n');
+  const ev = times.map(([a, b, x], n) => [
+    'BEGIN:VEVENT', `UID:${d}-${n}-${Date.now()}@somang-date`, `DTSTAMP:${at(0)}`,
+    `DTSTART;TZID=Asia/Seoul:${at(a)}`, `DTEND;TZID=Asia/Seoul:${at(b)}`,
+    `SUMMARY:${escI(`${TYPE_LABEL[x.type]} · ${x.name}`)}`, `LOCATION:${escI(x.place || x.name)}`, `GEO:${x.geo[0]};${x.geo[1]}`,
+    `DESCRIPTION:${escI(x.link)}`, 'END:VEVENT'].join('\r\n'));
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//somang//date//KO', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+  a.download = `date-course-${d}.ics`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
 function drawPicks() {
@@ -473,13 +652,54 @@ function drawPicks() {
 function drawSaved() {
   const list = store.get('date.saved', []);
   $('#savedWrap').hidden = !list.length;
-  $('#saved').innerHTML = list.map((c, n) => `<li><a href="#${esc(c.hash)}" data-open="${n}">${esc(c.title)}</a>
-    <button class="btn" data-del="${n}" aria-label="삭제">삭제</button></li>`).join('');
+  const todayY = ymd(today);
+  $('#saved').innerHTML = list.map((c, n) => {
+    const past = c.date && c.date < todayY;
+    return `<li><div><a href="#${esc(c.hash)}" data-open="${n}">${esc(c.title)}</a>
+      ${c.stars ? `<span class="stars">${'★'.repeat(c.stars)}${'☆'.repeat(5 - c.stars)}</span>` : ''}
+      ${c.memo ? `<span class="memo">${esc(c.memo)}</span>` : ''}</div>
+      <div style="display:flex;gap:6px"><button class="btn" data-rv="${n}">${c.stars ? '기록 고치기' : past ? '✍️ 다녀왔어요' : '✍️ 기록'}</button>
+      <button class="btn" data-del="${n}" aria-label="삭제">삭제</button></div></li>`;
+  }).join('');
   $('#saved').querySelectorAll('[data-open]').forEach(a => a.onclick = e => {
     e.preventDefault(); location.hash = list[+a.dataset.open].hash; COURSE = readShare(); drawCourse(); drawPicks();
     $('#course').scrollIntoView({ behavior: 'smooth' });
   });
-  $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { list.splice(+b.dataset.del, 1); store.set('date.saved', list); drawSaved(); });
+  $('#saved').querySelectorAll('[data-del]').forEach(b => b.onclick = () => { if (confirm('이 코스를 지울까요?')) { list.splice(+b.dataset.del, 1); store.set('date.saved', list); drawSaved(); } });
+  $('#saved').querySelectorAll('[data-rv]').forEach(b => b.onclick = () => openReview(+b.dataset.rv));
+}
+// 다녀온 데이트에 별점·메모 남기기 (이 기기에만)
+function openReview(n) {
+  const list = store.get('date.saved', []), c = list[n]; if (!c) return;
+  const dlg = $('#review'); let stars = c.stars || 0;
+  $('#rvTitle').textContent = c.title;
+  const paint = () => { $('#rvStars').innerHTML = [1, 2, 3, 4, 5].map(i => `<button type="button" class="${i <= stars ? 'on' : ''}" data-s="${i}" aria-label="${i}점">★</button>`).join('');
+    $('#rvStars').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { stars = +b.dataset.s; paint(); }); };
+  paint(); $('#rvMemo').value = c.memo || '';
+  $('#rvCancel').onclick = () => dlg.close();
+  $('#rvSave').onclick = () => { c.stars = stars; c.memo = $('#rvMemo').value.trim(); list[n] = c; store.set('date.saved', list); dlg.close(); drawSaved(); toast('기록했어요'); };
+  dlg.showModal ? dlg.showModal() : dlg.setAttribute('open', '');
+}
+
+// 기념일 D-day: 처음 만난 날을 넣으면 오늘이 며칠째인지, 다가오는 100일 단위·주년 기념일을 알려 주고 그날 코스를 짤 수 있게
+function drawDday() {
+  const el = $('#dday'), start = store.get('date.since', '');
+  if (!start) {
+    el.innerHTML = `<span>처음 만난 날</span><input type="date" id="since" max="${isoOf(ymd(today))}"><span style="color:var(--sub)">을 넣으면 D+며칠·다가오는 기념일을 알려 드려요</span>`;
+  } else {
+    const s = new Date(start + 'T00:00'), t = new Date(isoOf(ymd(today)) + 'T00:00');
+    const days = Math.round((t - s) / 864e5) + 1; // 사귄 날을 1일로
+    const next = [];
+    for (let k = Math.ceil((days + 1) / 100) * 100; next.length < 1; k += 100) next.push([`${k}일`, new Date(s.getTime() + (k - 1) * 864e5)]);
+    for (let y = 1; y < 60; y++) { const d = new Date(s); d.setFullYear(s.getFullYear() + y); if (d >= t) { next.push([`${y}주년`, d]); break; } }
+    next.sort((a, b) => a[1] - b[1]);
+    const [label, when] = next[0], left = Math.round((when - t) / 864e5);
+    el.innerHTML = `<span>우리 <b>D+${days}</b></span><span>다음 기념일 <b style="font-size:15px">${label}</b> · ${when.getMonth() + 1}월 ${when.getDate()}일 (${left ? left + '일 남음' : '오늘!'})</span>
+      <button class="btn primary" id="ddayGo">그날 코스 짜기</button><button class="btn" id="ddayReset">날짜 바꾸기</button>`;
+    $('#ddayGo').onclick = () => { state.date = ymd(when); drawChips(); if (ALL.length) { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth' }); } };
+    $('#ddayReset').onclick = () => { store.set('date.since', ''); drawDday(); };
+  }
+  $('#since')?.addEventListener('change', e => { if (e.target.value) { store.set('date.since', e.target.value); drawDday(); } });
 }
 
 function makeCourse() {
@@ -497,7 +717,7 @@ function makeCourse() {
 
 // ===== 공유 (주소 # 뒤에 코스를 담는다) =====
 function shareHash() {
-  const data = { d: COURSE.date, sl: COURSE.slot, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i })), n: COURSE.noSpots ? 1 : 0 };
+  const data = { d: COURSE.date, sl: COURSE.slot, s0: COURSE.start, st: COURSE.stops.map(s => ({ t: s.type, a: s.alts, i: s.i })), n: COURSE.noSpots ? 1 : 0 };
   return 'c=' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 function writeShare() { history.replaceState(null, '', '#' + shareHash()); }
@@ -505,7 +725,7 @@ function readShare() {
   const m = location.hash.match(/c=([\w-]+)/); if (!m) return null;
   try {
     const d = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
-    return { v: 1, date: d.d, slot: d.sl, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0] })) };
+    return { v: 1, date: d.d, slot: d.sl, start: d.s0, noSpots: !!d.n, stops: d.st.map(s => ({ type: s.t, alts: s.a, i: s.i || 0, ref: s.a[0] })) };
   } catch { return null; }
 }
 async function share() {
@@ -565,6 +785,8 @@ async function drawMap(points) {
 }
 
 $('#go').onclick = () => { state.seed = 0; makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+// 🎲 아무거나: 조건은 그대로 두고 위쪽 후보 중에서 무작위로
+$('#dice').onclick = () => { state.seed = Math.floor(Math.random() * 40); makeCourse(); $('#course').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 load().catch(e => { $('#course').innerHTML = `<div class="empty">행사 정보를 불러오지 못했어요 (${esc(e.message)})</div>`; });
 
 // 홈 화면에 추가해 앱처럼 쓰도록 (오프라인에서도 마지막 데이터로 열림)
