@@ -165,6 +165,10 @@
   .tsel span { border-bottom: 1px dashed var(--ink-3); line-height: 1.25; }
   .tsel.pinned span { color: var(--accent); border-bottom-color: var(--accent); }
   .tsel select, .dsel select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+  .ctags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .ctags span { font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: var(--fill); padding: 2px 7px; border-radius: 6px; }
+  .ctags .t-chain { color: var(--ink-3); background: transparent; border: 1px solid var(--line); }
+  .ctags .t-open { color: var(--t-walk); background: color-mix(in srgb, var(--t-walk) 12%, var(--surface)); }
   .cwarn { grid-column: 1 / -1; display: flex; gap: 6px; align-items: flex-start; font-size: 12.5px; color: var(--note-ink); background: var(--note-bg); border-radius: 9px; padding: 7px 9px; margin-top: -4px; }
   .cwarn svg.i { width: 15px; height: 15px; margin-top: 1px; }
   .card {
@@ -265,7 +269,13 @@
   .finish .row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
   .finish .btn { height: 46px; }
   /* 장소 고르기 시트 */
-  .sw-tabs { padding: 4px 20px 6px; margin: 0; border-bottom: 1px solid var(--line); }
+  .sw-tabs { padding: 4px 20px 6px; margin: 0; }
+  .sw-filters { padding: 0 20px 8px; margin: 0; border-bottom: 1px solid var(--line); }
+  .sw-filters .chip { height: 30px; font-size: 13px; padding: 0 10px; }
+  .sw-filters .chip small { color: var(--ink-3); font-size: 11.5px; }
+  #swapSheet .sw-tabs { border-bottom: 0; }
+  .swlist .ctags { margin-top: 4px; }
+  .ctags .t-closed { color: var(--accent); background: var(--accent-weak); }
   .swlist .none { padding: 24px 0; color: var(--ink-2); font-size: 14px; text-align: center; border: 0; display: block; }
   .swlist { list-style: none; margin: 0; padding: 0; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; }
   .swlist li { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
@@ -449,6 +459,7 @@
   <div class="grab"></div>
   <header><h3 id="swTitle">일정 고르기</h3><button class="iconbtn" data-close aria-label="닫기"></button></header>
   <div class="chips sw-tabs" id="swTabs" role="tablist" aria-label="일정 종류"></div>
+  <div class="chips sw-filters" id="swFilters" aria-label="태그로 거르기" hidden></div>
   <div class="body"><ul class="swlist" id="swList"></ul></div>
 </dialog>
 
@@ -524,6 +535,79 @@ const GRID = 0.005;
 const CHAIN = /스타벅스|이디야|투썸|메가(MGC)?커피|메가커피|컴포즈|빽다방|할리스|파스쿠찌|커피빈|폴바셋|엔제리너스|매머드|더벤티|맥도날드|버거킹|롯데리아|KFC|맘스터치|김밥천국|김밥|본죽|파리바게뜨|뚜레쥬르|서브웨이|도미노|피자헛|교촌|BBQ|bhc|이삭토스트|공차|배스킨|던킨|편의점|GS25|CU |세븐일레븐|역전할머니|백채김치찌개|홍콩반점/i;
 const DATE_FOOD = /이탈리|파스타|양식|스테이크|비스트로|다이닝|와인|일식|오마카세|스시|초밥|브런치|레스토랑|프렌치|프랑스|피자|타파스|트라토리아|오스테리아|퓨전|태국|베트남|멕시칸|라멘|덮밥|이자카야|화덕/;
 const PLAIN_FOOD = /국밥|해장|분식|기사식당|순대|감자탕|뼈|설렁탕|백반|구내식당|중국집|짜장|치킨|족발|보쌈|곱창|김치찌개/;
+// 카페·식당·술집 세부 태그: 이름·업종(오픈스트리트맵 cuisine 또는 카카오 분류)에서 읽는다.
+// [라벨, 규칙, 붙는 종류, 데이트 가산점]
+const TAG_RULES = [
+  ['로스터리', /로스터|로스팅|roast/i, 'cafe', 1],
+  ['베이커리', /베이커리|bakery|브레드|bread|빵|베이크/i, 'cafe food', 1],
+  ['디저트', /디저트|dessert|케이크|cake|마카롱|타르트|빙수|젤라또|gelato/i, 'cafe', 1],
+  ['브런치', /브런치|brunch/i, 'cafe food', 1],
+  ['찻집', /티하우스|찻집|tea ?house|다원|다방|tea_house/i, 'cafe', 1],
+  ['이탈리안', /이탈리|italian|파스타|pasta|트라토리아|오스테리아|pizzeria/i, 'food', 1],
+  ['양식', /양식|비스트로|bistro|프렌치|french|프랑스|스테이크|steak|western|다이닝|dining/i, 'food', 1],
+  ['일식', /일식|japanese|스시|sushi|초밥|오마카세|라멘|ramen|돈카츠|돈까스|우동|소바/i, 'food', 1],
+  ['이자카야', /이자카야|izakaya|야키토리/i, 'bar food', 1],
+  ['한식', /한식|korean|한정식|백반|비빔밥|칼국수|냉면|국수/i, 'food', 0],
+  ['고기', /고기|갈비|삼겹|bbq|barbecue|숯불|한우|정육/i, 'food', 0],
+  ['중식', /중식|chinese|중화|딤섬|마라|훠궈/i, 'food', 0],
+  ['아시안', /태국|thai|베트남|vietnamese|쌀국수|asian|인도|indian|커리|curry/i, 'food', 1],
+  ['멕시칸', /멕시칸|mexican|타코|taco|부리또|burrito/i, 'food', 1],
+  ['피자·버거', /피자|pizza|버거|burger/i, 'food', 0],
+  ['해산물', /해산물|seafood|횟집|회센터|해물|조개|굴요리|fish/i, 'food', 0],
+  ['와인', /와인|wine/i, 'bar food', 2],
+  ['칵테일', /칵테일|cocktail|스피크이지|speakeasy/i, 'bar', 2],
+  ['맥주', /맥주|beer|brew|pub|호프|펍|탭룸/i, 'bar', 0],
+  ['전통주', /막걸리|전통주|주막|양조/i, 'bar food', 1],
+  ['루프탑', /루프탑|rooftop|옥상/i, 'cafe food bar', 2],
+  ['뷰', /오션뷰|한강뷰|리버뷰|시티뷰|마운틴뷰|전망|ocean ?view|river ?view/i, 'cafe food bar', 2],
+  ['한옥', /한옥|hanok|고택/i, 'cafe food bar', 2],
+  ['테라스', /테라스|terrace|가든|garden|정원/i, 'cafe food bar', 1],
+  ['반려동물', /애견|펫|pet|dog|멍멍/i, 'cafe food bar', 0],
+  ['비건', /비건|vegan|채식|vegetarian/i, 'cafe food bar', 0],
+];
+const FLAG_TAG = { T: '테라스', P: '반려동물', V: '비건' };
+let CHAIN_NAMES = new Set(), SPOT_X = new Map();
+const baseName = n => n.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+\S+점$/, '').trim();
+// 태그 읽기: { tags: [...], chain, score(데이트 가산점) }
+function spotTags(name, type, sub = '', fl = '', cu = '') {
+  const text = `${name} ${sub} ${cu}`;
+  const tags = [];
+  let score = 0;
+  for (const [label, re, kinds, sc] of TAG_RULES) if (kinds.includes(type) && re.test(text) && !tags.includes(label)) { tags.push(label); score += sc; }
+  for (const f of fl) if (FLAG_TAG[f] && !tags.includes(FLAG_TAG[f])) { tags.push(FLAG_TAG[f]); if (f === 'T') score += 1; }
+  const chain = fl.includes('B') || CHAIN.test(name) || CHAIN_NAMES.has(baseName(name));
+  return { tags, chain, score: Math.min(score, 3) };
+}
+// 오픈스트리트맵 영업시간(opening_hours)의 흔한 꼴만 읽는다: 'Mo-Fr 09:00-18:00; Sa,Su 10:00-20:00', '24/7', 'Tu-Su 11:30-15:00,17:00-22:00', 'Mo off'
+// 그 시각에 열려 있으면 true, 닫혀 있으면 false, 모르면 null
+const OSM_DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+function openAt(oh, ymdStr, minute) {
+  if (!oh) return null;
+  if (/24\/7/.test(oh)) return true;
+  const dow = dateOf(ymdStr).getDay(), prevDow = (dow + 6) % 7;
+  let res = null;
+  for (const rule of oh.split(';').map(r => r.trim()).filter(Boolean)) {
+    const m = rule.match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?,?)+)?\s*(.*)$/);
+    if (!m) continue;
+    let days = null;
+    if (m[1]) {
+      days = new Set();
+      for (const part of m[1].split(',').filter(Boolean)) {
+        const [a, b] = part.split('-'), ia = OSM_DAYS.indexOf(a), ib = b ? OSM_DAYS.indexOf(b) : ia;
+        for (let k = ia; ; k = (k + 1) % 7) { days.add(k); if (k === ib) break; }
+      }
+    }
+    const rest = m[2].trim();
+    const spans = [...rest.matchAll(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g)].map(([, h1, m1, h2, m2]) => { const a = +h1 * 60 + +m1; let b = +h2 * 60 + +m2; if (b <= a) b += 1440; return [a, b]; });
+    if (!days || days.has(dow)) {
+      if (/^(off|closed)$/i.test(rest)) { res = false; continue; }
+      if (spans.length) res = spans.some(([a, b]) => minute >= a && minute < b);
+    }
+    // 전날 밤에 시작해 자정을 넘는 영업 (예: 18:00-02:00)
+    if ((!days || days.has(prevDow)) && spans.some(([a, b]) => b > 1440 && minute + 1440 < b)) res = true;
+  }
+  return res;
+}
 const DUR = { '1시간 이내': 60, '2~3시간': 120, '반나절': 180, '하루 이상': 240 };
 // 2인 기준 대략적인 비용 (원). 행사는 1인 요금 구간의 가운데 값 × 2
 const COST = { cafe: 14000, food: 60000, bar: 50000, walk: 0 };
@@ -756,6 +840,7 @@ async function load() {
   for (const it of ALL) BY_ID.set(it.id, it);
   assignSubs();
   SPOTS = sp;
+  indexSpots();
   buildPlaces(hd.hoods || []);
   $('#spotSrc').textContent = sp.src === 'kakao' ? '카카오 로컬' : '오픈스트리트맵(© OpenStreetMap 기여자)';
   drawControls(); // 세부 지역 이름이 정리된 뒤 다시
@@ -774,11 +859,22 @@ function spotsNear(p, maxM = 1200) {
     c.s.forEach((s, idx) => {
       const k = s[0] + s[2]; if (seen.has(k)) return; seen.add(k);
       const d = dist(p, [s[2], s[3]]); if (d > maxM) return;
-      out.push({ name: s[0], type: s[1], geo: [s[2], s[3]], sub: s[4], kid: s[5], d, rank: c.src === 'kakao' ? idx : 0 });
+      out.push({ name: s[0], type: s[1], geo: [s[2], s[3]], sub: s[4], kid: s[5], fl: s[6] || '', cu: s[7] || '', oh: s[8] || '', d, rank: c.src === 'kakao' ? idx : 0 });
     });
   }
   return out;
 }
+// 장소 부가 정보(표시·업종원문·영업시간) 찾아보기 표와, 여러 동네에 같은 이름으로 나오는 체인 이름 모음
+function indexSpots() {
+  const cnt = new Map();
+  SPOT_X = new Map();
+  for (const c of Object.values(SPOTS.cells || {})) for (const s of c.s) {
+    if (s.length > 6) SPOT_X.set(`${s[0]}|${s[2]}`, [s[6] || '', s[7] || '', s[8] || '']);
+    if (s[1] !== 'walk') { const b = baseName(s[0]); cnt.set(b, (cnt.get(b) || 0) + 1); }
+  }
+  CHAIN_NAMES = new Set([...cnt].filter(([b, n]) => n >= 8 && b.length >= 2).map(([b]) => b));
+}
+const extraOf = (name, lat) => SPOT_X.get(`${name}|${lat}`) || ['', '', ''];
 function hasSpots(p) { return !!SPOTS.cells?.[cellKey(p[0], p[1])]?.s?.length; }
 
 // ===== 데이트 동네 (행사 없이도 짤 수 있는 코스의 중심) =====
@@ -881,13 +977,16 @@ const daysLeft = (it, d) => Math.round((dateOf(it.end || it.start) - dateOf(d)) 
 const isEvergreen = it => EVERGREEN_SRC.has(it.src) && runDays(it) > 90;
 
 // ===== 코스 만들기 =====
-function rankSpots(list, type, from) {
+// 가까울수록, 체인이 아닐수록, 데이트에 어울리는 태그(루프탑·뷰·한옥·와인 등)가 있을수록 앞. 그 시간에 닫혀 있으면 맨 뒤
+function rankSpots(list, type, from, { when = null, date = state.date, limit = 12 } = {}) {
   return list.filter(s => s.type === type).map(s => {
-    let k = s.d / 300 + s.rank * 0.15 + (CHAIN.test(s.name) ? 6 : 0);
-    if (type === 'food') { const t = s.name + ' ' + s.sub; if (DATE_FOOD.test(t)) k -= 2; if (PLAIN_FOOD.test(t)) k += 3; }
+    const tg = spotTags(s.name, type, s.sub, s.fl, s.cu);
+    let k = s.d / 300 + s.rank * 0.15 + (tg.chain ? 6 : 0) - tg.score * 0.8;
+    if (type === 'food') { const t = s.name + ' ' + s.sub; if (DATE_FOOD.test(t)) k -= 1; if (PLAIN_FOOD.test(t)) k += 3; }
     if (from) k += dist(from, s.geo) / 600;
+    if (when != null && openAt(s.oh, date, when) === false) k += 20;
     return { s, k };
-  }).sort((a, b) => a.k - b.k).map(x => x.s).slice(0, 12);
+  }).sort((a, b) => a.k - b.k).map(x => x.s).slice(0, limit);
 }
 const asStop = (type, ref, alts) => ({ type, ref, alts, i: 0 });
 const evRef = it => ({ e: it.id });
@@ -898,17 +997,19 @@ const spRef = s => ({ s: [s.name, s.type, s.geo[0], s.geo[1], s.sub, s.kid] });
 // 넣고 빼고 바꾸고 옮길 수 있다. 출발점이 행사면 그 행사를 먼저 넣고, 동네면 행사 없이 시작한다.
 const STOP_TYPES = ['event', 'cafe', 'food', 'bar', 'walk'];
 // 어떤 위치 근처에서 고를 수 있는 일정 후보 (행사는 고른 날 열리는 것만)
-function choicesNear(type, geo, exclude = new Set(), firstId = null) {
+function choicesNear(type, geo, exclude = new Set(), firstId = null, opts = {}) {
   if (type === 'event') {
     const list = scoredEvents().map(x => ({ x, d: dist(geo, x.it.geo) })).filter(o => o.d <= 3000 || o.x.it.id === firstId)
       .sort((a, b) => (b.x.it.id === firstId) - (a.x.it.id === firstId) || (b.x.s - b.d / 600) - (a.x.s - a.d / 600))
       .map(o => o.x.it).filter(it => !exclude.has(showTitle(it.title)) || it.id === firstId);
     return list.slice(0, 15).map(evRef);
   }
-  return rankSpots(spotsNear(geo, 1500).filter(s => !exclude.has(s.name)), type, geo).map(spRef);
+  return rankSpots(spotsNear(geo, 1500).filter(s => !exclude.has(s.name)), type, geo, opts).map(spRef);
 }
 function composeCourse(a) {
-  const C = t => choicesNear(t, a.geo, new Set(), t === 'event' ? a.event?.id : null);
+  // 대략 그 일정이 들어갈 시각 (닫혀 있는 곳을 처음부터 고르지 않게)
+  const WHEN = state.slot === 'day' ? { cafe: 14 * 60 + 30, food: 17 * 60 + 30, bar: 19 * 60 + 30 } : { food: 17 * 60 + 30, bar: 20 * 60, cafe: 20 * 60 };
+  const C = t => choicesNear(t, a.geo, new Set(), t === 'event' ? a.event?.id : null, { when: WHEN[t] ?? null });
   const cafe = C('cafe'), food = C('food'), bar = C('bar'), walk = C('walk');
   const evs = a.event ? C('event') : [];
   const stops = [];
@@ -954,7 +1055,9 @@ function info(ref) {
       link: it.homepage || `https://search.naver.com/search.naver?query=${encodeURIComponent(it.title)}` };
   }
   const [name, type, lat, lng, sub, kid] = ref.s;
-  return { type, name, geo: [lat, lng], sub, desc: '', dur: { cafe: 60, food: 90, bar: 90, walk: 45 }[type] || 60,
+  const [fl, cu, oh] = extraOf(name, lat);
+  const tg = type === 'walk' ? { tags: [], chain: false } : spotTags(name, type, sub, fl, cu);
+  return { type, name, geo: [lat, lng], sub, desc: '', tags: tg.tags, chain: tg.chain, oh, dur: { cafe: 60, food: 90, bar: 90, walk: 45 }[type] || 60,
     link: kid ? `https://place.map.kakao.com/${kid}` : `https://map.naver.com/p/search/${encodeURIComponent(name)}?c=${lng},${lat},17,0,0,0,dh` };
 }
 function legOf(a, b) {
@@ -997,6 +1100,7 @@ function drawCourse() {
     if (x.type === 'event') { const c = EV_COST[x.it.ai?.cost]; if (c == null) costUnknown = true; else cost += c * 2; }
     else cost += COST[x.type] || 0;
     times.push([t, t + dur, x]);
+    const openNow = x.oh ? openAt(x.oh, COURSE.date, t) : null;
     const [label, icon] = TYPE[x.type];
     html += `<li class="stop"><div class="when">
         <label class="tsel ${s.at != null ? 'pinned' : ''}"><span>${hhmm(t)}</span><select data-at="${s.idx}" aria-label="${esc(x.name)} 시작 시간">${timeOptions(s.at ?? null, true)}</select></label>
@@ -1008,8 +1112,10 @@ function drawCourse() {
           <div class="cname">${esc(x.name)}</div>
           ${x.desc ? `<div class="cdesc">${esc(x.desc)}</div>` : ''}
           ${x.place ? `<div class="cplace">${esc(x.place)}</div>` : ''}
+          ${x.tags?.length || x.chain || openNow != null ? `<div class="ctags">${openNow === true ? '<span class="t-open">영업 중</span>' : ''}${(x.tags || []).slice(0, 4).map(g => `<span>${esc(g)}</span>`).join('')}${x.chain ? '<span class="t-chain">체인</span>' : ''}</div>` : ''}
         </div>
         ${warn ? `<div class="cwarn">${ic('info')}${warn}</div>` : ''}
+        ${openNow === false ? `<div class="cwarn">${ic('clock')}${hhmm(t)}에는 문을 닫았을 수 있어요 (영업 ${esc(x.oh)})</div>` : ''}
         <div class="cact">
           <button class="mini" data-swap="${s.idx}">${ic('refresh')}바꾸기</button>
           <label class="mini dsel">${ic('clock')}<span>${durLabel(dur)}</span><select data-dur="${s.idx}" aria-label="머무는 시간">${[...new Set([...DURS, dur])].sort((a, b) => a - b).map(m => `<option value="${m}" ${m === dur ? 'selected' : ''}>${durLabel(m)}</option>`).join('')}</select></label>
@@ -1021,6 +1127,7 @@ function drawCourse() {
       </article></li>`;
     t += dur;
   });
+  COURSE._times = times.map(([a, b]) => [a, b]); // 고르기 시트에서 그 시각에 여는 곳을 먼저 보이게
   const evStop = stops.find(s => s.type === 'event');
   const hours = stops.length ? Math.round((t - (times[0]?.[0] ?? t0)) / 60 * 2) / 2 : 0;
   const notes = [];
@@ -1158,30 +1265,53 @@ function openPicker({ swap, insert, type }) {
   const anchor = here?.geo || (pts.length ? [pts.reduce((s, g) => s + g[0], 0) / pts.length, pts.reduce((s, g) => s + g[1], 0) / pts.length] : wxPoint());
   const used = new Set(stopsX.filter((x, k) => x && !(isSwap && k === swap)).map(x => x.name));
   const from = prev || next;
+  // 이 일정이 들어갈 시각: 바꾸기는 그 일정 시각, 넣기는 앞 일정이 끝나는 시각
+  const T = COURSE._times || [];
+  const when = isSwap ? T[swap]?.[0] : (T[insert - 1]?.[1] ?? T[insert]?.[0] ?? null);
+  const pick = new Set();
+  let hideChain = true;
   const paint = () => {
     $('#swTitle').textContent = isSwap ? '일정 바꾸기' : '일정 넣기';
     $('#swTabs').innerHTML = STOP_TYPES.map(k => `<button class="chip" data-tab="${k}" aria-pressed="${k === tab}">${ic(TYPE[k][1])}${TYPE[k][0]}</button>`).join('');
-    $('#swTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; paint(); });
-    // 같은 종류로 바꿀 땐 처음 골라 둔 후보 목록, 아니면 기준 위치 근처에서 새로 찾는다
-    const refs = isSwap && tab === cur.type ? cur.alts : choicesNear(tab, anchor, used);
+    $('#swTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { if (tab !== b.dataset.tab) pick.clear(); tab = b.dataset.tab; paint(); });
+    // 행사는 그날 근처 행사, 장소는 기준 위치 근처에서 넉넉히 찾아 태그·체인으로 거른다
+    let refs = tab === 'event' && isSwap && cur.type === 'event' ? cur.alts : choicesNear(tab, anchor, used, null, { when, date: COURSE.date, limit: 40 });
+    const tagCount = new Map();
+    let chainN = 0;
+    const meta = refs.map(r => { const x = info(r); if (x?.chain) chainN++; for (const g of x?.tags || []) tagCount.set(g, (tagCount.get(g) || 0) + 1); return x; });
+    if (tab !== 'event' && tab !== 'walk') {
+      const top = [...tagCount].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([g]) => g);
+      for (const g of pick) if (!top.includes(g)) top.unshift(g);
+      $('#swFilters').hidden = !top.length && !chainN;
+      $('#swFilters').innerHTML = (chainN ? `<button class="chip" data-chain aria-pressed="${hideChain}">체인점 빼기 <small>${chainN}</small></button><span class="chip-sep"></span>` : '') +
+        top.map(g => `<button class="chip" data-tag="${esc(g)}" aria-pressed="${pick.has(g)}">${esc(g)} <small>${tagCount.get(g) || 0}</small></button>`).join('');
+      $('#swFilters [data-chain]')?.addEventListener('click', () => { hideChain = !hideChain; paint(); });
+      $('#swFilters').querySelectorAll('[data-tag]').forEach(b => b.onclick = () => { const g = b.dataset.tag; pick.has(g) ? pick.delete(g) : pick.add(g); paint(); });
+      const keep = refs.map((r, i) => [r, meta[i]]).filter(([, x]) => x && !(hideChain && x.chain) && (!pick.size || x.tags.some(g => pick.has(g))));
+      refs = keep.map(([r]) => r);
+    } else $('#swFilters').hidden = true;
     if (!refs.length) {
-      $('#swList').innerHTML = `<li class="none">${tab === 'event' ? `${dateLabel(COURSE.date)}에 이 근처(3km)에서 열리는 행사가 없어요.` : `이 근처 ${TYPE[tab][0]} 정보가 아직 없어요.`}</li>`;
+      $('#swList').innerHTML = `<li class="none">${tab === 'event' ? `${dateLabel(COURSE.date)}에 이 근처(3km)에서 열리는 행사가 없어요.` : pick.size || hideChain ? '고른 조건에 맞는 곳이 없어요. 태그를 빼 보세요.' : `이 근처 ${TYPE[tab][0]} 정보가 아직 없어요.`}</li>`;
       return;
     }
     $('#swList').innerHTML = refs.map((ref, k) => {
       const x = info(ref); if (!x) return '';
-      const on = isSwap && tab === cur.type && k === cur.i;
+      const on = isSwap && tab === cur.type && x.name === here?.name;
+      const open = when != null && x.oh ? openAt(x.oh, COURSE.date, when) : null;
       const leg = from ? legOf(from.geo, x.geo) : null;
       const where = from ? `${from.name.length > 8 ? from.name.slice(0, 8) + '…' : from.name}에서 ${leg.text.split(' · ')[0]}` : '';
       return `<li><button class="pickrow" data-k="${k}" aria-pressed="${on}"><span class="dot">${on ? ic('check') : ''}</span>
-        <span><b>${esc(x.name)}</b><small>${esc([x.sub, where].filter(Boolean).join(' · '))}</small></span></button>
+        <span><b>${esc(x.name)}</b><small>${esc([x.sub, where].filter(Boolean).join(' · '))}</small>
+        ${x.tags?.length || x.chain || open != null ? `<span class="ctags">${open === true ? '<span class="t-open">그 시간 영업</span>' : open === false ? '<span class="t-closed">그 시간 닫힘</span>' : ''}${(x.tags || []).slice(0, 4).map(g => `<span>${esc(g)}</span>`).join('')}${x.chain ? '<span class="t-chain">체인</span>' : ''}</span>` : ''}</span></button>
         <a href="${esc(x.link)}" target="_blank" rel="noopener">${x.type === 'event' ? '상세' : '지도'}</a></li>`;
     }).join('');
     $('#swList').querySelectorAll('[data-k]').forEach(b => b.onclick = () => {
       const k = +b.dataset.k;
-      if (isSwap && tab === cur.type) cur.i = k;
+      if (isSwap && tab === 'event' && cur.type === 'event') cur.i = k;
       else {
-        const st = asStop(tab, refs[k], refs); st.i = k;
+        const st = asStop(tab, refs[k], refs.slice(0, 20)); st.i = Math.min(k, 19);
+        if (k >= 20) { st.alts = [refs[k], ...refs.slice(0, 19)]; st.i = 0; }
+        if (isSwap) st.dur = cur.dur;
         if (isSwap) { st.at = cur.at; COURSE.stops[swap] = st; } else COURSE.stops.splice(insert, 0, st);
       }
       $('#swapSheet').close(); drawCourse(); writeShare();
