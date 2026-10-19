@@ -157,6 +157,8 @@
   .cbtns svg.i { width: 22px; height: 22px; }
   .facts .tbtn2 { display: inline-flex; align-items: center; gap: 4px; background: var(--fill); color: var(--ink); font-weight: 700; border-radius: 7px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
   .facts .tbtn2 svg.i { color: var(--ink-2); }
+  .recvbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-weak); color: var(--accent); font-size: 13.5px; font-weight: 600; }
+  .recvbar svg.i { width: 16px; height: 16px; flex: none; }
   .mbadge { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-weak); padding: 3px 8px 3px 6px; border-radius: 6px; }
   .mbadge svg.i { width: 13px; height: 13px; }
   .linkbtn { font-size: 13px; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; padding: 4px 0; }
@@ -895,7 +897,7 @@ function changed(kind) {
   if (!ALL.length) return;
   const was = COURSE;
   buildCands();
-  if (kind === 'time' && was?.mine) {
+  if (kind === 'time' && (was?.mine || was?.recv)) {
     was.start = state.start; was.end = state.end;
     if (was.stops[0]) was.stops[0].at = undefined;
     edited();
@@ -907,7 +909,8 @@ function changed(kind) {
   if (kind === 'time' && was?.cand) i = Math.max(0, CANDS.findIndex(c => c.id === was.cand));
   showRec(i, { fresh: true });
   if (kind === 'time' && was && !was.mine) toast(`${hhmm(state.start)}~${hhmm(state.end)}에 맞춰 다시 짰어요`);
-  if (was?.mine && MINE.some(m => m.id === was.mine)) toast('고친 코스는 추천 맨 앞에 남겨 뒀어요', ['돌아가기', () => showMine(was.mine, { fresh: true })]);
+  if (was?.mine && MINE.some(m => m.id === was.mine)) toast('내 코스는 추천 맨 앞에 남겨 뒀어요', ['돌아가기', () => showMine(was.mine, { fresh: true })]);
+  else if (was?.recv && RECV) toast('공유받은 코스는 추천 맨 앞에 있어요', ['돌아가기', () => showRecv({ fresh: true })]);
 }
 // 취향 시트: 분위기(여러 개)와 무료 행사만·실내만. 고른 뒤 적용하면 그 조건의 추천으로
 function openFilters() {
@@ -948,7 +951,7 @@ function openTime() {
     if (s === state.start && e === state.end) return;
     state.start = s; state.end = e; changed('time');
   };
-  $('#tsNote').textContent = COURSE?.mine ? '고친 코스는 넣고 뺀 일정을 그대로 두고 시간만 옮겨요.' : '시간에 맞춰 점심·저녁을 넣고, 남는 시간만큼 일정을 채워요.';
+  $('#tsNote').textContent = COURSE?.mine || COURSE?.recv ? '넣고 뺀 일정은 그대로 두고 시간만 옮겨요.' : '시간에 맞춰 점심·저녁을 넣고, 남는 시간만큼 일정을 채워요.';
   paint();
   $('#timeSheet').showModal();
 }
@@ -1041,14 +1044,14 @@ async function load() {
   drawControls(); // 세부 지역 이름이 정리된 뒤 다시
   loadMine(); buildCands();
   drawSaved(); drawDday();
-  // 받은 링크로 들어왔으면 그 코스를 '받은 코스'로, 아니면 지난번에 보던 코스(고치던 코스)부터 이어서
+  // 받은 링크로 들어왔으면 그 코스를(이미 내 코스에 있으면 내 코스로), 아니면 지난번에 보던 코스부터 이어서
   const h = location.hash.slice(1);
   if (h && h !== store.get('date.lastHash', '')) {
     const c = parseHash(h);
     if (c) {
-      let m = MINE.find(x => hashOf(x.course) === h);
-      if (!m) { const id = newId('m'); c.mine = id; m = { id, from: 'shared', course: c }; MINE.unshift(m); saveMine(); }
-      showMine(m.id); return;
+      const m = MINE.find(x => hashOf(x.course) === h);
+      if (m) { showMine(m.id); return; }
+      c.recv = true; RECV = c; showRecv(); return;
     }
   }
   const v = store.get('date.view', null);
@@ -1449,7 +1452,6 @@ const timeOptions = (cur, auto) => (auto ? `<option value="">자동</option>` : 
 const DURS = [30, 45, 60, 90, 120, 150, 180, 240];
 const durLabel = m => m < 60 || m % 30 ? `${m}분` : `${m / 60}시간`; // 75분·1.5시간처럼 짧게 (좁은 화면에서 카드 버튼 줄이 넘치지 않게)
 const gapLabel = m => m < 60 ? `${m}분` : m % 60 ? `${Math.floor(m / 60)}시간 ${m % 60}분` : `${m / 60}시간`;
-const FROM = { edit: ['edit', '고친 코스'], shared: ['share', '받은 코스'], saved: ['bookmarked', '저장한 코스'] };
 function drawCourse() {
   const box = $('#course');
   if (!COURSE) { box.innerHTML = ''; $('#mapSect').hidden = true; return; }
@@ -1522,9 +1524,9 @@ function drawCourse() {
   if (sv?.id) COURSE.savedId = sv.id;
   const saved = !!sv;
   const m = COURSE.mine ? MINE.find(x => x.id === COURSE.mine) : null;
-  const [mIcon, mLabel] = m ? FROM[m.from] || FROM.edit : [];
   box.innerHTML = `
-    <div class="chead"><p class="eyebrow">${dateLabel(COURSE.date)}</p>${m ? `<span class="mbadge" title="다른 코스를 봐도 추천 맨 앞에 남아요">${ic(mIcon)}${mLabel}</span><button class="linkbtn" id="dropMine">${m.from === 'edit' ? '고친 내용 버리기' : '목록에서 빼기'}</button>` : ''}</div>
+    ${COURSE.recv ? `<div class="recvbar">${ic('share')}<span>공유받은 코스예요. 고치면 내 코스로 저장돼요</span></div>` : ''}
+    <div class="chead"><p class="eyebrow">${dateLabel(COURSE.date)}</p>${m ? `<span class="mbadge" title="다른 코스를 봐도 추천 맨 앞에 남아요">${ic('edit')}내 코스</span><button class="linkbtn" id="dropMine">내 코스에서 빼기</button>` : ''}</div>
     <div class="ctitle"><h1 class="c-title">${esc(title)}</h1>
       <div class="cbtns"><button class="iconbtn" id="save" aria-pressed="${saved}" aria-label="${saved ? '저장됨, 누르면 보관함에서 빼기' : '보관함에 저장'}" title="${saved ? '저장됨' : '저장'}">${ic(saved ? 'bookmarked' : 'bookmark')}</button>
         <button class="iconbtn" id="ics" aria-label="캘린더에 넣기" title="캘린더에 넣기">${ic('calplus')}</button></div></div>
@@ -1715,11 +1717,9 @@ function drawRecs() {
   $('#recsTitle').textContent = MINE.length ? '내 코스와 추천' : '추천 코스';
   $('#recsSub').textContent = [MINE.length ? `내 코스 ${MINE.length}` : '', CANDS.length ? `추천 ${CANDS.length}` : ''].filter(Boolean).join(' · ');
   const curM = VIEW?.mine, curR = VIEW?.rec;
-  const mine = MINE.map(m => {
-    const c = m.course, [icn, lbl] = FROM[m.from] || FROM.edit;
-    return `<button class="rec" data-m="${m.id}" aria-current="${m.id === curM}"><div class="rph mine">${ic(icn)}</div>
+  const card = (attr, c, icn, lbl, cur) => `<button class="rec" ${attr} aria-current="${cur}"><div class="rph mine">${ic(icn)}</div>
       <div class="rtx"><b>${esc(c.title || '데이트 코스')}</b><small class="rk mine">${lbl}</small><small>${shortDate(c.date)} · ${hhmm(c.start ?? 780)} 만남 · ${c.stops.length}곳</small></div></button>`;
-  }).join('');
+  const mine = (RECV ? card('data-recv', RECV, 'share', '공유받은 코스', !!VIEW?.recv) : '') + MINE.map(m => card(`data-m="${m.id}"`, m.course, 'edit', '내 코스', m.id === curM)).join('');
   const recs = CANDS.map((c, i) => {
     if (c.kind === 'event') {
       const it = c.it, left = daysLeft(it, state.date);
@@ -1732,6 +1732,7 @@ function drawRecs() {
   }).join('');
   $('#recList').innerHTML = mine + (mine && recs ? '<span class="rec-sep" aria-hidden="true"></span>' : '') + recs;
   $('#recList').querySelectorAll('[data-m]').forEach(b => b.onclick = () => { if (b.dataset.m !== curM) showMine(b.dataset.m, { fresh: true }); });
+  $('#recList').querySelector('[data-recv]')?.addEventListener('click', () => { if (!VIEW?.recv) showRecv({ fresh: true }); });
   $('#recList').querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
     const i = +b.dataset.i; if (i === curR) return;
     const from = VIEW; showRec(i, { fresh: true }); leftToast(from);
@@ -1742,7 +1743,8 @@ function drawRecs() {
 // 다른 코스로 넘어갈 때: 내 코스였으면 남아 있다고, 추천이었으면 되돌릴 수 있게
 function leftToast(from) {
   if (!from) return;
-  if (from.mine) { const m = MINE.find(x => x.id === from.mine); if (m) toast(`${(FROM[m.from] || FROM.edit)[1]}는 맨 앞에 남아 있어요`, ['돌아가기', () => showMine(m.id, { fresh: true })]); }
+  if (from.mine) { const m = MINE.find(x => x.id === from.mine); if (m) toast('내 코스는 맨 앞에 남아 있어요', ['돌아가기', () => showMine(m.id, { fresh: true })]); }
+  else if (from.recv && RECV) toast('공유받은 코스는 맨 앞에 있어요', ['돌아가기', () => showRecv({ fresh: true })]);
   else if (from.rec != null) toast('다른 코스로 바꿨어요', ['이전 코스', () => showRec(from.rec, { fresh: true })]);
 }
 
@@ -1907,15 +1909,17 @@ function edited() {
   if (!COURSE) return;
   if (!COURSE.mine) {
     const id = newId('m');
+    const from = COURSE.recv ? 'shared' : 'edit';
+    if (COURSE.recv) { delete COURSE.recv; RECV = null; } // 공유받은 코스도 고치면 내 코스로
     COURSE.mine = id;
-    MINE.unshift({ id, from: 'edit', cand: COURSE.cand, course: COURSE });
+    MINE.unshift({ id, from, cand: COURSE.cand, course: COURSE });
     VIEW = { mine: id };
   }
   drawCourse(); syncSaved(); saveMine(); remember(); drawRecs(); drawNext();
 }
 function remember() {
   writeShare();
-  store.set('date.view', VIEW?.mine ? { mine: VIEW.mine } : { cand: COURSE?.cand });
+  if (!VIEW?.recv) store.set('date.view', VIEW?.mine ? { mine: VIEW.mine } : { cand: COURSE?.cand });
 }
 function afterShow(fresh) {
   remember(); drawCourse(); drawRecs(); drawNext();
@@ -1936,20 +1940,28 @@ function showRec(i, { fresh } = {}) {
 function showMine(id, { fresh } = {}) {
   const m = MINE.find(x => x.id === id); if (!m) return;
   COURSE = m.course; VIEW = { mine: id };
-  // 위 조건(날짜·시간)을 이 코스에 맞춘다. 옆 추천도 같은 날·같은 시간으로
-  const c = COURSE;
+  syncToCourse(COURSE); afterShow(fresh);
+}
+// 링크로 받은 코스: 고치기 전까지는 내 코스에 넣지 않고, 위에 '공유받은 코스예요' 한 줄
+let RECV = null;
+function showRecv({ fresh } = {}) {
+  if (!RECV) return;
+  COURSE = RECV; VIEW = { recv: true };
+  syncToCourse(COURSE); afterShow(fresh);
+}
+// 위 조건(날짜·시간)을 이 코스에 맞춘다. 옆 추천도 같은 날·같은 시간으로
+function syncToCourse(c) {
   if (c.date >= TODAY && (state.date !== c.date || state.start !== c.start || state.end !== c.end)) {
     state.date = c.date; state.start = c.start; state.end = fixEnd(c.start, c.end);
     drawControls(); buildCands();
   }
-  afterShow(fresh);
 }
 function dropMine(id) {
   const k = MINE.findIndex(x => x.id === id); if (k < 0) return;
   const [m] = MINE.splice(k, 1); saveMine();
   const ci = m.cand ? CANDS.findIndex(c => c.id === m.cand) : -1;
   showRec(Math.max(0, ci), { fresh: true });
-  toast(m.from === 'edit' ? '고친 내용을 버렸어요' : '목록에서 뺐어요', ['되돌리기', () => { MINE.splice(k, 0, m); saveMine(); showMine(m.id, { fresh: true }); }]);
+  toast('내 코스에서 뺐어요', ['되돌리기', () => { MINE.splice(k, 0, m); saveMine(); showMine(m.id, { fresh: true }); }]);
 }
 function openSaved(n) {
   const e = store.get('date.saved', [])[n]; if (!e) return;
@@ -1993,7 +2005,7 @@ function writeShare() {
   if (!COURSE) return;
   const h = hashOf(COURSE);
   history.replaceState(null, '', '#' + h);
-  store.set('date.lastHash', h); // 새로고침한 내 코스와 받은 링크를 구분
+  if (!COURSE.recv) store.set('date.lastHash', h); // 새로고침한 내 코스와 받은 링크를 구분 (받은 링크는 새로고침해도 받은 코스로)
 }
 function parseHash(str) {
   const m = String(str || '').match(/c=([\w-]+)/); if (!m) return null;
